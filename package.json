@@ -1,5 +1,5 @@
 {
-  "name": "web",
+  "name": "ecomanager",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,18 +9,23 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.101.1",
-    "axios": "^1.18.1",
+    "bcryptjs": "^3.0.3",
+    "jsonwebtoken": "^9.0.3",
     "next": "16.2.9",
+    "pg": "^8.22.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "recharts": "^3.9.0"
+    "uuid": "^14.0.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/uuid": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "tailwindcss": "^4",

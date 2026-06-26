@@ -1,25 +1,26 @@
 # Dependencies
 node_modules/
 .pnp
-.pnp.js
 
-# Environment — NEVER commit real secrets
+# Next.js
+.next/
+out/
+
+# Environment — NEVER commit secrets
 .env
 .env.local
-.env.production
+.env.production.local
+.env.development.local
 
-# Build output
+# Build
 dist/
-.next/
-build/
 
 # Logs
 *.log
-npm-debug.log*
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Docker volumes
+# Docker local data
 pgdata/
