@@ -42,3 +42,8 @@ Field	Value
 Email	admin@ecomanager.dz
 Password	Admin123!
 URL	http://localhost:3000/login
+
+
+git add .
+git commit -m "feat: step X — description"
+git push

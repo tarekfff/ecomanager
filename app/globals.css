@@ -370,24 +370,20 @@ body, #root {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 12px;
-  height: 100%;
-  min-height: 460px;
 }
 .chart-col {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  min-height: 0;
 }
+/* Fixed panel height gives Recharts a concrete reference — avoids infinite stretching */
 .chart-panel {
   background: #fff;
   border: 1px solid #E8E0E8;
   border-radius: 4px;
   overflow: hidden;
-  flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  height: 430px;
 }
 .chart-panel-header {
   background: #5a5a5a;
@@ -405,15 +401,19 @@ body, #root {
 }
 .chart-inner {
   flex: 1;
-  padding: 8px 4px 4px;
+  padding: 10px 6px 6px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   min-height: 0;
+  overflow: hidden;
 }
 .mini-chart {
   flex: 1;
   min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 .mini-chart-title {
   font-size: 11px;
@@ -422,19 +422,21 @@ body, #root {
   margin-bottom: 2px;
 }
 .donut-col {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  flex: 1;
+  padding: 8px 0 4px;
   min-height: 0;
+  overflow: hidden;
 }
 .donut-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 14px;
+  gap: 5px 12px;
   justify-content: center;
-  padding: 8px 12px;
+  padding: 6px 14px 10px;
 }
 .legend-item {
   display: flex;
@@ -444,8 +446,8 @@ body, #root {
   color: #555555;
 }
 .legend-dot {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-radius: 2px;
   flex-shrink: 0;
 }
@@ -455,4 +457,9 @@ body, #root {
   border-radius: 4px;
   padding: 6px 10px;
   font-size: 11px;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }

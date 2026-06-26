@@ -1,3 +1,5 @@
+import { BoutiqueProvider } from '@/contexts/BoutiqueContext'
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>
+  return <BoutiqueProvider>{children}</BoutiqueProvider>
 }
