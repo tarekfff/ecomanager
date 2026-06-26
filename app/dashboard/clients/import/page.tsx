@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import * as XLSX from 'xlsx'
 import {
   Upload, CheckCircle, XCircle, ChevronDown, ChevronUp,
-  AlertCircle, FileSpreadsheet, ArrowLeft,
+  AlertCircle, FileSpreadsheet, ArrowLeft, Download,
 } from 'lucide-react'
 import { PageHeader, Button } from '@/components/ui'
 import { colors, fonts } from '@/lib/tokens'
@@ -190,6 +190,34 @@ export default function ImportClientsPage() {
     handleFileSelect(e.dataTransfer.files[0])
   }
 
+  // ── Template download ─────────────────────────────────────────────────────
+
+  function downloadTemplate() {
+    const templateRows = [
+      // Header row — names match autoDetect variants so mapping is pre-filled
+      ['Nom complet', 'Téléphone', 'Téléphone 2', 'Email', 'Wilaya', 'Commune', 'Adresse'],
+      // Example rows with realistic Algerian data
+      ['Ahmed Benali',   '0555 12 34 56', '0661 98 76 54', 'ahmed@example.com',  'Alger',      'Bab Ezzouar', 'Rue des Frères Bouadou, Cité Garidi'],
+      ['Fatima Kaci',    '0770 11 22 33', '',              '',                   'Oran',       'Bir El Djir', ''],
+      ['Mohamed Amrani', '0661 44 55 66', '',              'm.amrani@gmail.com', 'Constantine', 'El Khroub',  'Avenue Zighoud Youcef'],
+    ]
+
+    const ws = XLSX.utils.aoa_to_sheet(templateRows)
+    ws['!cols'] = [
+      { wch: 22 }, // Nom complet
+      { wch: 16 }, // Téléphone
+      { wch: 16 }, // Téléphone 2
+      { wch: 26 }, // Email
+      { wch: 14 }, // Wilaya
+      { wch: 16 }, // Commune
+      { wch: 36 }, // Adresse
+    ]
+
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Clients')
+    XLSX.writeFile(wb, 'modele_import_clients.xlsx')
+  }
+
   // ── Import ────────────────────────────────────────────────────────────────
 
   async function handleImport() {
@@ -302,11 +330,47 @@ export default function ImportClientsPage() {
         onChange={e => handleFileSelect(e.target.files?.[0])}
       />
 
-      {/* Browse button below drop zone */}
-      <div style={{ marginTop: 16, display: 'flex', justifyContent: 'center' }}>
+      {/* Buttons row: Browse + Download template */}
+      <div style={{ marginTop: 16, display: 'flex', justifyContent: 'center', gap: 10 }}>
         <Button variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()}>
           <Upload size={13} style={{ marginRight: 5 }} /> Parcourir
         </Button>
+        <Button variant="secondary" size="sm" onClick={downloadTemplate}>
+          <Download size={13} style={{ marginRight: 5 }} /> Télécharger le modèle
+        </Button>
+      </div>
+
+      {/* Template hint */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 14,
+        marginTop: 20, padding: '12px 16px', borderRadius: 6,
+        background: '#f0f7ff', border: '1px solid #c8dffe',
+        fontFamily: fonts.sans,
+      }}>
+        <FileSpreadsheet size={20} color="#4472C4" style={{ flexShrink: 0 }} />
+        <div style={{ flex: 1 }}>
+          <p style={{ fontSize: 12.5, fontWeight: 600, color: colors.text, margin: 0 }}>
+            Vous ne savez pas quel format utiliser ?
+          </p>
+          <p style={{ fontSize: 12, color: colors.textMd, margin: '2px 0 0' }}>
+            Téléchargez le modèle Excel — il contient les bonnes colonnes et 3 lignes d&apos;exemple.
+            Les colonnes <strong>Nom complet</strong>, <strong>Téléphone</strong>, <strong>Wilaya</strong> et <strong>Commune</strong> sont obligatoires.
+          </p>
+        </div>
+        <button
+          onClick={downloadTemplate}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            flexShrink: 0, padding: '7px 14px', borderRadius: 5,
+            border: '1px solid #4472C4', background: '#4472C4',
+            color: '#fff', fontSize: 12.5, fontWeight: 500,
+            cursor: 'pointer', fontFamily: fonts.sans,
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = '#3360b0')}
+          onMouseLeave={e => (e.currentTarget.style.background = '#4472C4')}
+        >
+          <Download size={13} /> Modèle .xlsx
+        </button>
       </div>
 
       {file && !parseError && (

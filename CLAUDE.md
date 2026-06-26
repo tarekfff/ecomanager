@@ -48,7 +48,8 @@ import { colors, fonts, spacing } from '@/lib/tokens'
 - `bcryptjs`      — password hashing
 - `jsonwebtoken`  — JWT sign/verify
 - `uuid`          — UUID generation (v4)
-- `recharts`        — charts (BarChart, PieChart, etc.)
+- `recharts`      — charts (BarChart, PieChart, etc.)
+- `xlsx`          — client-side XLS/XLSX/CSV parsing AND template generation (all import wizards)
 - `next` 16.2.9, `react` 19, `typescript` 5, `tailwindcss` 4
 
 ## Folder structure
@@ -181,6 +182,154 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(data)
 }
 ```
+
+## Import wizard pattern — MANDATORY for every bulk-import feature
+
+Every import page (`app/dashboard/*/import/page.tsx`) must be a 4-step wizard and follow this exact structure. See `app/dashboard/clients/import/page.tsx` as the canonical reference.
+
+### Steps
+| Step | Label | What it does |
+|------|-------|-------------|
+| 1 | Fichier | Drag-and-drop zone + "Parcourir" button. Parses file client-side with `xlsx`. |
+| 2 | Correspondance | Preview table (first 5 rows) + column mapping UI (required* and optional fields). |
+| 3 | Import | Loading state while POST to `/api/[resource]/import` runs. |
+| 4 | Résultat | Summary cards (imported / errors) + collapsible error list. |
+
+### Template download — MANDATORY in step 1
+
+Every import page **must** include a downloadable XLSX template. Users need to know the exact column names and format before uploading. Place it in two spots in step 1:
+1. A secondary button next to "Parcourir" labeled **"Télécharger le modèle"**
+2. A blue info bar below the drop zone with a description and a prominent download button
+
+```ts
+import * as XLSX from 'xlsx'
+
+function downloadTemplate() {
+  const templateRows = [
+    // Header row — column names must match autoDetect() variants so mapping auto-fills
+    ['Nom complet', 'Téléphone', 'Adresse', /* ... other columns */],
+    // 2–3 realistic example rows so the user understands the expected format
+    ['Ahmed Benali', '0555 12 34 56', 'Rue des Frères Bouadou'],
+    ['Fatima Kaci',  '0770 11 22 33', ''],
+  ]
+
+  const ws = XLSX.utils.aoa_to_sheet(templateRows)
+  ws['!cols'] = [{ wch: 22 }, { wch: 16 }, { wch: 36 }]  // one entry per column
+
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'NomDeLaFeuille')
+  XLSX.writeFile(wb, 'modele_import_[resource].xlsx')
+}
+```
+
+Rules for the template:
+- Column header names must exactly match what `autoDetect()` looks for (e.g. `'Nom complet'` not `'nom_complet'`)
+- Include 2–3 example rows with realistic Algerian data so users understand the expected format
+- Set `!cols` widths so the downloaded file is readable without manual resizing
+- File name: `modele_import_[resource].xlsx`
+
+### autoDetect — always include
+Each import page needs an `autoDetect(headers)` function that maps common header variants to internal field names. This way, if the user's file already has recognizable column names, the mapping step is pre-filled.
+
+```ts
+function autoDetect(headers: string[]): Mapping {
+  function find(variants: string[]): string {
+    const lower = headers.map(h => h.toLowerCase())
+    for (const v of variants) {
+      const idx = lower.findIndex(h => h.includes(v))
+      if (idx >= 0) return headers[idx]
+    }
+    return ''
+  }
+  return {
+    field_name: find(['variant1', 'variant2', 'variant3']),
+    // ...
+  }
+}
+```
+
+### API route (`app/api/[resource]/import/route.ts`)
+```ts
+// POST — requireAuth
+// Body: { rows: ImportRow[] }
+// - Validate required fields per row, collect errors (don't abort on first error)
+// - Cache any lookup queries (e.g. wilaya_id by name) with a Map to avoid N+1
+// - Hard limit: MAX_ROWS = 1000 per request
+// - Return: { imported: number, failed: number, errors: { row: number, reason: string }[] }
+// - Row numbers in errors: offset +2 (row 1 = header, row 2 = first data row)
+```
+
+## Pagination — MANDATORY for every list endpoint and page
+
+Every list that can grow beyond ~25 rows **must** use server-side pagination. Never load all rows at once.
+
+### Backend (API GET list route)
+```ts
+const sp     = req.nextUrl.searchParams
+const page   = Math.max(1, parseInt(sp.get('page')  ?? '1'))
+const limit  = Math.min(100, parseInt(sp.get('limit') ?? '25'))
+const search = (sp.get('search') ?? '').trim()
+const offset = (page - 1) * limit
+
+const { data, error, count } = await db
+  .from('table_name')
+  .select('id, col1, col2, ...', { count: 'exact' })   // count:'exact' is required
+  .eq('tenant_id', user.tenantId)
+  .order('created_at', { ascending: false })
+  .range(offset, offset + limit - 1)                   // Supabase pagination
+
+if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+return NextResponse.json({ items: data ?? [], total: count ?? 0 })
+// ↑ always return both `items` (or a domain-specific name) and `total`
+```
+
+- `limit` is capped at 100 server-side — ignore any larger value from the client
+- Add filters (search, status, wilaya, etc.) BEFORE `.range()` so the count reflects filtered results
+- For text search: `.or('col.ilike.%val%,other_col.ilike.%val%')`
+
+### Frontend (list page)
+```ts
+const LIMIT = 25   // matches API default; define once as a constant
+
+const [items,    setItems]    = useState<Item[]>([])
+const [total,    setTotal]    = useState(0)
+const [page,     setPage]     = useState(1)
+const [search,   setSearch]   = useState('')      // bound to SearchInput (visual)
+const [dbSearch, setDbSearch] = useState('')      // debounced value sent to API
+const [loading,  setLoading]  = useState(false)
+
+// Debounce search — reset page to 1 when user types
+const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+function handleSearchChange(val: string) {
+  setSearch(val)
+  if (debounceRef.current) clearTimeout(debounceRef.current)
+  debounceRef.current = setTimeout(() => { setDbSearch(val); setPage(1) }, 300)
+}
+
+// Fetch whenever page or debounced search changes
+const fetchItems = useCallback(() => {
+  setLoading(true)
+  const qs = new URLSearchParams({ page: String(page), limit: String(LIMIT), search: dbSearch })
+  fetch(`/api/resource?${qs}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+    .then(r => r.json())
+    .then(d => { setItems(d.items ?? []); setTotal(d.total ?? 0) })
+    .catch(() => {})
+    .finally(() => setLoading(false))
+}, [page, dbSearch])
+
+useEffect(() => { fetchItems() }, [fetchItems])
+
+// In JSX — show Pagination only when there are more rows than one page
+<SearchInput value={search} onChange={handleSearchChange} placeholder="Rechercher…" />
+<Table columns={columns} data={items} loading={loading} emptyText="Aucun résultat" />
+{total > LIMIT && (
+  <Pagination page={page} total={total} limit={LIMIT} onChange={p => setPage(p)} />
+)}
+```
+
+- Import `Pagination` and `SearchInput` from `components/ui`
+- `Pagination` shows "Affichage X–Y sur Z résultats" + page buttons automatically
+- When a filter (wilaya, status, etc.) changes, always reset `page` to 1
 
 ## Rules
 - ALWAYS filter by `tenant_id` — never return cross-tenant data (RLS is OFF, so this is critical)
