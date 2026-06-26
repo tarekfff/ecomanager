@@ -156,7 +156,8 @@ body, #root {
 .dash-wrap {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background: #FFF7F2;
 }
 
@@ -311,7 +312,7 @@ body, #root {
   display: flex;
   flex: 1;
   overflow: hidden;
-  height: calc(100vh - 84px);
+  min-height: 0;
 }
 
 /* Sidebar */

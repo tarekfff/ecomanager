@@ -15,6 +15,7 @@ interface SelectProps {
   options: SelectOption[]
   placeholder?: string
   error?: string
+  disabled?: boolean
 }
 
 export default function Select({
@@ -24,6 +25,7 @@ export default function Select({
   options,
   placeholder,
   error,
+  disabled = false,
 }: SelectProps) {
   const [focused, setFocused] = useState(false)
 
@@ -32,7 +34,7 @@ export default function Select({
       {label && (
         <label style={{
           fontSize: 12.5,
-          color: colors.textMd,
+          color: disabled ? colors.textLt : colors.textMd,
           marginBottom: 4,
           fontWeight: 500,
         }}>
@@ -44,6 +46,7 @@ export default function Select({
         onChange={(e) => onChange(e.target.value)}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
+        disabled={disabled}
         style={{
           width: '100%',
           border: `1px solid ${error ? '#dc3545' : focused ? colors.primary : colors.border}`,
@@ -53,8 +56,9 @@ export default function Select({
           color: value ? colors.text : colors.textLt,
           fontFamily: fonts.sans,
           outline: 'none',
-          background: '#fff',
-          cursor: 'pointer',
+          background: disabled ? '#f7f7f7' : '#fff',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          opacity: disabled ? 0.65 : 1,
           appearance: 'auto',
           transition: 'border-color 0.15s',
           boxSizing: 'border-box',
