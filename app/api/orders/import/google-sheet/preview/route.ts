@@ -6,7 +6,7 @@ export async function GET(req: NextRequest) {
   requireAuth(req)
   const sp          = req.nextUrl.searchParams
   const sheetId     = sp.get('sheet_id')     ?? ''
-  const sheetName   = sp.get('sheet_name')   ?? 'Sheet1'
+  const sheetName   = sp.get('sheet_name')   ?? ''
   const googleToken = sp.get('google_token') ?? ''
 
   if (!sheetId || !googleToken) {
@@ -18,24 +18,48 @@ export async function GET(req: NextRequest) {
     auth.setCredentials({ access_token: googleToken })
 
     const sheets = google.sheets({ version: 'v4', auth })
-    // Quote the tab name to handle spaces/special chars; use row-only range so column count doesn't matter
-    const tab   = sheetName.includes(' ') || sheetName.includes("'") ? `'${sheetName.replace(/'/g, "\\'")}'` : sheetName
-    const range = `${tab}!1:6`
 
-    const { data } = await sheets.spreadsheets.values.get({
+    // Use spreadsheets.get with includeGridData so we never need to build a range string
+    // (both "ZZ6" and "1:6" formats can fail on some sheet types)
+    const { data } = await sheets.spreadsheets.get({
       spreadsheetId: sheetId,
-      range,
+      includeGridData: true,
     })
 
-    const rawRows = (data.values ?? []) as string[][]
-    if (rawRows.length === 0) return NextResponse.json({ error: 'Feuille vide ou introuvable.' }, { status: 422 })
+    // Find the requested sheet by name, or fall back to the first sheet
+    const targetSheet = sheetName
+      ? data.sheets?.find(s => s.properties?.title === sheetName) ?? data.sheets?.[0]
+      : data.sheets?.[0]
 
-    const headers = rawRows[0].map((h: string) => String(h ?? '').trim()).filter(Boolean)
-    if (headers.length === 0) return NextResponse.json({ error: 'Aucune colonne détectée.' }, { status: 422 })
+    if (!targetSheet) {
+      return NextResponse.json({ error: 'Feuille introuvable.' }, { status: 422 })
+    }
 
-    const rows = rawRows.slice(1, 6).map((row: string[]) =>
-      headers.map((_: string, i: number) => String(row[i] ?? '').trim())
-    )
+    // Extract first 6 rows from grid data
+    const gridData = targetSheet.data?.[0]
+    const allRows  = gridData?.rowData ?? []
+    const preview  = allRows.slice(0, 6)
+
+    if (preview.length === 0) {
+      return NextResponse.json({ error: 'Feuille vide.' }, { status: 422 })
+    }
+
+    // Build string matrix from CellData
+    function rowValues(row: typeof allRows[0]): string[] {
+      return (row.values ?? []).map(cell =>
+        String(cell.formattedValue ?? cell.userEnteredValue?.stringValue ?? '').trim()
+      )
+    }
+
+    const headers = rowValues(preview[0]).filter(Boolean)
+    if (headers.length === 0) {
+      return NextResponse.json({ error: 'Aucune colonne détectée.' }, { status: 422 })
+    }
+
+    const rows = preview.slice(1).map(row => {
+      const vals = rowValues(row)
+      return headers.map((_, i) => vals[i] ?? '')
+    })
 
     return NextResponse.json({ headers, rows })
   } catch (err: unknown) {

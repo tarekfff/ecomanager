@@ -395,10 +395,14 @@ export default function GoogleSheetImportPage() {
           mapping,
         }),
       })
-      const data = await res.json() as ImportResult
-      setResult(data)
+      const data = await res.json() as ImportResult & { error?: string }
+      if (!res.ok || data.error) {
+        setResult({ imported: 0, skipped: 0, failed: 1, errors: [{ row: 0, reason: data.error ?? `Erreur ${res.status}` }] })
+      } else {
+        setResult({ imported: data.imported ?? 0, skipped: data.skipped ?? 0, failed: data.failed ?? 0, errors: data.errors ?? [] })
+      }
     } catch {
-      setResult({ imported: 0, skipped: 0, failed: 0, errors: [{ row: 0, reason: 'Erreur réseau' }] })
+      setResult({ imported: 0, skipped: 0, failed: 1, errors: [{ row: 0, reason: 'Erreur réseau' }] })
     } finally {
       setImporting(false)
     }
@@ -874,10 +878,10 @@ export default function GoogleSheetImportPage() {
                   {/* Summary cards */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
                     {[
-                      { label: 'Importées',  value: result.imported, color: colors.green  },
-                      { label: 'Ignorées',   value: result.skipped,  color: colors.blue   },
-                      { label: 'Échouées',   value: result.failed,   color: colors.red    },
-                      { label: 'Total',      value: result.imported + result.skipped + result.failed, color: colors.textMd },
+                      { label: 'Importées',  value: result.imported ?? 0, color: colors.green  },
+                      { label: 'Ignorées',   value: result.skipped  ?? 0, color: colors.blue   },
+                      { label: 'Échouées',   value: result.failed   ?? 0, color: colors.red    },
+                      { label: 'Total',      value: (result.imported ?? 0) + (result.skipped ?? 0) + (result.failed ?? 0), color: colors.textMd },
                     ].map(({ label, value, color }) => (
                       <div key={label} style={{
                         textAlign: 'center', padding: '16px 8px',
@@ -901,7 +905,7 @@ export default function GoogleSheetImportPage() {
                     </div>
                   )}
 
-                  {result.errors.length > 0 && (
+                  {(result.errors ?? []).length > 0 && (
                     <div style={{ border: `1px solid ${colors.border}`, borderRadius: 6, overflow: 'hidden' }}>
                       <button
                         onClick={() => setErrorsOpen(v => !v)}
@@ -913,13 +917,13 @@ export default function GoogleSheetImportPage() {
                       >
                         <span style={{ fontSize: 13, fontWeight: 600, color: colors.red, display: 'flex', alignItems: 'center', gap: 6 }}>
                           <XCircle size={14} />
-                          {result.errors.length} erreur{result.errors.length > 1 ? 's' : ''}
+                          {(result.errors ?? []).length} erreur{(result.errors ?? []).length > 1 ? 's' : ''}
                         </span>
                         {errorsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                       </button>
                       {errorsOpen && (
                         <div style={{ maxHeight: 260, overflowY: 'auto' }}>
-                          {result.errors.map((e, i) => (
+                          {(result.errors ?? []).map((e, i) => (
                             <div key={i} style={{
                               padding: '7px 14px', fontSize: 12, color: colors.text,
                               borderTop: `1px solid ${colors.border}`,
