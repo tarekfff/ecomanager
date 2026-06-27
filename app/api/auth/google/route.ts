@@ -9,9 +9,17 @@ function oauthClient(origin: string) {
   )
 }
 
+function getOrigin(req: NextRequest): string {
+  // x-forwarded-host is set by Vercel's edge proxy; nextUrl.origin is localhost behind proxy
+  const host  = req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? ''
+  const proto = req.headers.get('x-forwarded-proto') ?? 'https'
+  if (host) return `${proto}://${host}`
+  return process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin
+}
+
 export async function GET(req: NextRequest) {
   const returnTo = req.nextUrl.searchParams.get('return_to') ?? '/dashboard/orders/import/google-sheet'
-  const origin   = req.nextUrl.origin
+  const origin   = getOrigin(req)
 
   const oauth2 = oauthClient(origin)
   const url = oauth2.generateAuthUrl({

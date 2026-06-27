@@ -9,12 +9,19 @@ function oauthClient(origin: string) {
   )
 }
 
+function getOrigin(req: NextRequest): string {
+  const host  = req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? ''
+  const proto = req.headers.get('x-forwarded-proto') ?? 'https'
+  if (host) return `${proto}://${host}`
+  return process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin
+}
+
 export async function GET(req: NextRequest) {
   const sp      = req.nextUrl.searchParams
   const code    = sp.get('code')
   const state   = sp.get('state') ?? ''
   const error   = sp.get('error')
-  const origin  = req.nextUrl.origin   // correct host on both localhost and production
+  const origin  = getOrigin(req)
 
   const returnTo = decodeURIComponent(state) || '/dashboard/orders/import/google-sheet'
 
