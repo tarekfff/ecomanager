@@ -114,8 +114,7 @@ export async function noestGetTrackingInfo(
 }
 
 export async function noestGetLabelResponse(tracking: string): Promise<Response> {
-  return call(`/api/public/get/order/label?tracking=${encodeURIComponent(tracking)}`, {
-    method:  'GET',
-    headers: { 'Content-Type': '' },
+  return fetch(`${BASE_URL}/api/public/get/order/label?tracking=${encodeURIComponent(tracking)}`, {
+    headers: { Authorization: `Bearer ${API_TOKEN}` },
   })
 }

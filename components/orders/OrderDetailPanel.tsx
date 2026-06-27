@@ -1021,14 +1021,14 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
                           <div style={{ fontSize: 12.5, color: colors.text, fontWeight: 500 }}>
                             {LOG_LABELS[log.action] ?? log.action}
                           </div>
-                          {log.action === 'noest_push' && log.new_values?.noest_tracking && (
+                          {log.action === 'noest_push' && typeof log.new_values?.noest_tracking === 'string' && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
                               <span style={{
                                 fontSize: 11, fontFamily: 'monospace',
                                 background: '#E3F2FD', color: '#1565C0',
                                 padding: '1px 6px', borderRadius: 3,
                               }}>
-                                {String(log.new_values.noest_tracking)}
+                                {log.new_values.noest_tracking}
                               </span>
                               <button
                                 onClick={() => {
@@ -1039,7 +1039,7 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
                                       const url = URL.createObjectURL(blob)
                                       const a   = document.createElement('a')
                                       a.href     = url
-                                      a.download = `etiquette-${String(log.new_values?.noest_tracking)}.pdf`
+                                      a.download = `etiquette-${log.new_values?.noest_tracking as string ?? 'noest'}.pdf`
                                       a.click()
                                       URL.revokeObjectURL(url)
                                     })

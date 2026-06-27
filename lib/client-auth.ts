@@ -7,15 +7,24 @@ export function getStoredToken(): string | null {
   return localStorage.getItem('token')
 }
 
+/** Decode a JWT payload. JWTs use base64url (-, _, no padding), which atob()
+ *  doesn't handle directly — convert to standard base64 first. */
+function decodeJwtPayload(token: string): { exp?: number } | null {
+  try {
+    const part = token.split('.')[1] ?? ''
+    const b64  = part.replace(/-/g, '+').replace(/_/g, '/')
+    const pad  = b64.length % 4 ? b64 + '='.repeat(4 - (b64.length % 4)) : b64
+    return JSON.parse(atob(pad))
+  } catch {
+    return null
+  }
+}
+
 /** True only if the token exists and its `exp` is still in the future. */
 export function isTokenValid(token: string | null): boolean {
   if (!token) return false
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1] ?? ''))
-    return typeof payload.exp === 'number' && payload.exp * 1000 > Date.now()
-  } catch {
-    return false
-  }
+  const payload = decodeJwtPayload(token)
+  return !!payload && typeof payload.exp === 'number' && payload.exp * 1000 > Date.now()
 }
 
 export function isLoggedIn(): boolean {
