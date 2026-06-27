@@ -17,6 +17,10 @@ const ITEM_ROUTES: Record<string, string> = {
   'En livraison':        '/dashboard/orders/en-livraison',
   'Livrées':             '/dashboard/orders/livrees',
   'En retour':           '/dashboard/orders/en-retour',
+  'Encaissées':          '/dashboard/orders/archives/encaissees',
+  'Retournées':          '/dashboard/orders/archives/retournees',
+  'Annulées':            '/dashboard/orders/archives/annulees',
+  'Corbeille':           '/dashboard/orders/corbeille',
   // Clients
   'Liste des clients':   '/dashboard/clients',
   'Import clients':      '/dashboard/clients/import',
@@ -28,6 +32,7 @@ const ITEM_ROUTES: Record<string, string> = {
   // Livraison
   'Liste des livreurs':  '/dashboard/livraison/livreurs',
   'Ajouter un livreur':  '/dashboard/livraison/livreurs',
+  
   // Statistiques
   'Par boutique':        '/dashboard/stats/boutique',
   'Par produit':         '/dashboard/stats/produit',
@@ -45,7 +50,11 @@ function getActiveItem(pathname: string): string {
   if (pathname.startsWith('/dashboard/orders/en-dispatch'))      return 'En dispatch'
   if (pathname.startsWith('/dashboard/orders/en-livraison'))     return 'En livraison'
   if (pathname.startsWith('/dashboard/orders/livrees'))          return 'Livrées'
-  if (pathname.startsWith('/dashboard/orders/en-retour'))        return 'En retour'
+  if (pathname.startsWith('/dashboard/orders/en-retour'))              return 'En retour'
+  if (pathname.startsWith('/dashboard/orders/archives/encaissees'))    return 'Encaissées'
+  if (pathname.startsWith('/dashboard/orders/archives/retournees'))    return 'Retournées'
+  if (pathname.startsWith('/dashboard/orders/archives/annulees'))      return 'Annulées'
+  if (pathname.startsWith('/dashboard/orders/corbeille'))              return 'Corbeille'
   if (pathname === '/dashboard/clients/import')                  return 'Import clients'
   if (pathname.startsWith('/dashboard/clients'))                 return 'Liste des clients'
   if (pathname.startsWith('/dashboard/products/new'))            return 'Ajouter un produit'

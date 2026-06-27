@@ -9,6 +9,7 @@ type BulkAction =
   | 'deliver' | 'request_return' | 'set_carrier_fee'
   | 'go_back_to_livraison' | 'validate_return'
   | 'prepare_encaissement' | 'prepare_retour'
+  | 'restore' | 'undo_delete' | 'hard_delete'
 
 interface BulkBody {
   ids:    string[]
@@ -190,6 +191,24 @@ export async function POST(req: NextRequest) {
       }
       break
     }
+
+    case 'restore':
+      await db.from('orders')
+        .update({ tracking_status: 'en_confirmation', deleted_at: null, cancelled_at: null })
+        .in('id', verifiedIds)
+      break
+
+    case 'undo_delete':
+      await db.from('orders')
+        .update({ deleted_at: null })
+        .in('id', verifiedIds)
+      break
+
+    case 'hard_delete':
+      await db.from('order_items').delete().in('order_id', verifiedIds)
+      await db.from('order_logs').delete().in('order_id', verifiedIds)
+      await db.from('orders').delete().in('id', verifiedIds)
+      break
 
     default:
       return NextResponse.json({ error: `Action inconnue: ${action}` }, { status: 400 })

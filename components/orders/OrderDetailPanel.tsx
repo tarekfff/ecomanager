@@ -52,9 +52,12 @@ interface OrderDetail {
   source_type:           string
   boutique_id:           string
   sync_enabled:          boolean
+  deleted_at:            string | null
   created_at:            string
   confirmed_at:          string | null
   dispatched_at:         string | null
+  shipped_at:            string | null
+  delivered_at:          string | null
   cancelled_at:          string | null
   client:                Client | null
   wilaya_name:           string | null
@@ -125,6 +128,8 @@ const LOG_LABELS: Record<string, string> = {
   set_carrier_fee:        'Frais livreur modifiés',
   go_back_to_livraison:   'Retour en livraison',
   validate_return:        'Retour validé → Retournée',
+  restore:                'Restaurée → En confirmation',
+  undo_delete:            'Suppression annulée',
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -373,7 +378,29 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
       if (['confirm', 'cancel', 'dispatch', 'go_back_to_confirmation',
            'ship', 'go_back_to_preparation',
            'deliver', 'request_return',
-           'go_back_to_livraison', 'validate_return'].includes(action)) onClose()
+           'go_back_to_livraison', 'validate_return',
+           'restore', 'undo_delete'].includes(action)) onClose()
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // ── Hard delete ──────────────────────────────────────────────────────────────
+
+  async function doHardDelete() {
+    if (!orderId) return
+    if (!window.confirm('Supprimer définitivement cette commande ? Cette action est irréversible.')) return
+    setActionLoading(true)
+    setActionError('')
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, { method: 'DELETE', headers: authHeader() })
+      if (!res.ok) {
+        const d = await res.json() as { error?: string }
+        setActionError(d.error ?? 'Erreur')
+        return
+      }
+      onStatusChange()
+      onClose()
     } finally {
       setActionLoading(false)
     }
@@ -727,10 +754,49 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
       )
     }
 
-    // Other statuses
+    // Soft-deleted (corbeille) — check before status so it overrides
+    if (o.deleted_at) {
+      return (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <Button
+            variant="primary" size="sm" loading={actionLoading}
+            onClick={() => doAction('undo_delete')}
+          >
+            <RotateCcw size={13} /> Annuler la suppression
+          </Button>
+          <Button
+            variant="danger" size="sm" loading={actionLoading}
+            onClick={doHardDelete}
+          >
+            <XCircle size={13} /> Supprimer définitivement
+          </Button>
+        </div>
+      )
+    }
+
+    if (status === 'annulee') {
+      return (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <Button
+            variant="primary" size="sm" loading={actionLoading}
+            onClick={() => doAction('restore')}
+          >
+            <RotateCcw size={13} /> Restaurer
+          </Button>
+          <Button
+            variant="danger" size="sm" loading={actionLoading}
+            onClick={doHardDelete}
+          >
+            <XCircle size={13} /> Supprimer définitivement
+          </Button>
+        </div>
+      )
+    }
+
+    // Other read-only statuses (encaissee, retournee, etc.)
     return (
       <span style={{ fontSize: 12, color: colors.textLt, fontFamily: fonts.sans }}>
-        Actions disponibles selon le statut pipeline.
+        Commande archivée — aucune action disponible.
       </span>
     )
   }

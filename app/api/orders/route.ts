@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
       `id, reference, tracking_status, confirmation_status,
        total, subtotal, delivery_fee, carrier_fee, discount, delivery_method,
        delivery_status, return_risk_score, assigned_confirmer_id,
-       created_at, confirmed_at, dispatched_at, shipped_at, delivered_at, updated_at, sync_enabled, phone,
+       created_at, confirmed_at, cancelled_at, dispatched_at, shipped_at, delivered_at, updated_at, deleted_at, sync_enabled, phone,
        clients!client_id(full_name, phone),
        wilayas!wilaya_id(name),
        communes!commune_id(name),
@@ -57,10 +57,15 @@ export async function GET(req: NextRequest) {
       { count: 'exact' }
     )
     .eq('boutique_id', boutiqueId)
-    .eq('tracking_status', status)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: false })
+    .order(status === 'corbeille' ? 'deleted_at' : 'created_at', { ascending: false })
     .range(offset, offset + limit - 1)
+
+  // Status / deleted filter
+  if (status === 'corbeille') {
+    query = query.not('deleted_at', 'is', null)
+  } else {
+    query = query.eq('tracking_status', status).is('deleted_at', null)
+  }
 
   if (search) {
     const orParts = [`reference.ilike.%${search}%`, `phone.ilike.%${search}%`]
@@ -111,6 +116,8 @@ export async function GET(req: NextRequest) {
     shipped_at:            o.shipped_at,
     delivered_at:          o.delivered_at,
     updated_at:            o.updated_at,
+    cancelled_at:          o.cancelled_at,
+    deleted_at:            o.deleted_at,
     sync_enabled:          o.sync_enabled,
     delivery_status:       o.delivery_status,
     carrier_fee:           o.carrier_fee,

@@ -18,8 +18,8 @@ export async function GET(req: NextRequest, { params }: Ctx) {
       total, subtotal, delivery_fee, carrier_fee, discount,
       delivery_method, return_risk_score,
       address, phone, phone2, remark, referrer, source_type, boutique_id,
-      wilaya_id, commune_id,
-      created_at, confirmed_at, cancelled_at,
+      wilaya_id, commune_id, sync_enabled, deleted_at,
+      created_at, confirmed_at, dispatched_at, shipped_at, delivered_at, cancelled_at,
       clients!client_id(id, full_name, phone, phone2, email, address),
       wilayas!wilaya_id(id, name),
       communes!commune_id(id, name),
@@ -28,7 +28,6 @@ export async function GET(req: NextRequest, { params }: Ctx) {
       order_items(id, product_id, variant_id, product_name, sku, quantity, unit_price, unit_cost, line_total)
     `)
     .eq('id', id)
-    .is('deleted_at', null)
     .single()
 
   if (error || !data) return NextResponse.json({ error: 'Commande introuvable' }, { status: 404 })
@@ -67,8 +66,13 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     boutique_id:         o.boutique_id,
     wilaya_id:           o.wilaya_id,
     commune_id:          o.commune_id,
+    sync_enabled:        o.sync_enabled,
+    deleted_at:          o.deleted_at,
     created_at:          o.created_at,
     confirmed_at:        o.confirmed_at,
+    dispatched_at:       o.dispatched_at,
+    shipped_at:          o.shipped_at,
+    delivered_at:        o.delivered_at,
     cancelled_at:        o.cancelled_at,
     client:              o.clients ?? null,
     wilaya_name:         (o.wilayas  as { id: number; name: string } | null)?.name ?? null,
@@ -237,12 +241,11 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
   if (!body.action) return NextResponse.json({ error: 'Action requise' }, { status: 400 })
 
-  // Verify ownership
+  // Verify ownership — include deleted orders so restore/undo_delete can work
   const { data: order } = await db
     .from('orders')
     .select('boutique_id, tracking_status, sync_enabled')
     .eq('id', id)
-    .is('deleted_at', null)
     .single()
 
   if (!order) return NextResponse.json({ error: 'Commande introuvable' }, { status: 404 })
@@ -358,6 +361,14 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       update = { tracking_status: 'retournee', returned_at: now }
       break
 
+    case 'restore':
+      update = { tracking_status: 'en_confirmation', deleted_at: null, cancelled_at: null }
+      break
+
+    case 'undo_delete':
+      update = { deleted_at: null }
+      break
+
     default:
       return NextResponse.json({ error: `Action inconnue: ${body.action}` }, { status: 400 })
   }
@@ -380,4 +391,34 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   })
 
   return NextResponse.json(updated)
+}
+
+// ── DELETE — hard delete ───────────────────────────────────────────────────────
+
+export async function DELETE(req: NextRequest, { params }: Ctx) {
+  const user   = requireAuth(req)
+  const { id } = await params
+
+  const { data: order } = await db
+    .from('orders')
+    .select('boutique_id')
+    .eq('id', id)
+    .single()
+
+  if (!order) return NextResponse.json({ error: 'Commande introuvable' }, { status: 404 })
+
+  const { data: boutique } = await db
+    .from('boutiques')
+    .select('id')
+    .eq('id', (order as { boutique_id: string }).boutique_id)
+    .eq('tenant_id', user.tenantId)
+    .single()
+
+  if (!boutique) return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
+
+  await db.from('order_items').delete().eq('order_id', id)
+  await db.from('order_logs').delete().eq('order_id', id)
+  await db.from('orders').delete().eq('id', id)
+
+  return new NextResponse(null, { status: 204 })
 }
