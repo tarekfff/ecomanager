@@ -744,7 +744,7 @@ UI: PageHeader "Fournisseurs", Button "Ajouter un fournisseur".
 Table: Nom, Téléphone, Email, Adresse, Actions
 Add/Edit Modal fields: Nom*, Téléphone, Email, Adresse (textarea)
 ```
-
+aplay stock add and remove in command flow 
 ---
 
 ## Step 25 — Livreurs CRUD

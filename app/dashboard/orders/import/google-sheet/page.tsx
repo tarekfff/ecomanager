@@ -179,10 +179,11 @@ export default function GoogleSheetImportPage() {
   const searchParams = useSearchParams()
   const { boutiqueId } = useBoutique()
 
-  const [step,         setStep]         = useState<Step>(1)
-  const [googleToken,  setGoogleToken]  = useState('')
-  const [googleEmail,  setGoogleEmail]  = useState('')
-  const [googleError,  setGoogleError]  = useState('')
+  const [step,              setStep]             = useState<Step>(1)
+  const [googleToken,       setGoogleToken]      = useState('')
+  const [googleRefreshToken, setGoogleRefreshToken] = useState('')
+  const [googleEmail,       setGoogleEmail]      = useState('')
+  const [googleError,       setGoogleError]      = useState('')
 
   // Step 2
   const [sheetInput,   setSheetInput]   = useState('')
@@ -202,6 +203,12 @@ export default function GoogleSheetImportPage() {
   const [importing,    setImporting]    = useState(false)
   const [errorsOpen,   setErrorsOpen]   = useState(false)
 
+  // Save source (auto-sync)
+  const [sourceName,   setSourceName]   = useState('')
+  const [sourceSaving, setSourceSaving] = useState(false)
+  const [sourceSaved,  setSourceSaved]  = useState(false)
+  const [saveError,    setSaveError]    = useState('')
+
   // ── Pick up OAuth result from URL params ──────────────────────────────────
 
   useEffect(() => {
@@ -209,9 +216,12 @@ export default function GoogleSheetImportPage() {
     const email = searchParams.get('google_email')
     const err   = searchParams.get('google_error')
 
+    const refreshToken = searchParams.get('google_refresh_token')
+
     if (token) {
       setGoogleToken(token)
       setGoogleEmail(email ?? '')
+      if (refreshToken) setGoogleRefreshToken(refreshToken)
       setStep(2)
       // Clean URL
       router.replace('/dashboard/orders/import/google-sheet')
@@ -223,24 +233,32 @@ export default function GoogleSheetImportPage() {
       router.replace('/dashboard/orders/import/google-sheet')
     }
 
-    // Restore persisted token from localStorage
-    const saved      = localStorage.getItem('google_oauth_token')
-    const savedEmail = localStorage.getItem('google_oauth_email')
+    // Restore persisted tokens from localStorage
+    const saved         = localStorage.getItem('google_oauth_token')
+    const savedRefresh  = localStorage.getItem('google_oauth_refresh_token')
+    const savedEmail    = localStorage.getItem('google_oauth_email')
     if (!token && saved) {
       setGoogleToken(saved)
       setGoogleEmail(savedEmail ?? '')
+      if (savedRefresh) setGoogleRefreshToken(savedRefresh)
       setStep(2)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Persist token when set via OAuth redirect
+  // Persist tokens when set via OAuth redirect
   useEffect(() => {
     if (googleToken) {
       localStorage.setItem('google_oauth_token', googleToken)
       localStorage.setItem('google_oauth_email', googleEmail)
     }
   }, [googleToken, googleEmail])
+
+  useEffect(() => {
+    if (googleRefreshToken) {
+      localStorage.setItem('google_oauth_refresh_token', googleRefreshToken)
+    }
+  }, [googleRefreshToken])
 
   // ── Step 1 — connect ─────────────────────────────────────────────────────
 
@@ -250,8 +268,10 @@ export default function GoogleSheetImportPage() {
 
   function handleDisconnect() {
     localStorage.removeItem('google_oauth_token')
+    localStorage.removeItem('google_oauth_refresh_token')
     localStorage.removeItem('google_oauth_email')
     setGoogleToken('')
+    setGoogleRefreshToken('')
     setGoogleEmail('')
     setStep(1)
   }
@@ -333,6 +353,41 @@ export default function GoogleSheetImportPage() {
       setResult({ imported: 0, skipped: 0, failed: 0, errors: [{ row: 0, reason: 'Erreur réseau' }] })
     } finally {
       setImporting(false)
+    }
+  }
+
+  // ── Save source for auto-sync ─────────────────────────────────────────────
+
+  async function handleSaveSource() {
+    if (!boutiqueId) { setSaveError('Sélectionnez une boutique.'); return }
+    if (!googleRefreshToken) { setSaveError('Token de rafraîchissement manquant. Reconnectez votre compte Google.'); return }
+    setSaveError('')
+    setSourceSaving(true)
+    try {
+      const res = await fetch('/api/import-sources', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader() },
+        body:    JSON.stringify({
+          name:          sourceName || `Google Sheet — ${sheetName || extractSheetId(sheetInput)}`,
+          boutique_id:   boutiqueId,
+          sheet_id:      extractSheetId(sheetInput),
+          sheet_name:    sheetName || 'Sheet1',
+          separator,
+          mapping,
+          refresh_token: googleRefreshToken,
+          google_email:  googleEmail,
+        }),
+      })
+      if (res.ok) {
+        setSourceSaved(true)
+      } else {
+        const d = await res.json()
+        setSaveError(d.error ?? 'Erreur lors de la sauvegarde.')
+      }
+    } catch {
+      setSaveError('Erreur réseau.')
+    } finally {
+      setSourceSaving(false)
     }
   }
 
@@ -749,9 +804,85 @@ export default function GoogleSheetImportPage() {
                     </div>
                   )}
 
+                  {/* ── Save for auto-sync ─────────────────────────────── */}
+                  {!sourceSaved ? (
+                    <div style={{
+                      marginTop: 20, padding: 16,
+                      background: '#F5F3FF', border: '1px solid #DDD6FE',
+                      borderRadius: 8,
+                    }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#5B21B6', marginBottom: 4 }}>
+                        Activer la synchronisation automatique
+                      </div>
+                      <div style={{ fontSize: 12, color: '#7C3AED', marginBottom: 12 }}>
+                        Sauvegardez cette connexion pour importer automatiquement les nouvelles lignes toutes les 15 min.
+                        {!googleRefreshToken && (
+                          <span style={{ color: colors.orange, display: 'block', marginTop: 4 }}>
+                            ⚠ Reconnectez votre compte Google pour activer cette option.
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <input
+                          value={sourceName}
+                          onChange={e => setSourceName(e.target.value)}
+                          placeholder={`Nom de la connexion (ex: Boutique principale)`}
+                          style={{
+                            flex: '1 1 200px', border: `1px solid #DDD6FE`, borderRadius: 5,
+                            padding: '7px 10px', fontSize: 12.5, fontFamily: fonts.sans,
+                            color: colors.text, outline: 'none', background: '#fff',
+                          }}
+                          onFocus={e => (e.currentTarget.style.borderColor = '#7C3AED')}
+                          onBlur={e  => (e.currentTarget.style.borderColor = '#DDD6FE')}
+                        />
+                        <button
+                          onClick={handleSaveSource}
+                          disabled={sourceSaving || !googleRefreshToken}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 5,
+                            padding: '7px 16px', borderRadius: 5, border: 'none',
+                            background: !googleRefreshToken ? '#ccc' : '#7C3AED',
+                            color: '#fff', fontSize: 12.5, fontWeight: 600,
+                            fontFamily: fonts.sans, cursor: sourceSaving || !googleRefreshToken ? 'not-allowed' : 'pointer',
+                          }}
+                        >
+                          {sourceSaving
+                            ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />
+                            : null
+                          }
+                          {sourceSaving ? 'Sauvegarde…' : 'Sauvegarder'}
+                        </button>
+                      </div>
+                      {saveError && (
+                        <div style={{ fontSize: 12, color: colors.red, marginTop: 8 }}>
+                          {saveError}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 8, marginTop: 16,
+                      background: '#F0FDF4', border: '1px solid #BBF7D0',
+                      borderRadius: 8, padding: '12px 16px', fontSize: 13, color: '#166534',
+                    }}>
+                      <CheckCircle size={15} />
+                      Connexion sauvegardée ! Sync automatique activé.
+                      <button
+                        onClick={() => router.push('/dashboard/orders/import/sources')}
+                        style={{
+                          marginLeft: 'auto', fontSize: 12, color: '#166534',
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          textDecoration: 'underline', fontFamily: fonts.sans,
+                        }}
+                      >
+                        Gérer les sources →
+                      </button>
+                    </div>
+                  )}
+
                   <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
                     <button
-                      onClick={() => { setStep(2); setResult(null) }}
+                      onClick={() => { setStep(2); setResult(null); setSourceSaved(false) }}
                       style={{
                         padding: '8px 16px', borderRadius: 6, border: `1px solid ${colors.border}`,
                         background: '#fff', color: colors.textMd, fontSize: 13,

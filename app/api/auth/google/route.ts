@@ -13,17 +13,17 @@ export async function GET(req: NextRequest) {
   const returnTo = req.nextUrl.searchParams.get('return_to') ?? '/dashboard/orders/import/google-sheet'
 
   const oauth2 = oauthClient()
-const url = oauth2.generateAuthUrl({
-  access_type: 'online',
-  prompt: 'consent',
-  scope: [
-    'openid',
-    'email',
-    'profile',
-    'https://www.googleapis.com/auth/spreadsheets.readonly',
-  ],
-  state: encodeURIComponent(returnTo),
-})
+  const url = oauth2.generateAuthUrl({
+    access_type: 'offline',   // gets refresh_token so server can sync without user
+    prompt:      'consent',   // forces re-consent to always receive refresh_token
+    scope: [
+      'openid',
+      'email',
+      'profile',
+      'https://www.googleapis.com/auth/spreadsheets.readonly',
+    ],
+    state: encodeURIComponent(returnTo),
+  })
 
   return NextResponse.redirect(url)
 }

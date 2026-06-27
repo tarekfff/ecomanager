@@ -26,35 +26,26 @@ export async function GET(req: NextRequest) {
   try {
     const oauth2 = oauthClient()
     const { tokens } = await oauth2.getToken(code)
-    console.log(tokens)
     oauth2.setCredentials(tokens)
 
     // Get connected account email
-    const people = google.oauth2({ version: 'v2', auth: oauth2 })
-    const { data: userInfo } = await people.userinfo.get()
+    const info = google.oauth2({ version: 'v2', auth: oauth2 })
+    const { data: userInfo } = await info.userinfo.get()
 
     const accessToken  = tokens.access_token  ?? ''
-    const email        = userInfo.email        ?? ''
+    const refreshToken = tokens.refresh_token ?? ''
+    const email        = userInfo.email       ?? ''
 
-    // Pass tokens back to the client via URL fragment — never exposed to server logs
     const redirectUrl = new URL(`${process.env.NEXT_PUBLIC_APP_URL}${returnTo}`)
-    redirectUrl.searchParams.set('google_token', accessToken)
-    redirectUrl.searchParams.set('google_email', email)
+    redirectUrl.searchParams.set('google_token',         accessToken)
+    redirectUrl.searchParams.set('google_refresh_token', refreshToken)
+    redirectUrl.searchParams.set('google_email',         email)
 
     return NextResponse.redirect(redirectUrl.toString())
-} catch (err: any) {
-  console.error("==== GOOGLE TOKEN ERROR ====");
-  console.error(err);
-
-  if (err.response) {
-    console.error(err.response.data);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return NextResponse.redirect(
+      `${process.env.NEXT_PUBLIC_APP_URL}${returnTo}?google_error=${encodeURIComponent(msg)}`
+    )
   }
-
-  return NextResponse.json(
-    {
-      error: err.response?.data ?? err.message ?? String(err),
-    },
-    { status: 500 }
-  );
-}
 }
