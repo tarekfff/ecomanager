@@ -5,11 +5,12 @@ import { useRouter } from 'next/navigation'
 import {
   Eye, Pencil, X, ChevronDown, AlertCircle,
   CheckCircle, XCircle, Trash2, UserCheck, Tag,
-  Package, MapPin, Phone, User, Calendar,
+  Package, User, Calendar,
 } from 'lucide-react'
 import { PageHeader, Button, SearchInput, Select, Pagination } from '@/components/ui'
 import { colors, fonts } from '@/lib/tokens'
 import { useBoutique } from '@/contexts/BoutiqueContext'
+import OrderDetailPanel from '@/components/orders/OrderDetailPanel'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -127,150 +128,6 @@ function SkeletonRow({ cols }: { cols: number }) {
   )
 }
 
-// ── Order drawer ───────────────────────────────────────────────────────────────
-
-function OrderDrawer({ order, onClose }: { order: Order; onClose: () => void }) {
-  return (
-    <>
-      {/* Backdrop */}
-      <div
-        onClick={onClose}
-        style={{
-          position: 'fixed', inset: 0,
-          background: 'rgba(0,0,0,0.25)', zIndex: 199,
-        }}
-      />
-
-      {/* Panel */}
-      <div style={{
-        position: 'fixed', top: 0, right: 0, bottom: 0,
-        width: 420, background: '#fff', zIndex: 200,
-        boxShadow: '-4px 0 24px rgba(0,0,0,0.12)',
-        display: 'flex', flexDirection: 'column',
-        fontFamily: fonts.sans,
-      }}>
-        {/* Drawer header */}
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '14px 18px', borderBottom: `1px solid ${colors.border}`,
-          flexShrink: 0,
-        }}>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: colors.text }}>
-              {order.reference}
-            </div>
-            <div style={{ fontSize: 11.5, color: colors.textLt, marginTop: 2 }}>
-              {fmtDate(order.created_at)}
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <ConfStatusBadge slug={order.confirmation_status} />
-            <button
-              onClick={onClose}
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                color: colors.textLt, padding: 4,
-                display: 'flex', alignItems: 'center',
-              }}
-            >
-              <X size={16} />
-            </button>
-          </div>
-        </div>
-
-        {/* Drawer body */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-          {/* Client */}
-          <section>
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: colors.textLt, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
-              Client
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {order.client_name && (
-                <Row icon={<User size={13} />} label={order.client_name} />
-              )}
-              <Row icon={<Phone size={13} />} label={order.client_phone ?? order.phone} />
-              {order.wilaya_name && (
-                <Row icon={<MapPin size={13} />} label={[order.wilaya_name, order.commune_name].filter(Boolean).join(' › ')} />
-              )}
-            </div>
-          </section>
-
-          {/* Order summary */}
-          <section>
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: colors.textLt, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
-              Commande
-            </div>
-            <div style={{
-              background: colors.bg, borderRadius: 6, padding: '10px 12px',
-              display: 'flex', flexDirection: 'column', gap: 6,
-            }}>
-              {[
-                ['Articles',          `${order.items_count} article${order.items_count !== 1 ? 's' : ''}`],
-                ['Sous-total',        fmtAmount(order.subtotal)],
-                ['Frais de livraison', fmtAmount(order.delivery_fee)],
-                ['Remise',            order.discount > 0 ? `– ${fmtAmount(order.discount)}` : '—'],
-                ['Livraison',         order.delivery_method === 'stopdesk' ? 'Stop Desk' : 'À domicile'],
-              ].map(([label, value]) => (
-                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5 }}>
-                  <span style={{ color: colors.textMd }}>{label}</span>
-                  <span style={{ color: colors.text }}>{value}</span>
-                </div>
-              ))}
-              <div style={{
-                display: 'flex', justifyContent: 'space-between',
-                paddingTop: 6, borderTop: `1px solid ${colors.border}`,
-                fontWeight: 700, fontSize: 14,
-              }}>
-                <span style={{ color: colors.text }}>Total</span>
-                <span style={{ color: colors.primary }}>{fmtAmount(order.total)}</span>
-              </div>
-            </div>
-          </section>
-
-          {/* Assignment */}
-          {order.confirmer_name && (
-            <section>
-              <div style={{ fontSize: 10.5, fontWeight: 700, color: colors.textLt, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
-                Affectation
-              </div>
-              <Row icon={<User size={13} />} label={order.confirmer_name} />
-            </section>
-          )}
-
-          {/* Risk */}
-          {order.return_risk_score !== null && (
-            <section>
-              <div style={{ fontSize: 10.5, fontWeight: 700, color: colors.textLt, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
-                Risque retour
-              </div>
-              <RiskBadge score={order.return_risk_score} />
-            </section>
-          )}
-        </div>
-
-        {/* Drawer footer */}
-        <div style={{
-          padding: '12px 18px', borderTop: `1px solid ${colors.border}`,
-          display: 'flex', gap: 8, flexShrink: 0,
-        }}>
-          <Button variant="secondary" size="sm" onClick={onClose}>Fermer</Button>
-        </div>
-      </div>
-    </>
-  )
-}
-
-function Row({ icon, label }: { icon: React.ReactNode; label: string }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12.5, color: colors.text }}>
-      <span style={{ color: colors.textLt, display: 'flex' }}>{icon}</span>
-      {label}
-    </div>
-  )
-}
-
 // ── Main Page ──────────────────────────────────────────────────────────────────
 
 export default function EnConfirmationPage() {
@@ -304,8 +161,8 @@ export default function EnConfirmationPage() {
   const assignMenuRef  = useRef<HTMLDivElement>(null)
   const statusMenuRef  = useRef<HTMLDivElement>(null)
 
-  // Drawer
-  const [drawerOrder, setDrawerOrder] = useState<Order | null>(null)
+  // Drawer — stores order ID only; OrderDetailPanel fetches its own data
+  const [drawerOrderId, setDrawerOrderId] = useState<string | null>(null)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -741,7 +598,7 @@ export default function EnConfirmationPage() {
                   return (
                     <tr
                       key={order.id}
-                      onClick={() => setDrawerOrder(order)}
+                      onClick={() => setDrawerOrderId(order.id)}
                       style={{
                         background: isSelected ? colors.primaryLt : undefined,
                         cursor: 'pointer', transition: 'background .1s',
@@ -844,7 +701,7 @@ export default function EnConfirmationPage() {
                           <ActionBtn
                             icon={<Eye size={12} />}
                             title="Voir"
-                            onClick={() => setDrawerOrder(order)}
+                            onClick={() => setDrawerOrderId(order.id)}
                           />
                           <ActionBtn
                             icon={<Pencil size={12} />}
@@ -872,10 +729,12 @@ export default function EnConfirmationPage() {
         )}
       </div>
 
-      {/* ── Drawer ──────────────────────────────────────────────────────────── */}
-      {drawerOrder && (
-        <OrderDrawer order={drawerOrder} onClose={() => setDrawerOrder(null)} />
-      )}
+      {/* ── Detail panel ────────────────────────────────────────────────────── */}
+      <OrderDetailPanel
+        orderId={drawerOrderId}
+        onClose={() => setDrawerOrderId(null)}
+        onStatusChange={fetchOrders}
+      />
     </>
   )
 }
