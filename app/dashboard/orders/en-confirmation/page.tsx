@@ -224,16 +224,14 @@ export default function EnConfirmationPage() {
 
   useEffect(() => { fetchOrders() }, [fetchOrders])
 
-  // ── Instant sheet sync on open / tab focus ─────────────────────────────────
-  // Pull any new sheet rows the moment the user opens or returns to the page,
-  // then refresh the list — so a command added in n8n shows up immediately
-  // instead of waiting for the next minute-cron. Fires only on open/focus
-  // (sporadic), not on a loop, so it's quota-safe at scale. Goes through the
-  // atomic-locked sync, so it can never duplicate with the cron / Drive push.
+  // ── Sheet sync — on open, on focus, and every 30s while page is visible ─────
+  // Access tokens are cached in credentials_ref for 55 min, so frequent calls
+  // don't refresh the OAuth token — they reuse the cached one and just read
+  // the sheet rows. The atomic lock in syncSourceWithLock prevents duplicates.
   const lastSyncRef = useRef(0)
   const triggerSync = useCallback(() => {
     if (!boutiqueId) return
-    if (Date.now() - lastSyncRef.current < 3000) return  // debounce focus flapping
+    if (Date.now() - lastSyncRef.current < 5_000) return  // debounce flapping
     lastSyncRef.current = Date.now()
     fetch(`/api/import-sources/poll?boutique_id=${boutiqueId}`, { method: 'POST', headers: authHeader() })
       .then(r => r.json())
@@ -243,15 +241,25 @@ export default function EnConfirmationPage() {
 
   useEffect(() => { triggerSync() }, [triggerSync])  // on open
 
-  // ── Background poll — detect new orders every 10s ──────────────────────────
-  // Cheap DB-only count check (no Google calls — sheets are synced centrally by
-  // the cron). Scales to any number of users. If the user is idle on page 1
-  // (no selection, no search), auto-refresh so new orders appear without a
-  // click. Otherwise flag the banner so we don't yank the table mid-action.
+  // ── Background poll — sheet sync every 30s + DB count check every 10s ───────
   useEffect(() => {
     if (!boutiqueId) return
+    let lastPeriodicSync = 0
+
     const check = () => {
-      if (document.hidden) return  // skip polling on background tabs
+      if (document.hidden) return
+
+      // Sheet sync every 30s — picks up new rows without waiting for focus
+      if (Date.now() - lastPeriodicSync > 30_000) {
+        lastPeriodicSync = Date.now()
+        lastSyncRef.current = lastPeriodicSync  // share cooldown with triggerSync
+        fetch(`/api/import-sources/poll?boutique_id=${boutiqueId}`, { method: 'POST', headers: authHeader() })
+          .then(r => r.json())
+          .then(d => { if ((d.imported ?? 0) > 0) fetchOrders() })
+          .catch(() => {})
+      }
+
+      // DB count check every 10s
       const qs = new URLSearchParams({ status: 'en_confirmation', boutique_id: boutiqueId, page: '1', limit: '1' })
       fetch(`/api/orders?${qs}`, { headers: authHeader() })
         .then(r => r.json())
@@ -260,15 +268,15 @@ export default function EnConfirmationPage() {
           if (knownTotalRef.current === null) { knownTotalRef.current = t; return }
           if (t > knownTotalRef.current) {
             const idle = page === 1 && selectedIds.size === 0 && !dbSearch
-            if (idle) fetchOrders()              // seamless auto-refresh
-            else setNewCount(t - knownTotalRef.current)  // show banner instead
+            if (idle) fetchOrders()
+            else setNewCount(t - knownTotalRef.current)
           }
         })
         .catch(() => {})
     }
     const id = setInterval(check, 10_000)
 
-    // On returning to this tab: pull fresh sheet rows AND re-check the count.
+    // On returning to this tab: immediately pull fresh sheet rows + check count
     const onVisible = () => { if (!document.hidden) { triggerSync(); check() } }
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('focus', onVisible)

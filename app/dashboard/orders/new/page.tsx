@@ -64,6 +64,7 @@ const REFERRER_OPTIONS = [
   { value: 'Facebook',   label: 'Facebook'   },
   { value: 'Instagram',  label: 'Instagram'  },
   { value: 'TikTok',     label: 'TikTok'     },
+  { value: 'Boutic OR',     label: 'Boutic'     },
   { value: 'Autre',      label: 'Autre'      },
 ]
 

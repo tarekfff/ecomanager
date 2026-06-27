@@ -23,24 +23,26 @@ export interface SheetMapping {
 }
 
 export interface SyncResult {
-  imported:  number
-  skipped:   number
-  failed:    number
-  errors:    { row: number; reason: string }[]
-  last_row:  number   // updated total row count (including header)
+  imported:       number
+  skipped:        number
+  failed:         number
+  errors:         { row: number; reason: string }[]
+  last_row:       number   // updated total row count (including header)
+  last_sheet_ref: string   // order_ref of the newest imported row (prepend dedup anchor)
 }
 
 interface SyncParams {
-  accessToken:  string
-  sheetId:      string
-  sheetName:    string
-  separator:    string
-  boutiqueId:   string
-  mapping:      SheetMapping
-  startRow:     number    // 1 = start fresh (row 2 = first data); N = resume from row N+1
-  tenantId:     string
-  userId:       string
-  prependMode?: boolean   // sheet inserts new rows at top instead of bottom
+  accessToken:    string
+  sheetId:        string
+  sheetName:      string
+  separator:      string
+  boutiqueId:     string
+  mapping:        SheetMapping
+  startRow:       number    // 1 = start fresh (row 2 = first data); N = resume from row N+1
+  tenantId:       string
+  userId:         string
+  prependMode?:   boolean   // sheet inserts new rows at top instead of bottom
+  lastSheetRef?:  string    // order_ref of the last imported row (prepend stop-anchor)
 }
 
 function cell(row: string[], headers: string[], col: string): string {
@@ -78,32 +80,158 @@ export async function syncGoogleSheet(params: SyncParams): Promise<SyncResult> {
   const headerRow = ((headerRes.data.values ?? [])[0] ?? []) as string[]
   const headers   = headerRow.map((h: string) => String(h ?? '').trim())
   if (headers.length === 0) {
-    return { imported: 0, skipped: 0, failed: 0, errors: [], last_row: startRow }
+    return { imported: 0, skipped: 0, failed: 0, errors: [], last_row: startRow, last_sheet_ref: params.lastSheetRef ?? '' }
   }
 
   const allDataRows = (allRes.data.values ?? []) as string[][]
-  const currentCount = allDataRows.length          // data rows currently in the sheet
-
-  // How many data rows we believe we already processed (startRow counts header).
-  // In prepend mode rows are inserted at the top so position tracking is useless —
-  // always read everything from row 0 and rely on phone+subtotal dedup instead.
-  let processed   = prependMode ? 0 : Math.max(0, startRow - 1)
-  let recovery    = !!prependMode
-  if (!prependMode && processed > currentCount) {
-    // Counter is ahead of the sheet → rows were deleted/sheet rebuilt.
-    // Reprocess from the top, but skip any row that already produced an order
-    // (matched by phone+subtotal, incl. soft-deleted) so we neither lose new
-    // rows nor resurrect intentionally-deleted ones.
-    processed = 0
-    recovery  = true
-  }
+  const currentCount = allDataRows.length
 
   // last_row always reflects the sheet's true length (header + current data).
   const newLastRow = 1 + currentCount
 
+  // ── Prepend mode: read from top, stop at the last-imported order_ref ─────────
+  // Rows are inserted at row 2 (newest at top). We read down until we hit the
+  // anchor ref we stored on the previous sync — everything above it is new.
+  // This replaces phone+subtotal dedup which wrongly skips repeat orders.
+  if (prependMode) {
+    const lastSheetRef = params.lastSheetRef ?? ''
+    const orderRefCol  = mapping.order_ref
+
+    const dataRows = allDataRows.filter(r => r.some(c => String(c ?? '').trim()))
+    if (dataRows.length === 0) {
+      return { imported: 0, skipped: 0, failed: 0, errors: [], last_row: newLastRow, last_sheet_ref: lastSheetRef }
+    }
+
+    const skuCache    = new Map<string, { product_id: string; product_name: string } | null>()
+    const clientCache = new Map<string, string>()
+    const { data: wilayaData } = await db.from('wilayas').select('id, name')
+    const wilayaMap = new Map<string, number>()
+    for (const w of (wilayaData ?? []) as { id: number; name: string }[]) {
+      wilayaMap.set(w.name.toLowerCase().trim(), w.id)
+    }
+    const { data: communeData } = await db.from('communes').select('id, name, wilaya_id')
+    const communeMap = new Map<string, number>()
+    for (const c of (communeData ?? []) as { id: number; name: string; wilaya_id: number }[]) {
+      communeMap.set(`${c.wilaya_id}:${c.name.toLowerCase().trim()}`, c.id)
+    }
+
+    const sep    = separator || '|'
+    let imported = 0
+    let skipped  = 0
+    const errors: { row: number; reason: string }[] = []
+    let newTopRef = lastSheetRef   // will be updated to the newest imported ref
+
+    for (let ri = 0; ri < dataRows.length; ri++) {
+      const rowNum   = ri + 2
+      const row      = dataRows[ri]
+      const orderRef = cell(row, headers, orderRefCol)
+
+      // Stop when we reach the row we anchored on last sync
+      if (lastSheetRef && orderRef && orderRef === lastSheetRef) break
+
+      const clientName   = cell(row, headers, mapping.client_name)
+      const phone        = cell(row, headers, mapping.phone)
+      const wilayaRaw    = cell(row, headers, mapping.wilaya)
+      const communeRaw   = cell(row, headers, mapping.commune)
+      const address      = cell(row, headers, mapping.address)
+      const email        = cell(row, headers, mapping.email)
+      const phone2       = cell(row, headers, mapping.phone2)
+      const remark       = cell(row, headers, mapping.remark)
+      const delivMethod  = cell(row, headers, mapping.delivery_method)
+      const productSkus  = cell(row, headers, mapping.product_sku)
+      const quantityRaw  = cell(row, headers, mapping.quantity)
+      const unitPriceRaw = cell(row, headers, mapping.unit_price)
+      const referrer     = cell(row, headers, mapping.referrer)
+
+      if (!clientName) { errors.push({ row: rowNum, reason: 'Nom client manquant' }); continue }
+      if (!phone)      { errors.push({ row: rowNum, reason: 'Téléphone manquant' }); continue }
+      if (!wilayaRaw)  { errors.push({ row: rowNum, reason: 'Wilaya manquante' }); continue }
+      if (!productSkus){ errors.push({ row: rowNum, reason: 'SKU produit manquant' }); continue }
+
+      let wilayaId: number | null = wilayaMap.get(wilayaRaw.toLowerCase().trim()) ?? null
+      if (!wilayaId) {
+        const numId = parseInt(wilayaRaw.trim())
+        if (!isNaN(numId) && numId >= 1 && numId <= 58) wilayaId = numId
+      }
+      if (!wilayaId) { errors.push({ row: rowNum, reason: `Wilaya introuvable: "${wilayaRaw}"` }); continue }
+
+      let communeId: number | null = null
+      if (communeRaw) {
+        communeId = communeMap.get(`${wilayaId}:${communeRaw.toLowerCase().trim()}`) ?? null
+        if (!communeId) { errors.push({ row: rowNum, reason: `Commune introuvable: "${communeRaw}" (${wilayaRaw})` }); continue }
+      }
+
+      const skuList   = productSkus.split(sep).map(s => s.trim()).filter(Boolean)
+      const qtyList   = quantityRaw.split(sep).map(s => parseInt(s.trim()) || 1)
+      const priceList = unitPriceRaw.split(sep).map(s => parseFloat(s.trim()) || 0)
+      type ItemRow = { product_id: string; variant_id: null; product_name: string; sku: string; quantity: number; unit_price: number; unit_cost: number }
+      const orderItems: ItemRow[] = []
+      let rowFailed = false
+
+      for (let si = 0; si < skuList.length; si++) {
+        const sku = skuList[si]
+        if (!skuCache.has(sku)) {
+          let prod: { id: string; name: string } | null = null
+          const { data: byCode } = await db.from('products').select('id, name').eq('tenant_id', tenantId).or(`sku.eq.${sku},barcode.eq.${sku}`).is('deleted_at', null).maybeSingle()
+          if (byCode) { prod = byCode as { id: string; name: string } }
+          else {
+            const { data: byName } = await db.from('products').select('id, name').eq('tenant_id', tenantId).ilike('name', sku).is('deleted_at', null).maybeSingle()
+            if (byName) prod = byName as { id: string; name: string }
+          }
+          skuCache.set(sku, prod ? { product_id: prod.id, product_name: prod.name } : null)
+        }
+        const prod = skuCache.get(sku)
+        if (!prod) { errors.push({ row: rowNum, reason: `SKU introuvable: "${sku}"` }); rowFailed = true; break }
+        orderItems.push({ product_id: prod.product_id, variant_id: null, product_name: prod.product_name, sku, quantity: qtyList[si] ?? 1, unit_price: priceList[si] || 0, unit_cost: 0 })
+      }
+      if (rowFailed) continue
+
+      let clientId: string
+      if (clientCache.has(phone)) {
+        clientId = clientCache.get(phone)!
+      } else {
+        const { data: existing } = await db.from('clients').select('id').eq('tenant_id', tenantId).eq('phone', phone).maybeSingle()
+        if (existing) {
+          clientId = (existing as { id: string }).id
+          await db.from('clients').update({ full_name: clientName, phone2: phone2 || null, email: email || null, wilaya_id: wilayaId, commune_id: communeId || null, address: address || null }).eq('id', clientId)
+        } else {
+          clientId = uuid()
+          const { error: cErr } = await db.from('clients').insert({ id: clientId, tenant_id: tenantId, full_name: clientName, phone, phone2: phone2 || null, email: email || null, wilaya_id: wilayaId, commune_id: communeId, address: address || null })
+          if (cErr) { errors.push({ row: rowNum, reason: `Erreur client: ${cErr.message}` }); continue }
+        }
+        clientCache.set(phone, clientId)
+      }
+
+      try {
+        const subtotal  = orderItems.reduce((s, it) => s + it.unit_price * it.quantity, 0)
+        const reference = await rpc<string>('generate_order_reference', { p_boutique_id: boutiqueId })
+        const delivMode = delivMethod.toLowerCase().includes('stop') ? 'stopdesk' : 'domicile'
+        const orderId   = uuid()
+        const { error: oErr } = await db.from('orders').insert({ id: orderId, boutique_id: boutiqueId, client_id: clientId, reference, tracking_status: 'en_confirmation', subtotal, delivery_fee: 0, discount: 0, delivery_method: delivMode as 'domicile' | 'stopdesk', wilaya_id: wilayaId, commune_id: communeId ?? null, address: address || null, phone, phone2: phone2 || null, referrer: referrer || null, remark: remark || null, source_type: 'google_sheet', sync_enabled: true })
+        if (oErr) { errors.push({ row: rowNum, reason: `Erreur commande: ${oErr.message}` }); continue }
+        await db.from('order_items').insert(orderItems.map(it => ({ id: uuid(), order_id: orderId, ...it })))
+        await db.from('order_logs').insert({ id: uuid(), order_id: orderId, user_id: userId, action: 'created', new_values: { source: 'google_sheet_sync' } })
+        if (ri === 0) newTopRef = orderRef || lastSheetRef  // anchor = newest imported
+        imported++
+      } catch (err: unknown) {
+        errors.push({ row: rowNum, reason: err instanceof Error ? err.message : String(err) })
+      }
+    }
+
+    return { imported, skipped, failed: errors.length, errors, last_row: newLastRow, last_sheet_ref: newTopRef }
+  }
+
+  // ── Append mode (default) ─────────────────────────────────────────────────────
+  let processed = Math.max(0, startRow - 1)
+  let recovery  = false
+  if (processed > currentCount) {
+    processed = 0
+    recovery  = true
+  }
+
   const dataRows = allDataRows.slice(processed).filter(r => r.some(c => String(c ?? '').trim()))
   if (dataRows.length === 0) {
-    return { imported: 0, skipped: 0, failed: 0, errors: [], last_row: newLastRow }
+    return { imported: 0, skipped: 0, failed: 0, errors: [], last_row: newLastRow, last_sheet_ref: '' }
   }
 
   // In recovery, preload existing order signatures to avoid duplicates / resurrections.
@@ -320,7 +448,7 @@ export async function syncGoogleSheet(params: SyncParams): Promise<SyncResult> {
     }
   }
 
-  return { imported, skipped, failed: errors.length, errors, last_row: newLastRow }
+  return { imported, skipped, failed: errors.length, errors, last_row: newLastRow, last_sheet_ref: '' }
 }
 
 // ── Drive push-notification helpers ───────────────────────────────────────────
@@ -414,7 +542,10 @@ export async function syncSourceWithLock(
   tenantId: string,
   userId:   string,
 ): Promise<SyncResult | null> {
-  let creds: { refresh_token?: string; last_row?: number; prepend_mode?: boolean } = {}
+  let creds: {
+    refresh_token?: string; last_row?: number; prepend_mode?: boolean
+    access_token?: string; access_token_expiry?: number; last_sheet_ref?: string
+  } = {}
   try { creds = JSON.parse(source.credentials_ref ?? '{}') } catch { /* ignore */ }
 
   if (!creds.refresh_token) return null
@@ -459,21 +590,35 @@ export async function syncSourceWithLock(
     })
 
     const prependMode = !!creds.prepend_mode
-    const accessToken = await getAccessToken(creds.refresh_token)
+
+    // Reuse cached access token if still valid (>60s remaining), otherwise refresh.
+    // Google tokens last ~1h; refreshing every sync would exhaust the rate limit.
+    let accessToken: string
+    if (creds.access_token && (creds.access_token_expiry ?? 0) > Date.now() + 60_000) {
+      accessToken = creds.access_token
+    } else {
+      accessToken = await getAccessToken(creds.refresh_token)
+      creds = { ...creds, access_token: accessToken, access_token_expiry: Date.now() + 55 * 60 * 1000 }
+    }
     const result = await syncGoogleSheet({
       accessToken,
-      sheetId:    source.sheet_id,
-      sheetName:  source.sheet_name ?? 'Sheet1',
-      separator:  source.separator  ?? '|',
-      boutiqueId: source.boutique_id,
-      mapping:    source.column_mapping ?? {},
-      startRow:   prependMode ? 1 : (creds.last_row ?? 1),
+      sheetId:       source.sheet_id,
+      sheetName:     source.sheet_name ?? 'Sheet1',
+      separator:     source.separator  ?? '|',
+      boutiqueId:    source.boutique_id,
+      mapping:       source.column_mapping ?? {},
+      startRow:      prependMode ? 1 : (creds.last_row ?? 1),
       tenantId,
       userId,
       prependMode,
+      lastSheetRef:  creds.last_sheet_ref ?? '',
     })
 
-    const next = { ...creds, last_row: result.last_row }
+    const next = {
+      ...creds,
+      last_row: result.last_row,
+      ...(prependMode && result.last_sheet_ref ? { last_sheet_ref: result.last_sheet_ref } : {}),
+    }
     await db.from('import_sources').update({
       credentials_ref: JSON.stringify(next),
       last_synced_at:  new Date().toISOString(),
