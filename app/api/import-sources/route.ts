@@ -102,21 +102,27 @@ export async function POST(req: NextRequest) {
 
   // Register a Drive push-notification watch — instant sync on every sheet edit
   try {
-    const sourceId  = (data as { id: string }).id
-    const origin    = getOrigin(req)
+    const sourceId = (data as { id: string }).id
+    const origin   = getOrigin(req)
     if (!origin.includes('localhost')) {
       const accessToken = await getAccessToken(refresh_token)
       const channelId   = uuid()
-      const watch       = await registerDriveWatch(accessToken, sheet_id, `${origin}/api/webhooks/drive/${sourceId}`, channelId)
+      const watch = await registerDriveWatch(accessToken, sheet_id, `${origin}/api/webhooks/drive/${sourceId}`, channelId)
       const updatedCreds = JSON.stringify({
         refresh_token, google_email, last_row: 1,
         watch_channel_id:  watch.channelId,
         watch_resource_id: watch.resourceId,
         watch_expiration:  watch.expiration,
       })
-      await db.from('import_sources').update({ credentials_ref: updatedCreds }).eq('id', sourceId)
+      const { error: updateErr } = await db
+        .from('import_sources')
+        .update({ credentials_ref: updatedCreds })
+        .eq('id', sourceId)
+      if (updateErr) console.error('[import-sources] watch creds save failed:', updateErr.message)
     }
-  } catch { /* silent — daily cron fallback still runs */ }
+  } catch (err) {
+    console.error('[import-sources] watch registration failed:', err instanceof Error ? err.message : err)
+  }
 
   return NextResponse.json(data, { status: 201 })
 }
