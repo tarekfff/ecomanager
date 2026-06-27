@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { db } from '@/lib/db'
 
-type BulkAction = 'confirm' | 'cancel' | 'delete' | 'assign' | 'set_confirmation_status' | 'dispatch' | 'assign_carrier'
+type BulkAction = 'confirm' | 'cancel' | 'delete' | 'assign' | 'set_confirmation_status' | 'dispatch' | 'assign_carrier' | 'ship' | 'disable_sync'
 
 interface BulkBody {
   ids:    string[]
@@ -115,6 +115,18 @@ export async function POST(req: NextRequest) {
         .in('id', verifiedIds)
       break
     }
+
+    case 'ship':
+      await db.from('orders')
+        .update({ tracking_status: 'en_livraison', shipped_at: now })
+        .in('id', verifiedIds)
+      break
+
+    case 'disable_sync':
+      await db.from('orders')
+        .update({ sync_enabled: false })
+        .in('id', verifiedIds)
+      break
 
     default:
       return NextResponse.json({ error: `Action inconnue: ${action}` }, { status: 400 })

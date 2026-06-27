@@ -6,6 +6,7 @@ import {
   Truck, CreditCard, Clock, ChevronDown,
   CheckCircle, XCircle, UserCheck, Tag,
   AlertCircle, Activity, RotateCcw, RefreshCw,
+  Wifi, WifiOff, Send,
 } from 'lucide-react'
 import { Button, Select } from '@/components/ui'
 import { colors, fonts } from '@/lib/tokens'
@@ -50,8 +51,10 @@ interface OrderDetail {
   referrer:              string | null
   source_type:           string
   boutique_id:           string
+  sync_enabled:          boolean
   created_at:            string
   confirmed_at:          string | null
+  dispatched_at:         string | null
   cancelled_at:          string | null
   client:                Client | null
   wilaya_name:           string | null
@@ -108,10 +111,13 @@ const LOG_LABELS: Record<string, string> = {
   assign_confirmer:         'Confirmateur affecté',
   set_confirmation_status:  'Statut confirmation modifié',
   delete:                   'Supprimée',
-  dispatch:                 'Dispatché → En dispatch',
-  assign_carrier:           'Livreur affecté',
-  go_back_to_confirmation:  'Retour en confirmation',
-  updated:                  'Commande modifiée',
+  dispatch:               'Dispatché → En dispatch',
+  assign_carrier:         'Livreur affecté',
+  go_back_to_confirmation:'Retour en confirmation',
+  ship:                   'Expédié → En livraison',
+  toggle_sync:            'Synchronisation modifiée',
+  go_back_to_preparation: 'Retour en préparation',
+  updated:                'Commande modifiée',
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -333,7 +339,8 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
       await fetchLogs()
       onStatusChange()
       // Close panel for status transitions that remove order from this view
-      if (['confirm', 'cancel', 'dispatch', 'go_back_to_confirmation'].includes(action)) onClose()
+      if (['confirm', 'cancel', 'dispatch', 'go_back_to_confirmation',
+           'ship', 'go_back_to_preparation'].includes(action)) onClose()
     } finally {
       setActionLoading(false)
     }
@@ -475,6 +482,39 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
           <Button
             variant="secondary" size="sm" loading={actionLoading}
             onClick={() => doAction('go_back_to_confirmation')}
+          >
+            <RotateCcw size={13} /> Retour
+          </Button>
+        </div>
+      )
+    }
+
+    if (status === 'en_dispatch') {
+      return (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          {/* Expédier */}
+          <Button
+            variant="primary" size="sm" loading={actionLoading}
+            onClick={() => doAction('ship')}
+          >
+            <Send size={13} /> Expédier
+          </Button>
+
+          {/* Toggle sync */}
+          <Button
+            variant="secondary" size="sm" loading={actionLoading}
+            onClick={() => doAction('toggle_sync')}
+          >
+            {o.sync_enabled
+              ? <><WifiOff size={13} /> Désactiver sync</>
+              : <><Wifi size={13} /> Activer sync</>
+            }
+          </Button>
+
+          {/* Retour en préparation */}
+          <Button
+            variant="secondary" size="sm" loading={actionLoading}
+            onClick={() => doAction('go_back_to_preparation')}
           >
             <RotateCcw size={13} /> Retour
           </Button>

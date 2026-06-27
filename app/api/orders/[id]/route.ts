@@ -240,7 +240,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   // Verify ownership
   const { data: order } = await db
     .from('orders')
-    .select('boutique_id, tracking_status')
+    .select('boutique_id, tracking_status, sync_enabled')
     .eq('id', id)
     .is('deleted_at', null)
     .single()
@@ -314,6 +314,20 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
     case 'go_back_to_confirmation':
       update = { tracking_status: 'en_confirmation', confirmed_at: null }
+      break
+
+    case 'ship':
+      update = { tracking_status: 'en_livraison', shipped_at: now }
+      break
+
+    case 'toggle_sync': {
+      const currentSync = (order as { boutique_id: string; tracking_status: string; sync_enabled: boolean }).sync_enabled
+      update = { sync_enabled: !currentSync }
+      break
+    }
+
+    case 'go_back_to_preparation':
+      update = { tracking_status: 'en_preparation', dispatched_at: null }
       break
 
     default:
