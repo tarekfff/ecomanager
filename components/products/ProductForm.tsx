@@ -12,6 +12,18 @@ interface Brand    { id: string; name: string }
 interface Boutique { id: string; name: string; prefix: string }
 interface Wilaya   { id: number; name: string }
 
+interface OptionValue { id: string; value: string; sort_order: number }
+interface OptionType  { id: string; name: string; sort_order: number; option_values: OptionValue[] }
+interface SelectedAttr { optionTypeId: string; selectedValueIds: string[] }
+interface VariantRow {
+  rowKey:           string
+  sku:              string
+  price:            string      // '' = uses product price
+  is_active:        boolean
+  option_value_ids: string[]
+  valueLabels:      string[]
+}
+
 interface DeliveryFeeRow {
   rowKey:       string
   wilaya_id:    string   // '' = all wilayas
@@ -66,6 +78,12 @@ export interface ProductPayload {
     pricing_rule: 'standard' | 'specific'
     delivery_fee: number
     stopdesk_fee: number
+  }>
+  variants: Array<{
+    sku:              string
+    price:            number | null
+    is_active:        boolean
+    option_value_ids: string[]
   }>
 }
 
@@ -257,15 +275,64 @@ function NumberInput({
   )
 }
 
+// ── Variant helpers ────────────────────────────────────────────────────────────
+
+function cartesian<T>(arrays: T[][]): T[][] {
+  if (arrays.length === 0) return []
+  return arrays.reduce<T[][]>(
+    (acc, arr) => acc.flatMap(a => arr.map(b => [...a, b])),
+    [[]]
+  )
+}
+
+function generateVariants(
+  selectedAttrs: SelectedAttr[],
+  optionTypes:   OptionType[],
+  baseSku:       string,
+  existing:      VariantRow[],
+): VariantRow[] {
+  const selections = selectedAttrs
+    .map(attr => {
+      const ot = optionTypes.find(t => t.id === attr.optionTypeId)
+      return (ot?.option_values ?? []).filter(v => attr.selectedValueIds.includes(v.id))
+    })
+    .filter(vals => vals.length > 0)
+
+  if (selections.length === 0) return []
+
+  const combos = cartesian(selections)
+
+  return combos.map(combo => {
+    const valueIds = combo.map(v => v.id)
+    const labels   = combo.map(v => v.value)
+
+    const found = existing.find(r =>
+      r.option_value_ids.length === valueIds.length &&
+      valueIds.every(id => r.option_value_ids.includes(id))
+    )
+    if (found) return { ...found, valueLabels: labels }
+
+    return {
+      rowKey:           newKey(),
+      sku:              [baseSku, ...labels].filter(Boolean).join('-'),
+      price:            '',
+      is_active:        true,
+      option_value_ids: valueIds,
+      valueLabels:      labels,
+    }
+  })
+}
+
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 
-type TabId = 'general' | 'stock' | 'livraison' | 'notes'
+type TabId = 'general' | 'stock' | 'livraison' | 'notes' | 'variantes'
 
 const TABS: Array<{ id: TabId; label: string }> = [
   { id: 'general',   label: 'Général' },
   { id: 'stock',     label: 'Stock' },
   { id: 'livraison', label: 'Livraison' },
   { id: 'notes',     label: 'Notes confirmateur' },
+  { id: 'variantes', label: 'Variantes' },
 ]
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -291,8 +358,25 @@ export default function ProductForm({ initialData, onSubmit, submitLabel }: Prod
   const [brandSaving,  setBrandSaving]  = useState(false)
   const [brandError,   setBrandError]   = useState('')
 
+  // Variants tab state
+  const [optionTypes,      setOptionTypes]      = useState<OptionType[]>([])
+  const [selectedAttrs,    setSelectedAttrs]    = useState<SelectedAttr[]>([])
+  const [variants,         setVariants]         = useState<VariantRow[]>([])
+  const [attrSelectorOpen, setAttrSelectorOpen] = useState(false)
+  const [newTypeName,      setNewTypeName]      = useState('')
+  const [creatingType,     setCreatingType]     = useState(false)
+  const [typeCreateErr,    setTypeCreateErr]    = useState('')
+
+  // Refs to avoid stale closures in regeneration effect
+  const variantsRef = useRef<VariantRow[]>([])
+  variantsRef.current = variants
+  const skuRef = useRef(form.sku)
+  skuRef.current = form.sku
+
   // Track whether we've auto-selected the boutique so we only do it once
   const didAutoSelect = useRef(false)
+  // Track whether initial variant data was loaded (to avoid re-init on every render)
+  const varInitDone = useRef(false)
 
   useEffect(() => {
     if (initialData) setForm(buildFormState(initialData))
@@ -305,8 +389,16 @@ export default function ProductForm({ initialData, onSubmit, submitLabel }: Prod
       .catch(() => {})
   }, [])
 
+  const loadOptionTypes = useCallback(() => {
+    fetch('/api/option-types', { headers: authHeader() })
+      .then(r => r.json())
+      .then((d: OptionType[]) => { if (Array.isArray(d)) setOptionTypes(d) })
+      .catch(() => {})
+  }, [])
+
   useEffect(() => {
     loadBrands()
+    loadOptionTypes()
     fetch('/api/boutiques', { headers: authHeader() })
       .then(r => r.json())
       .then((d: Boutique[]) => { if (Array.isArray(d)) setBoutiques(d) })
@@ -315,7 +407,59 @@ export default function ProductForm({ initialData, onSubmit, submitLabel }: Prod
       .then(r => r.json())
       .then((d: Wilaya[]) => { if (Array.isArray(d)) setWilayas(d) })
       .catch(() => {})
-  }, [loadBrands])
+  }, [loadBrands, loadOptionTypes])
+
+  // Initialize variant state from initialData once option types are loaded
+  useEffect(() => {
+    if (varInitDone.current) return
+    if (!initialData?.product_variants || optionTypes.length === 0) return
+
+    varInitDone.current = true
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const existingVars = (initialData.product_variants as any[])
+
+    const valueMap = new Map<string, { label: string; typeId: string }>()
+    for (const ot of optionTypes) {
+      for (const v of ot.option_values) {
+        valueMap.set(v.id, { label: v.value, typeId: ot.id })
+      }
+    }
+
+    const initVariants: VariantRow[] = existingVars.map(v => {
+      const valueIds: string[] = (v.variant_options ?? []).map((o: { option_value_id: string }) => o.option_value_id)
+      return {
+        rowKey:           newKey(),
+        sku:              v.sku,
+        price:            v.price != null ? String(v.price) : '',
+        is_active:        v.is_active ?? true,
+        option_value_ids: valueIds,
+        valueLabels:      valueIds.map(id => valueMap.get(id)?.label ?? id),
+      }
+    })
+    setVariants(initVariants)
+    variantsRef.current = initVariants
+
+    // Derive selectedAttrs from used value IDs
+    const usedIds = new Set(existingVars.flatMap(v =>
+      (v.variant_options ?? []).map((o: { option_value_id: string }) => o.option_value_id)
+    ))
+    const derived: SelectedAttr[] = optionTypes
+      .map(ot => ({
+        optionTypeId:     ot.id,
+        selectedValueIds: ot.option_values.filter(v => usedIds.has(v.id)).map(v => v.id),
+      }))
+      .filter(a => a.selectedValueIds.length > 0)
+
+    setSelectedAttrs(derived)
+  }, [initialData, optionTypes])
+
+  // Regenerate variant matrix whenever selected attributes change
+  useEffect(() => {
+    const newVars = generateVariants(selectedAttrs, optionTypes, skuRef.current, variantsRef.current)
+    setVariants(newVars)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAttrs, optionTypes])
 
   // For new products: auto-select the current boutique from context once boutiques load
   useEffect(() => {
@@ -387,6 +531,63 @@ export default function ProductForm({ initialData, onSubmit, submitLabel }: Prod
     } finally { setBrandSaving(false) }
   }
 
+  // ── Variants helpers ───────────────────────────────────────────────────────
+
+  function toggleAttrValue(optionTypeId: string, valueId: string) {
+    setSelectedAttrs(prev => {
+      const existing = prev.find(a => a.optionTypeId === optionTypeId)
+      if (existing) {
+        const ids = existing.selectedValueIds.includes(valueId)
+          ? existing.selectedValueIds.filter(id => id !== valueId)
+          : [...existing.selectedValueIds, valueId]
+        // Remove attribute entirely if no values remain selected
+        if (ids.length === 0) return prev.filter(a => a.optionTypeId !== optionTypeId)
+        return prev.map(a => a.optionTypeId === optionTypeId ? { ...a, selectedValueIds: ids } : a)
+      }
+      return [...prev, { optionTypeId, selectedValueIds: [valueId] }]
+    })
+  }
+
+  function addAttribute(optionTypeId: string) {
+    setSelectedAttrs(prev =>
+      prev.some(a => a.optionTypeId === optionTypeId)
+        ? prev
+        : [...prev, { optionTypeId, selectedValueIds: [] }]
+    )
+    setAttrSelectorOpen(false)
+  }
+
+  function removeAttribute(optionTypeId: string) {
+    setSelectedAttrs(prev => prev.filter(a => a.optionTypeId !== optionTypeId))
+  }
+
+  function setVariantField(rowKey: string, field: 'sku' | 'price', value: string) {
+    setVariants(prev => prev.map(v => v.rowKey === rowKey ? { ...v, [field]: value } : v))
+  }
+
+  function setVariantActive(rowKey: string, value: boolean) {
+    setVariants(prev => prev.map(v => v.rowKey === rowKey ? { ...v, is_active: value } : v))
+  }
+
+  async function handleCreateOptionType() {
+    if (!newTypeName.trim()) { setTypeCreateErr('Le nom est requis'); return }
+    setCreatingType(true); setTypeCreateErr('')
+    try {
+      const res  = await fetch('/api/option-types', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader() },
+        body: JSON.stringify({ name: newTypeName.trim() }),
+      })
+      const data = await res.json() as OptionType & { error?: string }
+      if (!res.ok) { setTypeCreateErr(data.error ?? 'Erreur'); return }
+      setOptionTypes(prev => [...prev, data])
+      addAttribute(data.id)
+      setNewTypeName('')
+    } finally {
+      setCreatingType(false)
+    }
+  }
+
   // ── Submit ─────────────────────────────────────────────────────────────────
 
   async function handleSubmit() {
@@ -435,6 +636,14 @@ export default function ProductForm({ initialData, onSubmit, submitLabel }: Prod
       width_cm:   form.width_cm   ? parseFloat(form.width_cm)   : null,
       height_cm:  form.height_cm  ? parseFloat(form.height_cm)  : null,
       delivery_fees: fees,
+      variants: variants
+        .filter(v => v.option_value_ids.length > 0 && v.sku.trim())
+        .map(v => ({
+          sku:              v.sku.trim(),
+          price:            v.price ? parseFloat(v.price) : null,
+          is_active:        v.is_active,
+          option_value_ids: v.option_value_ids,
+        })),
     }
 
     setSaving(true); setGlobalError('')
@@ -752,6 +961,163 @@ export default function ProductForm({ initialData, onSubmit, submitLabel }: Prod
       </div>
     ),
 
+    // ── VARIANTES ─────────────────────────────────────────────────────────────
+    variantes: (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+        {/* Attribute selection */}
+        <Card>
+          <CardTitle>Attributs</CardTitle>
+
+          {selectedAttrs.length === 0 && (
+            <p style={{ fontSize: 13, color: colors.textLt, fontFamily: fonts.sans, marginBottom: 14 }}>
+              Aucun attribut sélectionné. Ajoutez des attributs (Couleur, Taille…) pour générer les variantes.
+            </p>
+          )}
+
+          {selectedAttrs.map(attr => {
+            const ot = optionTypes.find(t => t.id === attr.optionTypeId)
+            if (!ot) return null
+            return (
+              <div key={attr.optionTypeId} style={{ marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: colors.text, fontFamily: fonts.sans }}>
+                    {ot.name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeAttribute(attr.optionTypeId)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: colors.textLt, padding: 2 }}
+                    title="Supprimer cet attribut"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {ot.option_values.map(val => {
+                    const checked = attr.selectedValueIds.includes(val.id)
+                    return (
+                      <label
+                        key={val.id}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 6,
+                          padding: '5px 10px', borderRadius: 20, cursor: 'pointer',
+                          border: `1px solid ${checked ? colors.primary : colors.border}`,
+                          background: checked ? colors.primaryLt : '#fff',
+                          fontSize: 12.5, fontFamily: fonts.sans,
+                          color: checked ? colors.primary : colors.textMd,
+                          userSelect: 'none',
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleAttrValue(attr.optionTypeId, val.id)}
+                          style={{ display: 'none' }}
+                        />
+                        {val.value}
+                      </label>
+                    )
+                  })}
+                  {ot.option_values.length === 0 && (
+                    <span style={{ fontSize: 12, color: colors.textLt, fontFamily: fonts.sans }}>
+                      Aucune valeur définie pour cet attribut.
+                    </span>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+
+          <button
+            type="button"
+            onClick={() => setAttrSelectorOpen(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '6px 12px', borderRadius: 4, marginTop: 4,
+              border: `1px dashed ${colors.primary}`, background: colors.primaryLt,
+              color: colors.primary, fontFamily: fonts.sans, fontSize: 12.5,
+              cursor: 'pointer',
+            }}
+          >
+            <Plus size={13} /> Ajouter un attribut
+          </button>
+        </Card>
+
+        {/* Variants matrix */}
+        {variants.length > 0 && (
+          <Card>
+            <CardTitle>Variantes générées ({variants.length})</CardTitle>
+
+            {/* Table header */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 200px 140px 80px',
+              gap: 8, paddingBottom: 8,
+              borderBottom: `1px solid ${colors.border}`,
+            }}>
+              {['Combinaison', 'SKU', 'Prix (DA)', 'Actif'].map(h => (
+                <span key={h} style={{ fontSize: 11.5, fontWeight: 600, color: colors.textLt, fontFamily: fonts.sans }}>
+                  {h}
+                </span>
+              ))}
+            </div>
+
+            {variants.map(v => (
+              <div
+                key={v.rowKey}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 200px 140px 80px',
+                  gap: 8, alignItems: 'center',
+                  padding: '8px 0',
+                  borderBottom: `1px solid ${colors.border}`,
+                }}
+              >
+                {/* Combination label */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {v.valueLabels.map((lbl, i) => (
+                    <span
+                      key={i}
+                      style={{
+                        padding: '2px 8px', borderRadius: 12,
+                        background: '#f0f0f0', fontSize: 12,
+                        fontFamily: fonts.sans, color: colors.textMd,
+                      }}
+                    >
+                      {lbl}
+                    </span>
+                  ))}
+                </div>
+
+                {/* SKU */}
+                <TextInput value={v.sku} onChange={val => setVariantField(v.rowKey, 'sku', val)} />
+
+                {/* Price override */}
+                <input
+                  type="number"
+                  value={v.price}
+                  onChange={e => setVariantField(v.rowKey, 'price', e.target.value)}
+                  placeholder={`= ${form.price || 'prix produit'}`}
+                  style={{
+                    border: `1px solid ${colors.border}`, borderRadius: 4,
+                    padding: '7px 8px', fontSize: 13, fontFamily: fonts.sans,
+                    color: colors.text, outline: 'none',
+                    width: '100%', boxSizing: 'border-box',
+                  }}
+                  onFocus={e => (e.target.style.borderColor = colors.primary)}
+                  onBlur={e  => (e.target.style.borderColor = colors.border)}
+                />
+
+                {/* Active toggle */}
+                <Toggle value={v.is_active} onChange={val => setVariantActive(v.rowKey, val)} />
+              </div>
+            ))}
+          </Card>
+        )}
+      </div>
+    ),
+
     // ── NOTES ────────────────────────────────────────────────────────────────
     notes: (
       <Card>
@@ -872,6 +1238,64 @@ export default function ProductForm({ initialData, onSubmit, submitLabel }: Prod
         </div>
       </div>
 
+      {/* Attribute selector modal */}
+      <Modal open={attrSelectorOpen} onClose={() => { setAttrSelectorOpen(false); setNewTypeName(''); setTypeCreateErr('') }} title="Ajouter un attribut" size="sm">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+          {optionTypes
+            .filter(ot => !selectedAttrs.some(a => a.optionTypeId === ot.id))
+            .map(ot => (
+              <button
+                key={ot.id}
+                type="button"
+                onClick={() => addAttribute(ot.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '9px 12px', borderRadius: 5,
+                  border: `1px solid ${colors.border}`, background: '#fff',
+                  fontSize: 13, fontFamily: fonts.sans, color: colors.text,
+                  cursor: 'pointer', textAlign: 'left',
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = colors.primaryLt; (e.currentTarget as HTMLButtonElement).style.borderColor = colors.primary }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#fff'; (e.currentTarget as HTMLButtonElement).style.borderColor = colors.border }}
+              >
+                <span>{ot.name}</span>
+                <span style={{ fontSize: 11, color: colors.textLt }}>
+                  {ot.option_values.length} valeur{ot.option_values.length !== 1 ? 's' : ''}
+                </span>
+              </button>
+            ))
+          }
+          {optionTypes.every(ot => selectedAttrs.some(a => a.optionTypeId === ot.id)) && optionTypes.length > 0 && (
+            <p style={{ fontSize: 12.5, color: colors.textLt, fontFamily: fonts.sans, margin: 0 }}>
+              Tous les attributs existants sont déjà sélectionnés.
+            </p>
+          )}
+        </div>
+
+        <hr style={{ border: 'none', borderTop: `1px solid ${colors.border}`, margin: '8px 0 12px' }} />
+
+        <p style={{ fontSize: 12.5, fontWeight: 600, color: colors.textMd, fontFamily: fonts.sans, marginBottom: 8 }}>
+          Créer un nouveau type d&apos;attribut
+        </p>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ flex: 1 }}>
+            <Input
+              value={newTypeName}
+              onChange={v => { setNewTypeName(v); setTypeCreateErr('') }}
+              placeholder="Ex : Couleur, Taille…"
+            />
+          </div>
+          <Button variant="primary" size="sm" loading={creatingType} onClick={handleCreateOptionType}>
+            Créer
+          </Button>
+        </div>
+        {typeCreateErr && (
+          <p style={{ fontSize: 11.5, color: colors.red, marginTop: 6, fontFamily: fonts.sans }}>
+            {typeCreateErr}
+          </p>
+        )}
+      </Modal>
+
       {/* Create brand modal */}
       <Modal open={brandModal} onClose={() => setBrandModal(false)} title="Créer une marque" size="sm">
         <Input
@@ -889,6 +1313,26 @@ export default function ProductForm({ initialData, onSubmit, submitLabel }: Prod
         </div>
       </Modal>
     </div>
+  )
+}
+
+function TextInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  const [focused, setFocused] = useState(false)
+  return (
+    <input
+      type="text" value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      style={{
+        border: `1px solid ${focused ? colors.primary : colors.border}`,
+        borderRadius: 4, padding: '7px 8px', fontSize: 13,
+        fontFamily: fonts.sans, color: colors.text,
+        outline: 'none', width: '100%', boxSizing: 'border-box',
+        transition: 'border-color 0.15s',
+      }}
+    />
   )
 }
 

@@ -10,17 +10,21 @@ interface BoutiqueOption { id: string; name: string; prefix: string }
 
 // Map sidebar item labels → routes (extend as pages are added)
 const ITEM_ROUTES: Record<string, string> = {
-  'Liste des clients':  '/dashboard/clients',
-  'Import en masse':    '/dashboard/clients/import',
-  'Liste des produits': '/dashboard/products',
-  'Ajouter un produit': '/dashboard/products/new',
+  'Liste des clients':     '/dashboard/clients',
+  'Import clients':        '/dashboard/clients/import',
+  'Liste des produits':    '/dashboard/products',
+  'Ajouter un produit':    '/dashboard/products/new',
+  'Import en masse':       '/dashboard/products/import',
+  'Options & attributs':   '/dashboard/products/options',
 }
 
 function getActiveItem(pathname: string): string {
-  if (pathname === '/dashboard/clients/import')      return 'Import en masse'
-  if (pathname.startsWith('/dashboard/clients'))     return 'Liste des clients'
-  if (pathname.startsWith('/dashboard/products/new')) return 'Ajouter un produit'
-  if (pathname.startsWith('/dashboard/products'))    return 'Liste des produits'
+  if (pathname === '/dashboard/clients/import')              return 'Import clients'
+  if (pathname.startsWith('/dashboard/clients'))             return 'Liste des clients'
+  if (pathname.startsWith('/dashboard/products/new'))        return 'Ajouter un produit'
+  if (pathname.startsWith('/dashboard/products/options'))    return 'Options & attributs'
+  if (pathname.startsWith('/dashboard/products/import'))     return 'Import en masse'
+  if (pathname.startsWith('/dashboard/products'))            return 'Liste des produits'
   return ''
 }
 
