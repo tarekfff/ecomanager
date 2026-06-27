@@ -65,13 +65,13 @@ export async function syncGoogleSheet(params: SyncParams): Promise<SyncResult> {
     ? `'${rawTab.replace(/'/g, "\\'")}'`
     : rawTab
 
-  // Use row-only ranges so column count doesn't matter (ZZ6 fails on narrow sheets)
-  const [headerRes, dataRes] = await Promise.all([
+  // Read header + ALL data rows. Row-only ranges so column count doesn't matter
+  // (ZZ6 fails on narrow sheets). Reading everything lets us detect truncation:
+  // the row counter assumes append-only, so if rows are deleted from the sheet
+  // it gets stuck ahead of reality and skips every future append.
+  const [headerRes, allRes] = await Promise.all([
     sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: `${tab}!1:1` }),
-    sheets.spreadsheets.values.get({
-      spreadsheetId: sheetId,
-      range: `${tab}!${startRow + 1}:${startRow + MAX_ROWS}`,
-    }),
+    sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: `${tab}!2:${MAX_ROWS + 1}` }),
   ])
 
   const headerRow = ((headerRes.data.values ?? [])[0] ?? []) as string[]
@@ -80,12 +80,39 @@ export async function syncGoogleSheet(params: SyncParams): Promise<SyncResult> {
     return { imported: 0, skipped: 0, failed: 0, errors: [], last_row: startRow }
   }
 
-  const rawDataRows = (dataRes.data.values ?? []) as string[][]
-  const dataRows    = rawDataRows.filter(r => r.some(c => String(c ?? '').trim()))
-  const newLastRow  = startRow + dataRows.length
+  const allDataRows = (allRes.data.values ?? []) as string[][]
+  const currentCount = allDataRows.length          // data rows currently in the sheet
 
+  // How many data rows we believe we already processed (startRow counts header).
+  let processed   = Math.max(0, startRow - 1)
+  let recovery    = false
+  if (processed > currentCount) {
+    // Counter is ahead of the sheet → rows were deleted/sheet rebuilt.
+    // Reprocess from the top, but skip any row that already produced an order
+    // (matched by phone+subtotal, incl. soft-deleted) so we neither lose new
+    // rows nor resurrect intentionally-deleted ones.
+    processed = 0
+    recovery  = true
+  }
+
+  // last_row always reflects the sheet's true length (header + current data).
+  const newLastRow = 1 + currentCount
+
+  const dataRows = allDataRows.slice(processed).filter(r => r.some(c => String(c ?? '').trim()))
   if (dataRows.length === 0) {
     return { imported: 0, skipped: 0, failed: 0, errors: [], last_row: newLastRow }
+  }
+
+  // In recovery, preload existing order signatures to avoid duplicates / resurrections.
+  const existingSig = new Set<string>()
+  if (recovery) {
+    const { data: ex } = await db
+      .from('orders')
+      .select('phone, subtotal')
+      .eq('boutique_id', boutiqueId)
+    for (const o of (ex ?? []) as { phone: string; subtotal: number }[]) {
+      existingSig.add(`${String(o.phone ?? '').trim()}|${Number(o.subtotal)}`)
+    }
   }
 
   // ── Pre-load lookup caches ──────────────────────────────────────────────────
@@ -113,7 +140,7 @@ export async function syncGoogleSheet(params: SyncParams): Promise<SyncResult> {
   const errors: { row: number; reason: string }[] = []
 
   for (let ri = 0; ri < dataRows.length; ri++) {
-    const rowNum = startRow + ri + 1  // absolute sheet row number
+    const rowNum = processed + ri + 2  // absolute sheet row number (1=header)
     const row    = dataRows[ri]
 
     const clientName   = cell(row, headers, mapping.client_name)
@@ -225,9 +252,13 @@ export async function syncGoogleSheet(params: SyncParams): Promise<SyncResult> {
     // ── Insert order ───────────────────────────────────────────────────────────
 
     try {
+      const subtotal  = orderItems.reduce((s, it) => s + it.unit_price * it.quantity, 0)
+
+      // Recovery mode: skip rows that already produced an order (live or deleted)
+      if (recovery && existingSig.has(`${phone}|${subtotal}`)) { skipped++; continue }
+
       const reference = await rpc<string>('generate_order_reference', { p_boutique_id: boutiqueId })
       const delivMode = delivMethod.toLowerCase().includes('stop') ? 'stopdesk' : 'domicile'
-      const subtotal  = orderItems.reduce((s, it) => s + it.unit_price * it.quantity, 0)
       const orderId   = uuid()
 
       const { error: oErr } = await db.from('orders').insert({
