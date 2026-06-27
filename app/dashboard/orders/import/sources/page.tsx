@@ -154,7 +154,7 @@ export default function ImportSourcesPage() {
           borderRadius: 6, padding: '10px 14px', marginBottom: 20, fontSize: 13, color: '#3730A3',
         }}>
           <RefreshCw size={14} />
-          Synchronisation automatique toutes les 15 minutes. Seules les nouvelles lignes ajoutées en bas de la feuille sont importées.
+          Import instantané via déclencheur Google Drive. Un sync de secours tourne chaque nuit à 2h pour rattraper les éventuelles lignes manquées.
         </div>
 
         {loading ? (
@@ -283,7 +283,7 @@ export default function ImportSourcesPage() {
                             borderRadius: 20, padding: '3px 8px',
                           }}>
                             <Zap size={10} />
-                            Sync toutes les 15 min
+                            Sync quotidien (fallback)
                           </span>
                         )}
                       </div>
