@@ -58,6 +58,13 @@ const SECTIONS: SidebarSection[] = [
         children: [
           it(FilePlus,     'Nouvelle commande'),
           it(Upload,       'Import Google Sheet'),
+          sec('Pipeline'),
+          it(ClipboardList,'En confirmation'),
+          it(Package,      'En préparation'),
+          it(Truck,        'En dispatch'),
+          it(Truck,        'En livraison'),
+          it(PackageCheck, 'Livrées'),
+          it(RotateCcw,    'En retour'),
           sec('Archives'),
           it(Archive,      'Encaissées'),
           it(Archive,      'Retournées'),

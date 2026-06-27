@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useRef, useState, ReactNode } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { Globe, MessageSquare, Bell, BookOpen, LogOut, ChevronDown, ShoppingBag, Store } from 'lucide-react'
+import { Globe, MessageSquare, Bell, BookOpen, LogOut, ChevronDown, ShoppingBag, Store, ShoppingCart } from 'lucide-react'
 import Sidebar from '@/components/layout/Sidebar'
 import { useBoutique } from '@/contexts/BoutiqueContext'
 import { colors, fonts } from '@/lib/tokens'
@@ -9,9 +9,18 @@ import { colors, fonts } from '@/lib/tokens'
 interface BoutiqueOption { id: string; name: string; prefix: string }
 
 const ITEM_ROUTES: Record<string, string> = {
+  // Orders
   'Nouvelle commande':   '/dashboard/orders/new',
+  'En confirmation':     '/dashboard/orders/en-confirmation',
+  'En préparation':      '/dashboard/orders/en-preparation',
+  'En dispatch':         '/dashboard/orders/en-dispatch',
+  'En livraison':        '/dashboard/orders/en-livraison',
+  'Livrées':             '/dashboard/orders/livrees',
+  'En retour':           '/dashboard/orders/en-retour',
+  // Clients
   'Liste des clients':   '/dashboard/clients',
   'Import clients':      '/dashboard/clients/import',
+  // Products
   'Liste des produits':  '/dashboard/products',
   'Ajouter un produit':  '/dashboard/products/new',
   'Import en masse':     '/dashboard/products/import',
@@ -19,13 +28,19 @@ const ITEM_ROUTES: Record<string, string> = {
 }
 
 function getActiveItem(pathname: string): string {
-  if (pathname.startsWith('/dashboard/orders/new'))        return 'Nouvelle commande'
-  if (pathname === '/dashboard/clients/import')            return 'Import clients'
-  if (pathname.startsWith('/dashboard/clients'))           return 'Liste des clients'
-  if (pathname.startsWith('/dashboard/products/new'))      return 'Ajouter un produit'
-  if (pathname.startsWith('/dashboard/products/options'))  return 'Options & attributs'
-  if (pathname.startsWith('/dashboard/products/import'))   return 'Import en masse'
-  if (pathname.startsWith('/dashboard/products'))          return 'Liste des produits'
+  if (pathname.startsWith('/dashboard/orders/new'))              return 'Nouvelle commande'
+  if (pathname.startsWith('/dashboard/orders/en-confirmation'))  return 'En confirmation'
+  if (pathname.startsWith('/dashboard/orders/en-preparation'))   return 'En préparation'
+  if (pathname.startsWith('/dashboard/orders/en-dispatch'))      return 'En dispatch'
+  if (pathname.startsWith('/dashboard/orders/en-livraison'))     return 'En livraison'
+  if (pathname.startsWith('/dashboard/orders/livrees'))          return 'Livrées'
+  if (pathname.startsWith('/dashboard/orders/en-retour'))        return 'En retour'
+  if (pathname === '/dashboard/clients/import')                  return 'Import clients'
+  if (pathname.startsWith('/dashboard/clients'))                 return 'Liste des clients'
+  if (pathname.startsWith('/dashboard/products/new'))            return 'Ajouter un produit'
+  if (pathname.startsWith('/dashboard/products/options'))        return 'Options & attributs'
+  if (pathname.startsWith('/dashboard/products/import'))         return 'Import en masse'
+  if (pathname.startsWith('/dashboard/products'))                return 'Liste des produits'
   return ''
 }
 
@@ -37,7 +52,9 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
   const [ready,            setReady]            = useState(false)
   const [boutiques,        setBoutiques]        = useState<BoutiqueOption[]>([])
   const [showBoutiqueMenu, setShowBoutiqueMenu] = useState(false)
+  const [showNavMenu,      setShowNavMenu]      = useState(false)
   const boutiqueMenuRef = useRef<HTMLDivElement>(null)
+  const navMenuRef      = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -57,15 +74,17 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
   }, [router, setBoutique])
 
   useEffect(() => {
-    if (!showBoutiqueMenu) return
     function onOutside(e: MouseEvent) {
       if (boutiqueMenuRef.current && !boutiqueMenuRef.current.contains(e.target as Node)) {
         setShowBoutiqueMenu(false)
       }
+      if (navMenuRef.current && !navMenuRef.current.contains(e.target as Node)) {
+        setShowNavMenu(false)
+      }
     }
     document.addEventListener('mousedown', onOutside)
     return () => document.removeEventListener('mousedown', onOutside)
-  }, [showBoutiqueMenu])
+  }, [])
 
   if (!ready) return null
 
@@ -180,6 +199,88 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
                   {b.prefix && <span style={{ color: '#aaa', fontSize: 11, marginLeft: 'auto' }}>{b.prefix}</span>}
                 </button>
               ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── Nav: pipeline quick-links ── */}
+        <div ref={navMenuRef} style={{ position: 'relative', marginLeft: 12 }}>
+          <button
+            onClick={() => setShowNavMenu(v => !v)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: showNavMenu ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.0)',
+              border: 'none', borderRadius: 6,
+              padding: '5px 10px', cursor: 'pointer',
+              fontSize: 12.5, color: 'rgba(255,255,255,0.92)',
+              fontFamily: fonts.sans, fontWeight: 500,
+              transition: 'background .15s',
+            }}
+            onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.15)'}
+            onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = showNavMenu ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.0)'}
+          >
+            <ShoppingCart size={13} strokeWidth={1.8} />
+            Commandes
+            <ChevronDown size={11} style={{ opacity: 0.7 }} />
+          </button>
+
+          {showNavMenu && (
+            <div style={{
+              position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 300,
+              background: '#fff', borderRadius: 8,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+              border: '1px solid #E2D8E2', minWidth: 200, overflow: 'hidden',
+            }}>
+              {/* New order shortcut */}
+              <button
+                onClick={() => { router.push('/dashboard/orders/new'); setShowNavMenu(false) }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  width: '100%', textAlign: 'left',
+                  padding: '9px 14px', fontSize: 13, fontFamily: fonts.sans,
+                  border: 'none', background: 'transparent', cursor: 'pointer',
+                  color: colors.primary, fontWeight: 600,
+                  borderBottom: `1px solid #f0e8f0`,
+                }}
+                onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = colors.primaryLt}
+                onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}
+              >
+                + Nouvelle commande
+              </button>
+
+              {/* Pipeline stages */}
+              {[
+                { label: 'En confirmation', path: '/dashboard/orders/en-confirmation', dot: '#4472C4' },
+                { label: 'En préparation',  path: '/dashboard/orders/en-preparation',  dot: '#9966CC' },
+                { label: 'En dispatch',     path: '/dashboard/orders/en-dispatch',      dot: '#E6B800' },
+                { label: 'En livraison',    path: '/dashboard/orders/en-livraison',     dot: '#888888' },
+                { label: 'Livrées',         path: '/dashboard/orders/livrees',          dot: '#00B0A0' },
+                { label: 'En retour',       path: '/dashboard/orders/en-retour',        dot: '#E84B6A' },
+              ].map(({ label, path, dot }) => {
+                const isActive = pathname.startsWith(path)
+                return (
+                  <button
+                    key={path}
+                    onClick={() => { router.push(path); setShowNavMenu(false) }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      width: '100%', textAlign: 'left',
+                      padding: '8px 14px', fontSize: 13, fontFamily: fonts.sans,
+                      border: 'none',
+                      background: isActive ? colors.primaryLt : 'transparent',
+                      color: isActive ? colors.primary : colors.text,
+                      fontWeight: isActive ? 600 : 400,
+                      cursor: 'pointer',
+                    }}
+                    onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = '#fafafa' }}
+                    onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
+                  >
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: dot, flexShrink: 0 }} />
+                    {label}
+                    {isActive && <span style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: '50%', background: colors.primary }} />}
+                  </button>
+                )
+              })}
             </div>
           )}
         </div>

@@ -3,6 +3,117 @@ import { requireAuth } from '@/lib/auth'
 import { db, rpc } from '@/lib/db'
 import { v4 as uuid } from 'uuid'
 
+export async function GET(req: NextRequest) {
+  const user = requireAuth(req)
+  const sp   = req.nextUrl.searchParams
+
+  const status     = (sp.get('status')      ?? 'en_confirmation').trim()
+  const boutiqueId = (sp.get('boutique_id') ?? '').trim()
+  const page       = Math.max(1, parseInt(sp.get('page')  ?? '1'))
+  const limit      = Math.min(100, parseInt(sp.get('limit') ?? '25'))
+  const search     = (sp.get('search')      ?? '').trim()
+  const assignedTo = (sp.get('assigned_to') ?? '').trim()
+  const dateFrom   = (sp.get('date_from')   ?? '').trim()
+  const dateTo     = (sp.get('date_to')     ?? '').trim()
+  const offset     = (page - 1) * limit
+
+  if (!boutiqueId) return NextResponse.json({ items: [], total: 0 })
+
+  // Verify boutique belongs to this tenant
+  const { data: boutique } = await db
+    .from('boutiques')
+    .select('id')
+    .eq('id', boutiqueId)
+    .eq('tenant_id', user.tenantId)
+    .single()
+
+  if (!boutique) return NextResponse.json({ error: 'Boutique introuvable' }, { status: 403 })
+
+  // Pre-fetch matching client IDs for name/phone search
+  let clientIds: string[] = []
+  if (search) {
+    const { data: clientData } = await db
+      .from('clients')
+      .select('id')
+      .eq('tenant_id', user.tenantId)
+      .or(`full_name.ilike.%${search}%,phone.ilike.%${search}%`)
+      .limit(200)
+    clientIds = ((clientData ?? []) as { id: string }[]).map(c => c.id)
+  }
+
+  let query = db
+    .from('orders')
+    .select(
+      `id, reference, tracking_status, confirmation_status,
+       total, subtotal, delivery_fee, discount, delivery_method,
+       return_risk_score, assigned_confirmer_id, created_at, phone,
+       clients!client_id(full_name, phone),
+       wilayas!wilaya_id(name),
+       communes!commune_id(name),
+       users!assigned_confirmer_id(name)`,
+      { count: 'exact' }
+    )
+    .eq('boutique_id', boutiqueId)
+    .eq('tracking_status', status)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  if (search) {
+    const orParts = [`reference.ilike.%${search}%`, `phone.ilike.%${search}%`]
+    if (clientIds.length > 0) orParts.push(`client_id.in.(${clientIds.join(',')})`)
+    query = query.or(orParts.join(','))
+  }
+  if (assignedTo) query = query.eq('assigned_confirmer_id', assignedTo)
+  if (dateFrom)   query = query.gte('created_at', dateFrom)
+  if (dateTo) {
+    const end = new Date(dateTo)
+    end.setDate(end.getDate() + 1)
+    query = query.lt('created_at', end.toISOString())
+  }
+
+  const { data, error, count } = await query
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Batch-fetch item counts for this page
+  const orderIds = ((data ?? []) as { id: string }[]).map(o => o.id)
+  const itemCountMap = new Map<string, number>()
+  if (orderIds.length > 0) {
+    const { data: itemData } = await db
+      .from('order_items')
+      .select('order_id')
+      .in('order_id', orderIds)
+    for (const row of (itemData ?? []) as { order_id: string }[]) {
+      itemCountMap.set(row.order_id, (itemCountMap.get(row.order_id) ?? 0) + 1)
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const items = (data ?? []).map((o: any) => ({
+    id:                    o.id,
+    reference:             o.reference,
+    tracking_status:       o.tracking_status,
+    confirmation_status:   o.confirmation_status,
+    total:                 o.total,
+    subtotal:              o.subtotal,
+    delivery_fee:          o.delivery_fee,
+    discount:              o.discount,
+    delivery_method:       o.delivery_method,
+    return_risk_score:     o.return_risk_score,
+    assigned_confirmer_id: o.assigned_confirmer_id,
+    created_at:            o.created_at,
+    phone:                 o.phone,
+    client_name:     (o.clients  as { full_name: string } | null)?.full_name ?? null,
+    client_phone:    (o.clients  as { phone: string }     | null)?.phone     ?? o.phone,
+    wilaya_name:     (o.wilayas  as { name: string }      | null)?.name      ?? null,
+    commune_name:    (o.communes as { name: string }      | null)?.name      ?? null,
+    confirmer_name:  (o.users    as { name: string }      | null)?.name      ?? null,
+    items_count:     itemCountMap.get(o.id) ?? 0,
+  }))
+
+  return NextResponse.json({ items, total: count ?? 0 })
+}
+
 interface OrderItem {
   product_id:   string
   variant_id:   string | null
@@ -95,7 +206,6 @@ export async function POST(req: NextRequest) {
   const subtotal     = body.items.reduce((sum, it) => sum + it.unit_price * it.quantity, 0)
   const deliveryFee  = Number(body.delivery_fee) || 0
   const discount     = Number(body.discount)     || 0
-  const total        = subtotal + deliveryFee - discount
 
   const orderId = uuid()
 
@@ -111,7 +221,6 @@ export async function POST(req: NextRequest) {
       subtotal,
       delivery_fee:    deliveryFee,
       discount,
-      total,
       delivery_method: body.delivery_method ?? 'domicile',
       wilaya_id:       body.wilaya_id  ?? null,
       commune_id:      body.commune_id ?? null,
@@ -139,7 +248,6 @@ export async function POST(req: NextRequest) {
       quantity:     it.quantity,
       unit_price:   it.unit_price,
       unit_cost:    it.unit_cost || 0,
-      line_total:   it.unit_price * it.quantity,
     }))
   )
 
