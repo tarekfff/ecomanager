@@ -10,6 +10,7 @@ interface BoutiqueOption { id: string; name: string; prefix: string }
 
 // Map sidebar item labels → routes (extend as pages are added)
 const ITEM_ROUTES: Record<string, string> = {
+  'Nouvelle commande':     '/dashboard/orders/new',
   'Liste des clients':     '/dashboard/clients',
   'Import clients':        '/dashboard/clients/import',
   'Liste des produits':    '/dashboard/products',
@@ -19,6 +20,7 @@ const ITEM_ROUTES: Record<string, string> = {
 }
 
 function getActiveItem(pathname: string): string {
+  if (pathname.startsWith('/dashboard/orders/new'))          return 'Nouvelle commande'
   if (pathname === '/dashboard/clients/import')              return 'Import clients'
   if (pathname.startsWith('/dashboard/clients'))             return 'Liste des clients'
   if (pathname.startsWith('/dashboard/products/new'))        return 'Ajouter un produit'

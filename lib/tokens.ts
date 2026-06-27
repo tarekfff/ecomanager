@@ -1,4 +1,4 @@
-// ─── ECOMANAGER Design Tokens ───────────────────────────────
+// ─── chicN Design Tokens ────────────────────────────────────
 // Use these everywhere — never hardcode colors in components
 
 export const colors = {
