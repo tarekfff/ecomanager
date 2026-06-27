@@ -25,6 +25,9 @@ const ITEM_ROUTES: Record<string, string> = {
   'Ajouter un produit':  '/dashboard/products/new',
   'Import en masse':     '/dashboard/products/import',
   'Options & attributs': '/dashboard/products/options',
+  // Livraison
+  'Liste des livreurs':  '/dashboard/livraison/livreurs',
+  'Ajouter un livreur':  '/dashboard/livraison/livreurs',
 }
 
 function getActiveItem(pathname: string): string {
@@ -41,6 +44,7 @@ function getActiveItem(pathname: string): string {
   if (pathname.startsWith('/dashboard/products/options'))        return 'Options & attributs'
   if (pathname.startsWith('/dashboard/products/import'))         return 'Import en masse'
   if (pathname.startsWith('/dashboard/products'))                return 'Liste des produits'
+  if (pathname.startsWith('/dashboard/livraison/livreurs'))     return 'Liste des livreurs'
   return ''
 }
 

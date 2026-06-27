@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { db } from '@/lib/db'
 
-type BulkAction = 'confirm' | 'cancel' | 'delete' | 'assign' | 'set_confirmation_status' | 'dispatch' | 'assign_carrier' | 'ship' | 'disable_sync'
+type BulkAction = 'confirm' | 'cancel' | 'delete' | 'assign' | 'set_confirmation_status' | 'dispatch' | 'assign_carrier' | 'ship' | 'disable_sync' | 'deliver' | 'request_return' | 'set_carrier_fee'
 
 interface BulkBody {
   ids:    string[]
@@ -127,6 +127,27 @@ export async function POST(req: NextRequest) {
         .update({ sync_enabled: false })
         .in('id', verifiedIds)
       break
+
+    case 'deliver':
+      await db.from('orders')
+        .update({ tracking_status: 'livree', delivered_at: now })
+        .in('id', verifiedIds)
+      break
+
+    case 'request_return':
+      await db.from('orders')
+        .update({ tracking_status: 'en_retour' })
+        .in('id', verifiedIds)
+      break
+
+    case 'set_carrier_fee': {
+      const fee = parseFloat(value ?? '')
+      if (isNaN(fee) || fee < 0) return NextResponse.json({ error: 'Frais invalides' }, { status: 400 })
+      await db.from('orders')
+        .update({ carrier_fee: fee })
+        .in('id', verifiedIds)
+      break
+    }
 
     default:
       return NextResponse.json({ error: `Action inconnue: ${action}` }, { status: 400 })

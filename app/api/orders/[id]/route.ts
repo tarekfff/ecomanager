@@ -330,6 +330,26 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       update = { tracking_status: 'en_preparation', dispatched_at: null }
       break
 
+    case 'deliver':
+      update = { tracking_status: 'livree', delivered_at: now }
+      break
+
+    case 'request_return':
+      update = { tracking_status: 'en_retour' }
+      break
+
+    case 'set_delivery_status':
+      if (!body.value) return NextResponse.json({ error: 'Statut requis' }, { status: 400 })
+      update = { delivery_status: body.value }
+      break
+
+    case 'set_carrier_fee': {
+      const fee = parseFloat(body.value as string)
+      if (isNaN(fee) || fee < 0) return NextResponse.json({ error: 'Frais invalides' }, { status: 400 })
+      update = { carrier_fee: fee }
+      break
+    }
+
     default:
       return NextResponse.json({ error: `Action inconnue: ${body.action}` }, { status: 400 })
   }

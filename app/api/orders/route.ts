@@ -46,8 +46,9 @@ export async function GET(req: NextRequest) {
     .from('orders')
     .select(
       `id, reference, tracking_status, confirmation_status,
-       total, subtotal, delivery_fee, discount, delivery_method,
-       return_risk_score, assigned_confirmer_id, created_at, confirmed_at, dispatched_at, sync_enabled, phone,
+       total, subtotal, delivery_fee, carrier_fee, discount, delivery_method,
+       delivery_status, return_risk_score, assigned_confirmer_id,
+       created_at, confirmed_at, dispatched_at, shipped_at, sync_enabled, phone,
        clients!client_id(full_name, phone),
        wilayas!wilaya_id(name),
        communes!commune_id(name),
@@ -107,7 +108,10 @@ export async function GET(req: NextRequest) {
     created_at:            o.created_at,
     confirmed_at:          o.confirmed_at,
     dispatched_at:         o.dispatched_at,
+    shipped_at:            o.shipped_at,
     sync_enabled:          o.sync_enabled,
+    delivery_status:       o.delivery_status,
+    carrier_fee:           o.carrier_fee,
     phone:                 o.phone,
     client_name:     (o.clients   as { full_name: string } | null)?.full_name ?? null,
     client_phone:    (o.clients   as { phone: string }     | null)?.phone     ?? o.phone,
