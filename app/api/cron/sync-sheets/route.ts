@@ -1,19 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { syncGoogleSheet, getAccessToken, registerDriveWatch, stopDriveWatch } from '@/lib/sync-google-sheet'
+import {
+  syncSourceWithLock, getAccessToken,
+  registerDriveWatch, stopDriveWatch,
+} from '@/lib/sync-google-sheet'
 import { v4 as uuid } from 'uuid'
 
-// Called by Vercel Cron on schedule — authenticated via CRON_SECRET header
-export async function POST(req: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET
-  if (cronSecret) {
-    const auth = req.headers.get('authorization')
-    if (auth !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60   // allow up to 60s to sync all sources
+
+// Centralized sheet sync — the reliable real-time path. Runs every minute via
+// an external scheduler (cron-job.org) or Vercel Cron. One pass syncs every
+// active source for every store, so it scales independent of how many users
+// are online. Each source goes through syncSourceWithLock (atomic-ish soft
+// lock + idempotent windowed read) so the cron, Drive push, and manual syncs
+// can never double-import or lose a row.
+async function handle(req: NextRequest) {
+  const secret = process.env.CRON_SECRET
+  if (secret) {
+    const auth      = req.headers.get('authorization')
+    const qpSecret  = req.nextUrl.searchParams.get('secret')
+    const ok = auth === `Bearer ${secret}` || qpSecret === secret
+    if (!ok) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // Load all active google_sheet sources across all tenants
   const { data: sources, error } = await db
     .from('import_sources')
     .select('id, boutique_id, sheet_id, sheet_name, separator, column_mapping, credentials_ref, boutiques!inner(tenant_id)')
@@ -22,93 +32,55 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const results: { id: string; imported: number; skipped: number; failed: number; error?: string }[] = []
+  let imported = 0
+  let synced   = 0
 
-  for (const source of (sources ?? [])) {
+  for (const source of sources ?? []) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const anyS = source as any
-
-    let creds: { refresh_token?: string; google_email?: string; last_row?: number; watch_channel_id?: string; watch_resource_id?: string; watch_expiration?: number } = {}
-    try { creds = JSON.parse(anyS.credentials_ref ?? '{}') } catch { /* ignore */ }
-
-    if (!creds.refresh_token) {
-      results.push({ id: anyS.id, imported: 0, skipped: 0, failed: 0, error: 'No refresh_token' })
-      continue
-    }
-
+    const anyS      = source as any
     const boutiques = anyS.boutiques
     const tenantId  = Array.isArray(boutiques) ? boutiques[0]?.tenant_id : boutiques?.tenant_id
 
-    const runId = uuid()
-    await db.from('import_runs').insert({
-      id: runId, import_source_id: anyS.id,
-      rows_total: 0, rows_imported: 0, rows_failed: 0,
-      status: 'running', errors: [],
-    })
+    const result = await syncSourceWithLock(anyS, tenantId, 'cron')
+    if (result) { imported += result.imported; synced++ }
 
-    try {
-      const accessToken = await getAccessToken(creds.refresh_token)
-      const startRow    = creds.last_row ?? 1
-
-      const result = await syncGoogleSheet({
-        accessToken,
-        sheetId:    anyS.sheet_id,
-        sheetName:  anyS.sheet_name ?? 'Sheet1',
-        separator:  anyS.separator  ?? '|',
-        boutiqueId: anyS.boutique_id,
-        mapping:    anyS.column_mapping ?? {},
-        startRow,
-        tenantId,
-        userId:     'cron',
-      })
-
-      const newCreds = { ...creds, last_row: result.last_row }
-      await db.from('import_sources').update({
-        credentials_ref: JSON.stringify(newCreds),
-        last_synced_at:  new Date().toISOString(),
-      }).eq('id', anyS.id)
-
-      await db.from('import_runs').update({
-        rows_total:    result.imported + result.skipped + result.failed,
-        rows_imported: result.imported,
-        rows_failed:   result.failed,
-        status:        result.failed > 0 ? 'partial' : 'completed',
-        errors:        result.errors,
-      }).eq('id', runId)
-
-      results.push({ id: anyS.id, imported: result.imported, skipped: result.skipped, failed: result.failed })
-
-      // Renew Drive watch if it expires within 48 hours
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL
-      if (appUrl && !appUrl.includes('localhost') && creds.watch_channel_id) {
-        const expiresAt = creds.watch_expiration ?? 0
-        if (expiresAt - Date.now() < 48 * 60 * 60 * 1000) {
-          try {
-            const freshToken = await getAccessToken(creds.refresh_token)
-            // Stop old channel first
-            if (creds.watch_resource_id) {
-              await stopDriveWatch(freshToken, creds.watch_channel_id, creds.watch_resource_id).catch(() => {})
-            }
-            const newChannelId = uuid()
-            const watch = await registerDriveWatch(freshToken, anyS.sheet_id, `${appUrl}/api/webhooks/drive/${anyS.id}`, newChannelId)
-            // Merge renewed watch info into creds
-            const renewedCreds = {
-              ...creds,
-              last_row:            result.last_row,
-              watch_channel_id:    watch.channelId,
-              watch_resource_id:   watch.resourceId,
-              watch_expiration:    watch.expiration,
-            }
-            await db.from('import_sources').update({ credentials_ref: JSON.stringify(renewedCreds) }).eq('id', anyS.id)
-          } catch { /* silent — watch renewal failed, cron fallback still runs */ }
-        }
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err)
-      await db.from('import_runs').update({ status: 'failed', errors: [{ reason: msg }] }).eq('id', runId)
-      results.push({ id: anyS.id, imported: 0, skipped: 0, failed: 0, error: msg })
-    }
+    await renewWatchIfNeeded(anyS.id, anyS.sheet_id)
   }
 
-  return NextResponse.json({ synced: results.length, results })
+  return NextResponse.json({ sources: (sources ?? []).length, synced, imported })
+}
+
+export async function GET(req: NextRequest)  { return handle(req) }
+export async function POST(req: NextRequest) { return handle(req) }
+
+// Renew a Drive push channel before it expires (max 7 days for Sheets).
+// Reads fresh creds so it never clobbers last_row updated by the sync above.
+async function renewWatchIfNeeded(sourceId: string, sheetId: string) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL
+  if (!appUrl || appUrl.includes('localhost')) return
+
+  const { data: row } = await db
+    .from('import_sources').select('credentials_ref').eq('id', sourceId).single()
+  if (!row) return
+
+  let creds: { refresh_token?: string; watch_channel_id?: string; watch_resource_id?: string; watch_expiration?: number } = {}
+  try { creds = JSON.parse((row as { credentials_ref: string }).credentials_ref ?? '{}') } catch { return }
+
+  if (!creds.refresh_token || !creds.watch_channel_id) return
+  if ((creds.watch_expiration ?? 0) - Date.now() > 48 * 60 * 60 * 1000) return  // >48h left
+
+  try {
+    const token = await getAccessToken(creds.refresh_token)
+    if (creds.watch_resource_id) {
+      await stopDriveWatch(token, creds.watch_channel_id, creds.watch_resource_id).catch(() => {})
+    }
+    const watch = await registerDriveWatch(token, sheetId, `${appUrl}/api/webhooks/drive/${sourceId}`, uuid())
+    // Merge watch fields into the latest creds (re-read to keep last_row fresh)
+    const { data: latest } = await db
+      .from('import_sources').select('credentials_ref').eq('id', sourceId).single()
+    let cur = creds
+    try { cur = JSON.parse((latest as { credentials_ref: string }).credentials_ref ?? '{}') } catch { /* keep creds */ }
+    const merged = { ...cur, watch_channel_id: watch.channelId, watch_resource_id: watch.resourceId, watch_expiration: watch.expiration }
+    await db.from('import_sources').update({ credentials_ref: JSON.stringify(merged) }).eq('id', sourceId)
+  } catch { /* watch renewal best-effort — cron keeps syncing regardless */ }
 }

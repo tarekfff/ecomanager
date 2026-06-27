@@ -358,7 +358,10 @@ export async function getAccessToken(refreshToken: string): Promise<string> {
   return credentials.access_token ?? ''
 }
 
-const SYNC_LOCK_MS = 45_000  // skip if another sync started within this window
+// Stale-lock timeout: a normal sync releases the lock immediately on finish,
+// so this only matters if a run crashes mid-sync. Set well above the longest
+// expected sync so two runs never overlap, but short enough to auto-recover.
+const SYNC_LOCK_MS = 120_000
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SourceRow = any

@@ -225,22 +225,14 @@ export default function EnConfirmationPage() {
   useEffect(() => { fetchOrders() }, [fetchOrders])
 
   // ── Background poll — detect new orders every 10s ──────────────────────────
-  // First trigger a Google-Sheet sync (reliable real-time — doesn't depend on
-  // Google Drive push, which is delayed/coalesced), then check for new orders.
-  // If the user is idle on page 1 (no selection, no search), auto-refresh the
-  // list so new synced orders appear without a click. Otherwise just flag the
-  // banner so we don't yank the table while they're working.
+  // Cheap DB-only count check (no Google calls — sheets are synced centrally by
+  // the cron). Scales to any number of users. If the user is idle on page 1
+  // (no selection, no search), auto-refresh so new orders appear without a
+  // click. Otherwise flag the banner so we don't yank the table mid-action.
   useEffect(() => {
     if (!boutiqueId) return
-    const check = async () => {
+    const check = () => {
       if (document.hidden) return  // skip polling on background tabs
-      // Pull any new rows from connected sheets into the DB first.
-      try {
-        await fetch(`/api/import-sources/poll?boutique_id=${boutiqueId}`, {
-          method: 'POST', headers: authHeader(),
-        })
-      } catch { /* ignore — order check below still runs */ }
-
       const qs = new URLSearchParams({ status: 'en_confirmation', boutique_id: boutiqueId, page: '1', limit: '1' })
       fetch(`/api/orders?${qs}`, { headers: authHeader() })
         .then(r => r.json())
