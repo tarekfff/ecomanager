@@ -358,35 +358,45 @@ export async function getAccessToken(refreshToken: string): Promise<string> {
   return credentials.access_token ?? ''
 }
 
-// Stale-lock timeout: a normal sync releases the lock immediately on finish,
-// so this only matters if a run crashes mid-sync. Set well above the longest
-// expected sync so two runs never overlap, but short enough to auto-recover.
-const SYNC_LOCK_MS = 120_000
+// Lock window: only one sync may run per source per this interval. It both
+// throttles (cron runs every 60s, so this must be < 60s) and prevents Google's
+// duplicate Drive notifications (~50ms apart) from double-importing. Must be
+// larger than a normal incremental sync (1-5s) for crash safety.
+const SYNC_LOCK_MS = 45_000
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SourceRow = any
 
 /**
- * Sync one source end-to-end with a soft lock so concurrent triggers
- * (frontend poll + Drive webhook + cron) never double-import the same rows.
- * Returns null if skipped (locked / no token), otherwise the SyncResult.
+ * Sync one source end-to-end behind an ATOMIC database lock. The lock is a
+ * conditional UPDATE on last_synced_at: only one concurrent caller can flip it
+ * (Postgres serializes the row update), so cron, Drive push (incl. Google's
+ * duplicate notifications), and manual syncs can never double-import the same
+ * rows. Returns null if skipped (lock not won / no token), else the SyncResult.
  */
 export async function syncSourceWithLock(
   source:   SourceRow,
   tenantId: string,
   userId:   string,
 ): Promise<SyncResult | null> {
-  let creds: { refresh_token?: string; last_row?: number; sync_lock?: number } = {}
+  let creds: { refresh_token?: string; last_row?: number } = {}
   try { creds = JSON.parse(source.credentials_ref ?? '{}') } catch { /* ignore */ }
 
   if (!creds.refresh_token) return null
 
-  // Soft lock — bail if a sync started very recently
-  if (creds.sync_lock && Date.now() - creds.sync_lock < SYNC_LOCK_MS) return null
+  // ── Atomic lock ──────────────────────────────────────────────────────────
+  // Claim only if no sync ran within SYNC_LOCK_MS. The .or() filter + single
+  // UPDATE is a compare-and-swap: of two simultaneous callers, exactly one gets
+  // a row back; the other gets none and bails. No app-level race possible.
+  const cutoff = new Date(Date.now() - SYNC_LOCK_MS).toISOString()
+  const { data: claimed } = await db
+    .from('import_sources')
+    .update({ last_synced_at: new Date().toISOString() })
+    .eq('id', source.id)
+    .or(`last_synced_at.is.null,last_synced_at.lt.${cutoff}`)
+    .select('id')
 
-  // Claim the lock
-  const locked = { ...creds, sync_lock: Date.now() }
-  await db.from('import_sources').update({ credentials_ref: JSON.stringify(locked) }).eq('id', source.id)
+  if (!claimed || claimed.length === 0) return null   // lost the race / synced too recently
 
   const runId = uuid()
   try {
@@ -408,8 +418,8 @@ export async function syncSourceWithLock(
       userId,
     })
 
-    // Persist new last_row and release lock
-    const next = { ...creds, last_row: result.last_row, sync_lock: 0 }
+    // Persist new last_row (refresh last_synced_at to mark successful finish)
+    const next = { ...creds, last_row: result.last_row }
     await db.from('import_sources').update({
       credentials_ref: JSON.stringify(next),
       last_synced_at:  new Date().toISOString(),
@@ -425,10 +435,6 @@ export async function syncSourceWithLock(
 
     return result
   } catch (err) {
-    // Release lock even on failure
-    await db.from('import_sources').update({
-      credentials_ref: JSON.stringify({ ...creds, sync_lock: 0 }),
-    }).eq('id', source.id)
     const msg = err instanceof Error ? err.message : String(err)
     await db.from('import_runs').update({ status: 'failed', errors: [{ reason: msg }] }).eq('id', runId)
     return null
