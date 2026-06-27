@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     .from('v_stock_alerts')
     .select('*')
     .eq('tenant_id', user.tenantId)
-    .order('current_stock', { ascending: true })
+    .order('current_qty', { ascending: true })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data ?? [])

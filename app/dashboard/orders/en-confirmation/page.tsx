@@ -164,6 +164,10 @@ export default function EnConfirmationPage() {
   // Drawer — stores order ID only; OrderDetailPanel fetches its own data
   const [drawerOrderId, setDrawerOrderId] = useState<string | null>(null)
 
+  // Live refresh — banner when new orders arrive
+  const [newCount,     setNewCount]     = useState(0)
+  const knownTotalRef  = useRef<number | null>(null)
+
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // ── Close menus on outside click ─────────────────────────────────────────
@@ -208,12 +212,35 @@ export default function EnConfirmationPage() {
 
     fetch(`/api/orders?${qs}`, { headers: authHeader() })
       .then(r => r.json())
-      .then(d => { setOrders(d.items ?? []); setTotal(d.total ?? 0) })
+      .then(d => {
+        setOrders(d.items ?? [])
+        setTotal(d.total ?? 0)
+        knownTotalRef.current = d.total ?? 0
+        setNewCount(0)
+      })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [boutiqueId, page, dbSearch, filterUser, dateFrom, dateTo])
 
   useEffect(() => { fetchOrders() }, [fetchOrders])
+
+  // ── Background poll — detect new orders every 30s ──────────────────────────
+  useEffect(() => {
+    if (!boutiqueId) return
+    const check = () => {
+      const qs = new URLSearchParams({ status: 'en_confirmation', boutique_id: boutiqueId, page: '1', limit: '1' })
+      fetch(`/api/orders?${qs}`, { headers: authHeader() })
+        .then(r => r.json())
+        .then(d => {
+          const t = d.total ?? 0
+          if (knownTotalRef.current === null) { knownTotalRef.current = t; return }
+          if (t > knownTotalRef.current) setNewCount(t - knownTotalRef.current)
+        })
+        .catch(() => {})
+    }
+    const id = setInterval(check, 30_000)
+    return () => clearInterval(id)
+  }, [boutiqueId])
 
   // ── Search debounce ───────────────────────────────────────────────────────
 
@@ -330,6 +357,27 @@ export default function EnConfirmationPage() {
         flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column',
         padding: '12px 16px', gap: 10, fontFamily: fonts.sans,
       }}>
+
+        {/* ── New orders banner ──────────────────────────────────────────── */}
+        {newCount > 0 && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            background: '#F0FDF4', border: '1px solid #86EFAC',
+            borderRadius: 6, padding: '10px 14px', fontSize: 13, color: '#166534',
+            cursor: 'pointer',
+          }}
+            onClick={() => { setNewCount(0); knownTotalRef.current = null; fetchOrders() }}
+          >
+            <span style={{
+              background: '#22C55E', color: '#fff', borderRadius: '50%',
+              width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 11, fontWeight: 700, flexShrink: 0,
+            }}>{newCount}</span>
+            <span>
+              <strong>{newCount} nouvelle{newCount > 1 ? 's' : ''} commande{newCount > 1 ? 's' : ''}</strong> reçue{newCount > 1 ? 's' : ''} — Cliquez pour actualiser
+            </span>
+          </div>
+        )}
 
         {/* No boutique warning */}
         {!boutiqueId && (

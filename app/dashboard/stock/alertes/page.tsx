@@ -9,11 +9,11 @@ import { colors, fonts } from '@/lib/tokens'
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 interface StockAlert {
-  product_id:     string
-  tenant_id:      string
-  name:           string
-  sku:            string | null
-  current_stock:  number
+  product_id:      string
+  tenant_id:       string
+  product_name:    string
+  sku:             string | null
+  current_qty:     number
   stock_alert_min: number
 }
 
@@ -48,8 +48,8 @@ export default function AlertesPage() {
 
   const columns: Column<StockAlert>[] = [
     {
-      key: 'name', label: 'Produit',
-      render: r => <span style={{ fontWeight: 500 }}>{r.name}</span>,
+      key: 'product_name', label: 'Produit',
+      render: r => <span style={{ fontWeight: 500 }}>{r.product_name}</span>,
     },
     {
       key: 'sku', label: 'SKU', width: 130,
@@ -60,10 +60,10 @@ export default function AlertesPage() {
       ),
     },
     {
-      key: 'current_stock', label: 'Stock actuel', width: 120,
+      key: 'current_qty', label: 'Stock actuel', width: 120,
       render: r => (
         <span style={{ fontWeight: 700, color: colors.red, fontSize: 13 }}>
-          {r.current_stock}
+          {r.current_qty}
         </span>
       ),
     },
@@ -78,7 +78,7 @@ export default function AlertesPage() {
     {
       key: '_ecart', label: 'Écart', width: 100,
       render: r => {
-        const diff = r.current_stock - r.stock_alert_min
+        const diff = r.current_qty - r.stock_alert_min
         return (
           <span style={{ fontWeight: 600, color: colors.red }}>
             {diff}

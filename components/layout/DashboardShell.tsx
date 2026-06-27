@@ -40,6 +40,11 @@ const ITEM_ROUTES: Record<string, string> = {
   'Ajouter un produit':  '/dashboard/products/new',
   'Import en masse':     '/dashboard/products/import',
   'Options & attributs': '/dashboard/products/options',
+  // stock 
+  'Ajustement de stock':    '/dashboard/stock/ajustement',
+  'Mouvements de stock':    '/dashboard/stock/mouvements',
+  'Lots de stock':    '/dashboard/stock/lots',
+  'Alertes de stock':    '/dashboard/stock/alertes',
   // Livraison
   'Liste des livreurs':  '/dashboard/livraison/livreurs',
   'Ajouter un livreur':  '/dashboard/livraison/livreurs',
@@ -88,6 +93,11 @@ function getActiveItem(pathname: string): string {
   if (pathname.startsWith('/dashboard/stats/livreur'))        return 'Par livreur'
   if (pathname.startsWith('/dashboard/stats/wilaya'))              return 'Par wilaya'
   if (pathname.startsWith('/dashboard/comptabilite/bilan'))        return 'Bilan général'
+  if (pathname.startsWith('/dashboard/stock/ajustement'))              return 'Ajustement de stock'
+  if (pathname.startsWith('/dashboard/stock/lots'))                      return 'Lots de stock'
+  if (pathname.startsWith('/dashboard/stock/alertes'))                   return 'Alertes de stock'
+  if (pathname.startsWith('/dashboard/stock/mouvements'))                return 'Mouvements de stock'
+
   return ''
 }
 
@@ -401,7 +411,7 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
-          overflow: 'hidden',
+          overflowY: 'auto',
           background: colors.bg,
         }}>
           {children}
