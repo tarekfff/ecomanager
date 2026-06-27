@@ -357,3 +357,77 @@ export async function getAccessToken(refreshToken: string): Promise<string> {
   const { credentials } = await oauth2.refreshAccessToken()
   return credentials.access_token ?? ''
 }
+
+const SYNC_LOCK_MS = 45_000  // skip if another sync started within this window
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SourceRow = any
+
+/**
+ * Sync one source end-to-end with a soft lock so concurrent triggers
+ * (frontend poll + Drive webhook + cron) never double-import the same rows.
+ * Returns null if skipped (locked / no token), otherwise the SyncResult.
+ */
+export async function syncSourceWithLock(
+  source:   SourceRow,
+  tenantId: string,
+  userId:   string,
+): Promise<SyncResult | null> {
+  let creds: { refresh_token?: string; last_row?: number; sync_lock?: number } = {}
+  try { creds = JSON.parse(source.credentials_ref ?? '{}') } catch { /* ignore */ }
+
+  if (!creds.refresh_token) return null
+
+  // Soft lock — bail if a sync started very recently
+  if (creds.sync_lock && Date.now() - creds.sync_lock < SYNC_LOCK_MS) return null
+
+  // Claim the lock
+  const locked = { ...creds, sync_lock: Date.now() }
+  await db.from('import_sources').update({ credentials_ref: JSON.stringify(locked) }).eq('id', source.id)
+
+  const runId = uuid()
+  try {
+    await db.from('import_runs').insert({
+      id: runId, import_source_id: source.id,
+      rows_total: 0, rows_imported: 0, rows_failed: 0, status: 'running', errors: [],
+    })
+
+    const accessToken = await getAccessToken(creds.refresh_token)
+    const result = await syncGoogleSheet({
+      accessToken,
+      sheetId:    source.sheet_id,
+      sheetName:  source.sheet_name ?? 'Sheet1',
+      separator:  source.separator  ?? '|',
+      boutiqueId: source.boutique_id,
+      mapping:    source.column_mapping ?? {},
+      startRow:   creds.last_row ?? 1,
+      tenantId,
+      userId,
+    })
+
+    // Persist new last_row and release lock
+    const next = { ...creds, last_row: result.last_row, sync_lock: 0 }
+    await db.from('import_sources').update({
+      credentials_ref: JSON.stringify(next),
+      last_synced_at:  new Date().toISOString(),
+    }).eq('id', source.id)
+
+    await db.from('import_runs').update({
+      rows_total:    result.imported + result.skipped + result.failed,
+      rows_imported: result.imported,
+      rows_failed:   result.failed,
+      status:        result.failed > 0 ? 'partial' : 'completed',
+      errors:        result.errors,
+    }).eq('id', runId)
+
+    return result
+  } catch (err) {
+    // Release lock even on failure
+    await db.from('import_sources').update({
+      credentials_ref: JSON.stringify({ ...creds, sync_lock: 0 }),
+    }).eq('id', source.id)
+    const msg = err instanceof Error ? err.message : String(err)
+    await db.from('import_runs').update({ status: 'failed', errors: [{ reason: msg }] }).eq('id', runId)
+    return null
+  }
+}

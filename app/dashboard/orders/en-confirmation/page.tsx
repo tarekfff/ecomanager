@@ -225,13 +225,22 @@ export default function EnConfirmationPage() {
   useEffect(() => { fetchOrders() }, [fetchOrders])
 
   // ── Background poll — detect new orders every 10s ──────────────────────────
+  // First trigger a Google-Sheet sync (reliable real-time — doesn't depend on
+  // Google Drive push, which is delayed/coalesced), then check for new orders.
   // If the user is idle on page 1 (no selection, no search), auto-refresh the
   // list so new synced orders appear without a click. Otherwise just flag the
   // banner so we don't yank the table while they're working.
   useEffect(() => {
     if (!boutiqueId) return
-    const check = () => {
+    const check = async () => {
       if (document.hidden) return  // skip polling on background tabs
+      // Pull any new rows from connected sheets into the DB first.
+      try {
+        await fetch(`/api/import-sources/poll?boutique_id=${boutiqueId}`, {
+          method: 'POST', headers: authHeader(),
+        })
+      } catch { /* ignore — order check below still runs */ }
+
       const qs = new URLSearchParams({ status: 'en_confirmation', boutique_id: boutiqueId, page: '1', limit: '1' })
       fetch(`/api/orders?${qs}`, { headers: authHeader() })
         .then(r => r.json())
@@ -247,7 +256,18 @@ export default function EnConfirmationPage() {
         .catch(() => {})
     }
     const id = setInterval(check, 10_000)
-    return () => clearInterval(id)
+
+    // Refresh instantly when the user returns to this tab (e.g. after adding
+    // rows in n8n / Google Sheets in another tab) — the poll pauses while hidden.
+    const onVisible = () => { if (!document.hidden) check() }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onVisible)
+
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onVisible)
+    }
   }, [boutiqueId, page, selectedIds, dbSearch, fetchOrders])
 
   // ── Search debounce ───────────────────────────────────────────────────────
