@@ -58,6 +58,13 @@ interface CreateBody {
   google_email:  string
 }
 
+function getOrigin(req: NextRequest): string {
+  const host  = req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? ''
+  const proto = req.headers.get('x-forwarded-proto') ?? 'https'
+  if (host) return `${proto}://${host}`
+  return process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin
+}
+
 export async function POST(req: NextRequest) {
   const user = requireAuth(req)
   const body = await req.json() as CreateBody
@@ -93,28 +100,23 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Register a Drive push-notification watch so changes trigger instant sync
-  // Fails silently (e.g. localhost) — the 15-min cron still covers it
+  // Register a Drive push-notification watch — instant sync on every sheet edit
   try {
-    const sourceId   = (data as { id: string }).id
-    const appUrl     = process.env.NEXT_PUBLIC_APP_URL
-    if (appUrl && !appUrl.includes('localhost')) {
+    const sourceId  = (data as { id: string }).id
+    const origin    = getOrigin(req)
+    if (!origin.includes('localhost')) {
       const accessToken = await getAccessToken(refresh_token)
       const channelId   = uuid()
-      const webhookUrl  = `${appUrl}/api/webhooks/drive/${sourceId}`
-      const watch       = await registerDriveWatch(accessToken, sheet_id, webhookUrl, channelId)
-
+      const watch       = await registerDriveWatch(accessToken, sheet_id, `${origin}/api/webhooks/drive/${sourceId}`, channelId)
       const updatedCreds = JSON.stringify({
-        refresh_token,
-        google_email,
-        last_row:    1,
+        refresh_token, google_email, last_row: 1,
         watch_channel_id:  watch.channelId,
         watch_resource_id: watch.resourceId,
         watch_expiration:  watch.expiration,
       })
       await db.from('import_sources').update({ credentials_ref: updatedCreds }).eq('id', sourceId)
     }
-  } catch { /* silent — cron fallback active */ }
+  } catch { /* silent — daily cron fallback still runs */ }
 
   return NextResponse.json(data, { status: 201 })
 }
