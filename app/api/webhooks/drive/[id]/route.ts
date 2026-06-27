@@ -1,18 +1,16 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { db } from '@/lib/db'
 import { syncGoogleSheet, getAccessToken } from '@/lib/sync-google-sheet'
 import { v4 as uuid } from 'uuid'
 
 // Called by Google Drive push notifications when the spreadsheet changes.
 // Google sends: X-Goog-Resource-State: sync | update | change | add | remove | trash
-// We only act on "update" and "change" (actual content modifications).
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
 
-  // Always return 200 immediately — Google retries on any non-2xx
   const state = req.headers.get('x-goog-resource-state')
   if (!state || state === 'sync') {
     return NextResponse.json({ ok: true })
@@ -28,7 +26,7 @@ export async function POST(
   if (!source || !source.is_active) return NextResponse.json({ ok: true })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const anyS      = source as any
+  const anyS     = source as any
   const boutiques = anyS.boutiques
   const tenantId  = Array.isArray(boutiques) ? boutiques[0]?.tenant_id : boutiques?.tenant_id
 
@@ -37,9 +35,10 @@ export async function POST(
 
   if (!creds.refresh_token) return NextResponse.json({ ok: true })
 
-  // Run sync in background — don't await so response returns immediately
   const runId = uuid()
-  ;(async () => {
+
+  // after() runs AFTER the response is sent but keeps the Vercel function alive
+  after(async () => {
     try {
       await db.from('import_runs').insert({
         id: runId, import_source_id: id,
@@ -79,7 +78,7 @@ export async function POST(
       const msg = err instanceof Error ? err.message : String(err)
       await db.from('import_runs').update({ status: 'failed', errors: [{ reason: msg }] }).eq('id', runId)
     }
-  })()
+  })
 
   return NextResponse.json({ ok: true })
 }

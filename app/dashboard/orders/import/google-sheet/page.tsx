@@ -318,7 +318,7 @@ export default function GoogleSheetImportPage() {
       const data = await res.json()
       if (res.ok) {
         setTabs(data.tabs ?? [])
-        if (data.tabs?.length === 1) setSheetName(data.tabs[0])
+        if (data.tabs?.length >= 1) setSheetName(data.tabs[0])
       }
     } catch { /* ignore */ }
     finally { setTabsLoading(false) }
