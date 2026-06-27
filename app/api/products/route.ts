@@ -22,7 +22,27 @@ export async function GET(req: NextRequest) {
   const offset     = (page - 1) * limit
 
   if (!boutiqueId) {
-    return NextResponse.json({ items: [], total: 0 })
+    // Search-only mode (e.g. stock management) — return all tenant products matching query
+    if (!search) return NextResponse.json({ items: [], total: 0 })
+
+    const { data, error, count } = await db
+      .from('products')
+      .select('id, name, sku', { count: 'exact' })
+      .eq('tenant_id', user.tenantId)
+      .is('deleted_at', null)
+      .or(`name.ilike.%${search}%,sku.ilike.%${search}%`)
+      .order('name')
+      .range(offset, offset + limit - 1)
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const items = (data ?? []).map((p: any) => ({
+      id: p.id, name: p.name, sku: p.sku,
+      price: 0, compare_price: null, is_active: true,
+      brand_name: null, stock_total: 0, created_at: '',
+    }))
+    return NextResponse.json({ items, total: count ?? 0 })
   }
 
   // Step 1 — get all product IDs in this boutique (reliable junction-table lookup)

@@ -18,7 +18,9 @@ export async function GET(req: NextRequest) {
     auth.setCredentials({ access_token: googleToken })
 
     const sheets = google.sheets({ version: 'v4', auth })
-    const range  = `${sheetName}!A1:ZZ6` // header + first 5 rows
+    // Quote the tab name to handle spaces/special chars; use row-only range so column count doesn't matter
+    const tab   = sheetName.includes(' ') || sheetName.includes("'") ? `'${sheetName.replace(/'/g, "\\'")}'` : sheetName
+    const range = `${tab}!1:6`
 
     const { data } = await sheets.spreadsheets.values.get({
       spreadsheetId: sheetId,

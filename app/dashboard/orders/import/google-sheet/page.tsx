@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   CheckCircle, XCircle, ChevronDown, ChevronUp,
-  AlertCircle, ArrowLeft, Link, RefreshCw, Loader2,
+  AlertCircle, ArrowLeft, RefreshCw, Loader2,
 } from 'lucide-react'
 import { PageHeader, Button } from '@/components/ui'
 import { colors, fonts } from '@/lib/tokens'
@@ -185,12 +185,19 @@ export default function GoogleSheetImportPage() {
   const [googleEmail,       setGoogleEmail]      = useState('')
   const [googleError,       setGoogleError]      = useState('')
 
-  // Step 2
-  const [sheetInput,   setSheetInput]   = useState('')
-  const [sheetName,    setSheetName]    = useState('')
-  const [separator,    setSeparator]    = useState(DEFAULT_SEPARATOR)
-  const [loadError,    setLoadError]    = useState('')
-  const [loadLoading,  setLoadLoading]  = useState(false)
+  // Step 2 — file picker
+  const [sheetInput,     setSheetInput]     = useState('')   // sheet ID (selected or typed fallback)
+  const [sheetName,      setSheetName]      = useState('')   // tab name
+  const [separator,      setSeparator]      = useState(DEFAULT_SEPARATOR)
+  const [loadError,      setLoadError]      = useState('')
+  const [loadLoading,    setLoadLoading]    = useState(false)
+  const [driveFiles,     setDriveFiles]     = useState<{ id: string; name: string; modifiedTime: string }[]>([])
+  const [driveLoading,   setDriveLoading]   = useState(false)
+  const [driveError,     setDriveError]     = useState('')
+  const [selectedFile,   setSelectedFile]   = useState<{ id: string; name: string } | null>(null)
+  const [tabs,           setTabs]           = useState<string[]>([])
+  const [tabsLoading,    setTabsLoading]    = useState(false)
+  const [fileSearch,     setFileSearch]     = useState('')
 
   // Step 3
   const [headers,      setHeaders]      = useState<string[]>([])
@@ -223,6 +230,7 @@ export default function GoogleSheetImportPage() {
       setGoogleEmail(email ?? '')
       if (refreshToken) setGoogleRefreshToken(refreshToken)
       setStep(2)
+      fetchDriveFiles(token)
       // Clean URL
       router.replace('/dashboard/orders/import/google-sheet')
     }
@@ -242,6 +250,7 @@ export default function GoogleSheetImportPage() {
       setGoogleEmail(savedEmail ?? '')
       if (savedRefresh) setGoogleRefreshToken(savedRefresh)
       setStep(2)
+      fetchDriveFiles(saved)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -276,10 +285,49 @@ export default function GoogleSheetImportPage() {
     setStep(1)
   }
 
+  // ── Step 2 — fetch Drive files when entering step 2 ──────────────────────
+
+  const fetchDriveFiles = useCallback(async (token: string) => {
+    setDriveLoading(true)
+    setDriveError('')
+    try {
+      const res  = await fetch(`/api/orders/import/google-sheet/files?google_token=${encodeURIComponent(token)}`, {
+        headers: authHeader(),
+      })
+      const data = await res.json()
+      if (!res.ok) { setDriveError(data.error ?? 'Impossible de lister les fichiers.'); return }
+      setDriveFiles(data.files ?? [])
+    } catch {
+      setDriveError('Erreur réseau.')
+    } finally {
+      setDriveLoading(false)
+    }
+  }, [])
+
+  async function handleSelectFile(file: { id: string; name: string }) {
+    setSelectedFile(file)
+    setSheetInput(file.id)
+    setSheetName('')
+    setTabs([])
+    setTabsLoading(true)
+    try {
+      const res  = await fetch(
+        `/api/orders/import/google-sheet/tabs?sheet_id=${encodeURIComponent(file.id)}&google_token=${encodeURIComponent(googleToken)}`,
+        { headers: authHeader() }
+      )
+      const data = await res.json()
+      if (res.ok) {
+        setTabs(data.tabs ?? [])
+        if (data.tabs?.length === 1) setSheetName(data.tabs[0])
+      }
+    } catch { /* ignore */ }
+    finally { setTabsLoading(false) }
+  }
+
   // ── Step 2 — load sheet ───────────────────────────────────────────────────
 
   const handleLoadSheet = useCallback(async () => {
-    if (!sheetInput.trim()) { setLoadError('Entrez l\'URL ou l\'ID de la feuille.'); return }
+    if (!sheetInput.trim()) { setLoadError('Sélectionnez une feuille Google Sheets.'); return }
     if (!googleToken)        { setLoadError('Connectez-vous à Google d\'abord.'); return }
 
     setLoadError('')
@@ -491,9 +539,7 @@ export default function GoogleSheetImportPage() {
                     Sélection du fichier
                   </h2>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-                    <div style={{
-                      width: 8, height: 8, borderRadius: '50%', background: colors.green,
-                    }} />
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: colors.green }} />
                     <span style={{ fontSize: 12, color: colors.textMd }}>
                       Connecté en tant que <strong>{googleEmail}</strong>
                     </span>
@@ -511,55 +557,142 @@ export default function GoogleSheetImportPage() {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+                {/* ── Drive file list ── */}
                 <div>
-                  <label style={{ fontSize: 12, color: colors.textMd, display: 'block', marginBottom: 5 }}>
-                    URL ou ID de la feuille Google Sheets <span style={{ color: colors.red }}>*</span>
+                  <label style={{ fontSize: 12, color: colors.textMd, display: 'block', marginBottom: 8, fontWeight: 600 }}>
+                    Choisir une feuille Google Sheets <span style={{ color: colors.red }}>*</span>
                   </label>
-                  <div style={{ position: 'relative' }}>
-                    <Link size={14} color={colors.textLt} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
-                    <input
-                      value={sheetInput}
-                      onChange={e => setSheetInput(e.target.value)}
-                      placeholder="https://docs.google.com/spreadsheets/d/… ou ID direct"
-                      style={{ ...inputStyle, paddingLeft: 32 }}
-                      onFocus={e => (e.currentTarget.style.borderColor = colors.primary)}
-                      onBlur={e  => (e.currentTarget.style.borderColor = colors.border)}
-                    />
-                  </div>
+
+                  {driveLoading && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: colors.textLt, fontSize: 13, padding: '8px 0' }}>
+                      <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                      Chargement de vos fichiers…
+                    </div>
+                  )}
+
+                  {driveError && (
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      background: '#fff0f0', border: `1px solid ${colors.red}33`,
+                      borderRadius: 6, padding: '10px 14px', marginBottom: 8, fontSize: 13, color: colors.red,
+                    }}>
+                      <AlertCircle size={15} />
+                      {driveError}
+                      <button
+                        onClick={() => fetchDriveFiles(googleToken)}
+                        style={{ marginLeft: 'auto', fontSize: 12, color: colors.primary, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                      >
+                        Réessayer
+                      </button>
+                    </div>
+                  )}
+
+                  {!driveLoading && driveFiles.length > 0 && (
+                    <>
+                      {/* Search within list */}
+                      <input
+                        value={fileSearch}
+                        onChange={e => setFileSearch(e.target.value)}
+                        placeholder="Rechercher un fichier…"
+                        style={{ ...inputStyle, marginBottom: 8, fontSize: 12 }}
+                        onFocus={e => (e.currentTarget.style.borderColor = colors.primary)}
+                        onBlur={e  => (e.currentTarget.style.borderColor = colors.border)}
+                      />
+
+                      <div style={{
+                        border: `1px solid ${colors.border}`, borderRadius: 6,
+                        maxHeight: 240, overflowY: 'auto', background: '#fff',
+                      }}>
+                        {driveFiles
+                          .filter(f => !fileSearch || f.name.toLowerCase().includes(fileSearch.toLowerCase()))
+                          .map(file => {
+                            const isSelected = selectedFile?.id === file.id
+                            const date = file.modifiedTime
+                              ? new Date(file.modifiedTime).toLocaleDateString('fr-DZ', { day: '2-digit', month: '2-digit', year: '2-digit' })
+                              : ''
+                            return (
+                              <div
+                                key={file.id}
+                                onClick={() => handleSelectFile(file)}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: 10,
+                                  padding: '9px 12px', cursor: 'pointer',
+                                  background: isSelected ? '#F3ECFB' : 'transparent',
+                                  borderLeft: isSelected ? `3px solid ${colors.primary}` : '3px solid transparent',
+                                  borderBottom: `1px solid ${colors.border}`,
+                                  transition: 'background .1s',
+                                }}
+                                onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = '#fafafa' }}
+                                onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
+                              >
+                                {/* Sheets icon */}
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                  <rect width="24" height="24" rx="3" fill="#0F9D58" opacity=".15"/>
+                                  <rect x="5" y="7" width="14" height="2" rx="1" fill="#0F9D58"/>
+                                  <rect x="5" y="11" width="14" height="2" rx="1" fill="#0F9D58"/>
+                                  <rect x="5" y="15" width="9" height="2" rx="1" fill="#0F9D58"/>
+                                </svg>
+                                <span style={{ flex: 1, fontSize: 13, color: colors.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {file.name}
+                                </span>
+                                <span style={{ fontSize: 11, color: colors.textLt, flexShrink: 0 }}>{date}</span>
+                                {isSelected && <CheckCircle size={14} color={colors.primary} style={{ flexShrink: 0 }} />}
+                              </div>
+                            )
+                          })
+                        }
+                      </div>
+                    </>
+                  )}
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                  <div>
-                    <label style={{ fontSize: 12, color: colors.textMd, display: 'block', marginBottom: 5 }}>
-                      Nom de l&apos;onglet (feuille)
-                    </label>
-                    <input
-                      value={sheetName}
-                      onChange={e => setSheetName(e.target.value)}
-                      placeholder="Sheet1"
-                      style={inputStyle}
-                      onFocus={e => (e.currentTarget.style.borderColor = colors.primary)}
-                      onBlur={e  => (e.currentTarget.style.borderColor = colors.border)}
-                    />
+                {/* ── Tab + separator row ── */}
+                {selectedFile && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, alignItems: 'start' }}>
+                    <div>
+                      <label style={{ fontSize: 12, color: colors.textMd, display: 'block', marginBottom: 5 }}>
+                        Onglet (feuille)
+                      </label>
+                      {tabsLoading ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: colors.textLt, padding: '8px 0' }}>
+                          <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> Chargement des onglets…
+                        </div>
+                      ) : tabs.length > 1 ? (
+                        <select
+                          value={sheetName}
+                          onChange={e => setSheetName(e.target.value)}
+                          style={selectStyle}
+                        >
+                          {tabs.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                      ) : (
+                        <input
+                          value={sheetName}
+                          onChange={e => setSheetName(e.target.value)}
+                          placeholder="Sheet1"
+                          style={inputStyle}
+                          onFocus={e => (e.currentTarget.style.borderColor = colors.primary)}
+                          onBlur={e  => (e.currentTarget.style.borderColor = colors.border)}
+                        />
+                      )}
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, color: colors.textMd, display: 'block', marginBottom: 5 }}>
+                        Séparateur SKUs
+                      </label>
+                      <input
+                        value={separator}
+                        onChange={e => setSeparator(e.target.value || DEFAULT_SEPARATOR)}
+                        placeholder="|"
+                        maxLength={5}
+                        style={{ ...inputStyle, width: 60, textAlign: 'center' }}
+                        onFocus={e => (e.currentTarget.style.borderColor = colors.primary)}
+                        onBlur={e  => (e.currentTarget.style.borderColor = colors.border)}
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label style={{ fontSize: 12, color: colors.textMd, display: 'block', marginBottom: 5 }}>
-                      Séparateur produits
-                    </label>
-                    <input
-                      value={separator}
-                      onChange={e => setSeparator(e.target.value || DEFAULT_SEPARATOR)}
-                      placeholder="|"
-                      maxLength={5}
-                      style={{ ...inputStyle, width: 80 }}
-                      onFocus={e => (e.currentTarget.style.borderColor = colors.primary)}
-                      onBlur={e  => (e.currentTarget.style.borderColor = colors.border)}
-                    />
-                    <span style={{ fontSize: 11, color: colors.textLt, marginTop: 4, display: 'block' }}>
-                      Sépare plusieurs SKUs dans une cellule
-                    </span>
-                  </div>
-                </div>
+                )}
 
                 {loadError && (
                   <div style={{
@@ -575,17 +708,16 @@ export default function GoogleSheetImportPage() {
                 <div>
                   <button
                     onClick={handleLoadSheet}
-                    disabled={loadLoading}
+                    disabled={loadLoading || !selectedFile}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 8,
                       padding: '9px 18px', borderRadius: 6, border: 'none',
-                      background: loadLoading ? '#ccc' : colors.primary,
+                      background: loadLoading || !selectedFile ? '#ccc' : colors.primary,
                       color: '#fff', fontSize: 13, fontWeight: 600,
-                      fontFamily: fonts.sans, cursor: loadLoading ? 'not-allowed' : 'pointer',
-                      transition: 'background .15s',
+                      fontFamily: fonts.sans, cursor: loadLoading || !selectedFile ? 'not-allowed' : 'pointer',
                     }}
-                    onMouseEnter={e => { if (!loadLoading) (e.currentTarget as HTMLButtonElement).style.background = colors.primaryDk }}
-                    onMouseLeave={e => { if (!loadLoading) (e.currentTarget as HTMLButtonElement).style.background = colors.primary }}
+                    onMouseEnter={e => { if (!loadLoading && selectedFile) (e.currentTarget as HTMLButtonElement).style.background = colors.primaryDk }}
+                    onMouseLeave={e => { if (!loadLoading && selectedFile) (e.currentTarget as HTMLButtonElement).style.background = colors.primary }}
                   >
                     {loadLoading
                       ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />

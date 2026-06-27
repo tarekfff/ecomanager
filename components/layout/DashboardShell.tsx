@@ -51,7 +51,7 @@ const ITEM_ROUTES: Record<string, string> = {
   'Par livreur':         '/dashboard/stats/livreur',
   'Par wilaya':          '/dashboard/stats/wilaya',
   // Comptabilité
-  'Bilan général':       '/dashboard/comptabilite/bilan',
+  'Bilan général':       '/dashboard/comptabilite/ajustement',
 }
 
 function getActiveItem(pathname: string): string {

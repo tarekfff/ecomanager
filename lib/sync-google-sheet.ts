@@ -59,14 +59,18 @@ export async function syncGoogleSheet(params: SyncParams): Promise<SyncResult> {
   const auth = new google.auth.OAuth2()
   auth.setCredentials({ access_token: accessToken })
   const sheets = google.sheets({ version: 'v4', auth })
-  const tab    = sheetName || 'Sheet1'
+  const rawTab = sheetName || 'Sheet1'
+  // Quote tab name if it contains spaces or apostrophes
+  const tab    = rawTab.includes(' ') || rawTab.includes("'")
+    ? `'${rawTab.replace(/'/g, "\\'")}'`
+    : rawTab
 
-  // Always fetch header row separately so we know column positions
+  // Use row-only ranges so column count doesn't matter (ZZ6 fails on narrow sheets)
   const [headerRes, dataRes] = await Promise.all([
-    sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: `${tab}!A1:ZZ1` }),
+    sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: `${tab}!1:1` }),
     sheets.spreadsheets.values.get({
       spreadsheetId: sheetId,
-      range: `${tab}!A${startRow + 1}:ZZ${startRow + MAX_ROWS}`,
+      range: `${tab}!${startRow + 1}:${startRow + MAX_ROWS}`,
     }),
   ])
 

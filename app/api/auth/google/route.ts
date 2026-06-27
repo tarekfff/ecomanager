@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
       'email',
       'profile',
       'https://www.googleapis.com/auth/spreadsheets.readonly',
+      'https://www.googleapis.com/auth/drive.readonly',
     ],
     state: encodeURIComponent(returnTo),
   })
