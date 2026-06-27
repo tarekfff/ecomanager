@@ -1,18 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { google } from 'googleapis'
 
-function oauthClient() {
+function oauthClient(origin: string) {
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID!,
     process.env.GOOGLE_CLIENT_SECRET!,
-    `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/google/callback`
+    `${origin}/api/auth/google/callback`
   )
 }
 
 export async function GET(req: NextRequest) {
   const returnTo = req.nextUrl.searchParams.get('return_to') ?? '/dashboard/orders/import/google-sheet'
+  const origin   = req.nextUrl.origin
 
-  const oauth2 = oauthClient()
+  const oauth2 = oauthClient(origin)
   const url = oauth2.generateAuthUrl({
     access_type: 'offline',   // gets refresh_token so server can sync without user
     prompt:      'consent',   // forces re-consent to always receive refresh_token

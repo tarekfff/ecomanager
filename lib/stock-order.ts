@@ -65,7 +65,7 @@ async function deductItem(
   // Fetch all active batches with available stock
   let q = db
     .from('stock_batches')
-    .select('id, quantity, warehouse_id, unit_cost')
+    .select('id, quantity, warehouse_id, unit_cost, expiry_date, created_at')
     .eq('product_id', item.product_id)
     .eq('tenant_id', tenantId)
     .eq('is_active', true)
@@ -73,13 +73,32 @@ async function deductItem(
 
   if (item.variant_id) q = q.eq('variant_id', item.variant_id)
 
-  // Apply strategy ordering
-  q = strategy === 'lifo'
-    ? q.order('created_at', { ascending: false })
-    : q.order('created_at', { ascending: true })  // fifo / fefo / random → FIFO
+  // Apply DB-level ordering for deterministic strategies
+  switch (strategy) {
+    case 'lifo':
+      q = q.order('created_at', { ascending: false })
+      break
+    case 'fefo':
+      // Soonest-to-expire first; batches with no expiry_date go last
+      q = q.order('expiry_date', { ascending: true, nullsFirst: false })
+      break
+    case 'fifo':
+    default:
+      q = q.order('created_at', { ascending: true })
+  }
 
   const { data: batches } = await q
-  const rows = (batches ?? []) as { id: string; quantity: number; warehouse_id: string; unit_cost: number }[]
+  let rows = (batches ?? []) as {
+    id: string; quantity: number; warehouse_id: string; unit_cost: number; expiry_date: string | null
+  }[]
+
+  // Random: Fisher-Yates shuffle in memory after fetch
+  if (strategy === 'random') {
+    for (let i = rows.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[rows[i], rows[j]] = [rows[j], rows[i]]
+    }
+  }
 
   let remaining = item.quantity
 
