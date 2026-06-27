@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { v4 as uuid } from 'uuid'
 
-type BulkAction = 'confirm' | 'cancel' | 'delete' | 'assign' | 'set_confirmation_status' | 'dispatch' | 'assign_carrier' | 'ship' | 'disable_sync' | 'deliver' | 'request_return' | 'set_carrier_fee'
+type BulkAction =
+  | 'confirm' | 'cancel' | 'delete' | 'assign' | 'set_confirmation_status'
+  | 'dispatch' | 'assign_carrier' | 'ship' | 'disable_sync'
+  | 'deliver' | 'request_return' | 'set_carrier_fee'
+  | 'go_back_to_livraison' | 'validate_return'
+  | 'prepare_encaissement' | 'prepare_retour'
 
 interface BulkBody {
   ids:    string[]
@@ -146,6 +152,42 @@ export async function POST(req: NextRequest) {
       await db.from('orders')
         .update({ carrier_fee: fee })
         .in('id', verifiedIds)
+      break
+    }
+
+    case 'go_back_to_livraison':
+      await db.from('orders')
+        .update({ tracking_status: 'en_livraison' })
+        .in('id', verifiedIds)
+      break
+
+    case 'validate_return':
+      await db.from('orders')
+        .update({ tracking_status: 'retournee', returned_at: now })
+        .in('id', verifiedIds)
+      break
+
+    case 'prepare_encaissement':
+    case 'prepare_retour': {
+      const receiptType = action === 'prepare_encaissement' ? 'encaissement' : 'retour'
+      const { data: orderDetails } = await db
+        .from('orders')
+        .select('id, assigned_carrier_id, total, carrier_fee')
+        .in('id', verifiedIds)
+      if (orderDetails && orderDetails.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const rows = (orderDetails as any[]).map(o => ({
+          id:         uuid(),
+          order_id:   o.id,
+          carrier_id: o.assigned_carrier_id ?? null,
+          type:       receiptType,
+          status:     'pending',
+          amount:     receiptType === 'encaissement'
+            ? Math.max(0, (o.total ?? 0) - (o.carrier_fee ?? 0))
+            : 0,
+        }))
+        await db.from('receipts').insert(rows)
+      }
       break
     }
 

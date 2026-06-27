@@ -6,7 +6,7 @@ import {
   Truck, CreditCard, Clock, ChevronDown,
   CheckCircle, XCircle, UserCheck, Tag,
   AlertCircle, Activity, RotateCcw, RefreshCw,
-  Wifi, WifiOff, Send, PackageCheck, Pencil,
+  Wifi, WifiOff, Send, PackageCheck, Pencil, FileText,
 } from 'lucide-react'
 import { Button, Select } from '@/components/ui'
 import { colors, fonts } from '@/lib/tokens'
@@ -123,6 +123,8 @@ const LOG_LABELS: Record<string, string> = {
   request_return:         'Retour demandé → En retour',
   set_delivery_status:    'Statut livraison modifié',
   set_carrier_fee:        'Frais livreur modifiés',
+  go_back_to_livraison:   'Retour en livraison',
+  validate_return:        'Retour validé → Retournée',
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -370,7 +372,29 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
       // Close panel for status transitions that remove order from this view
       if (['confirm', 'cancel', 'dispatch', 'go_back_to_confirmation',
            'ship', 'go_back_to_preparation',
-           'deliver', 'request_return'].includes(action)) onClose()
+           'deliver', 'request_return',
+           'go_back_to_livraison', 'validate_return'].includes(action)) onClose()
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // ── Receipt creation ─────────────────────────────────────────────────────────
+
+  async function doReceipt(type: 'encaissement' | 'retour') {
+    if (!orderId) return
+    setActionLoading(true)
+    setActionError('')
+    try {
+      const res = await fetch('/api/receipts', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader() },
+        body:    JSON.stringify({ order_id: orderId, type }),
+      })
+      const d = await res.json() as { error?: string }
+      if (!res.ok) { setActionError(d.error ?? 'Erreur'); return }
+      await fetchLogs()
+      onStatusChange()
     } finally {
       setActionLoading(false)
     }
@@ -652,6 +676,53 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
               </>
             )}
           </div>
+        </div>
+      )
+    }
+
+    if (status === 'livree') {
+      return (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <Button
+            variant="primary" size="sm" loading={actionLoading}
+            onClick={() => doReceipt('encaissement')}
+          >
+            <FileText size={13} /> Préparer bon
+          </Button>
+
+          <Button
+            variant="secondary" size="sm" loading={actionLoading}
+            onClick={() => doAction('go_back_to_livraison')}
+          >
+            <RotateCcw size={13} /> Retour en livraison
+          </Button>
+        </div>
+      )
+    }
+
+    if (status === 'en_retour') {
+      return (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <Button
+            variant="primary" size="sm" loading={actionLoading}
+            onClick={() => doAction('validate_return')}
+          >
+            <PackageCheck size={13} /> Valider retour
+          </Button>
+
+          <Button
+            variant="secondary" size="sm" loading={actionLoading}
+            onClick={() => doReceipt('retour')}
+          >
+            <FileText size={13} /> Préparer bon retour
+          </Button>
+
+          <Button
+            variant="secondary" size="sm" loading={actionLoading}
+            onClick={() => doAction('go_back_to_livraison')}
+          >
+            <RotateCcw size={13} /> Retour en livraison
+          </Button>
         </div>
       )
     }

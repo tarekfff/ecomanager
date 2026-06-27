@@ -350,6 +350,14 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       break
     }
 
+    case 'go_back_to_livraison':
+      update = { tracking_status: 'en_livraison' }
+      break
+
+    case 'validate_return':
+      update = { tracking_status: 'retournee', returned_at: now }
+      break
+
     default:
       return NextResponse.json({ error: `Action inconnue: ${body.action}` }, { status: 400 })
   }
