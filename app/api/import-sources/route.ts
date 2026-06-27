@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { v4 as uuid } from 'uuid'
+import { getAccessToken, registerDriveWatch } from '@/lib/sync-google-sheet'
 
 export async function GET(req: NextRequest) {
   const user       = requireAuth(req)
@@ -25,19 +26,21 @@ export async function GET(req: NextRequest) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const items = (data ?? []).map((s: any) => {
-    let creds: { google_email?: string; last_row?: number } = {}
+    let creds: { google_email?: string; last_row?: number; watch_channel_id?: string; watch_expiration?: number } = {}
     try { creds = JSON.parse(s.credentials_ref ?? '{}') } catch { /* ignore */ }
+    const hasLiveTrigger = !!creds.watch_channel_id && (creds.watch_expiration ?? 0) > Date.now()
     return {
-      id:             s.id,
-      name:           s.name,
-      sheet_id:       s.sheet_id,
-      sheet_name:     s.sheet_name,
-      separator:      s.separator,
-      column_mapping: s.column_mapping,
-      is_active:      s.is_active,
-      last_synced_at: s.last_synced_at,
-      google_email:   creds.google_email ?? '',
-      last_row:       creds.last_row ?? 0,
+      id:               s.id,
+      name:             s.name,
+      sheet_id:         s.sheet_id,
+      sheet_name:       s.sheet_name,
+      separator:        s.separator,
+      column_mapping:   s.column_mapping,
+      is_active:        s.is_active,
+      last_synced_at:   s.last_synced_at,
+      google_email:     creds.google_email ?? '',
+      last_row:         creds.last_row ?? 0,
+      has_live_trigger: hasLiveTrigger,
     }
   })
 
@@ -89,5 +92,29 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Register a Drive push-notification watch so changes trigger instant sync
+  // Fails silently (e.g. localhost) — the 15-min cron still covers it
+  try {
+    const sourceId   = (data as { id: string }).id
+    const appUrl     = process.env.NEXT_PUBLIC_APP_URL
+    if (appUrl && !appUrl.includes('localhost')) {
+      const accessToken = await getAccessToken(refresh_token)
+      const channelId   = uuid()
+      const webhookUrl  = `${appUrl}/api/webhooks/drive/${sourceId}`
+      const watch       = await registerDriveWatch(accessToken, sheet_id, webhookUrl, channelId)
+
+      const updatedCreds = JSON.stringify({
+        refresh_token,
+        google_email,
+        last_row:    1,
+        watch_channel_id:  watch.channelId,
+        watch_resource_id: watch.resourceId,
+        watch_expiration:  watch.expiration,
+      })
+      await db.from('import_sources').update({ credentials_ref: updatedCreds }).eq('id', sourceId)
+    }
+  } catch { /* silent — cron fallback active */ }
+
   return NextResponse.json(data, { status: 201 })
 }

@@ -4,22 +4,23 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   RefreshCw, Trash2, Wifi, WifiOff, AlertCircle,
-  ArrowLeft, Plus, Loader2, CheckCircle, Clock, Copy, Zap,
+  ArrowLeft, Plus, Loader2, CheckCircle, Clock, Zap,
 } from 'lucide-react'
 import { PageHeader } from '@/components/ui'
 import { colors, fonts } from '@/lib/tokens'
 import { useBoutique } from '@/contexts/BoutiqueContext'
 
 interface ImportSource {
-  id:             string
-  name:           string
-  sheet_id:       string
-  sheet_name:     string
-  separator:      string
-  is_active:      boolean
-  last_synced_at: string | null
-  google_email:   string
-  last_row:       number
+  id:              string
+  name:            string
+  sheet_id:        string
+  sheet_name:      string
+  separator:       string
+  is_active:       boolean
+  last_synced_at:  string | null
+  google_email:    string
+  last_row:        number
+  has_live_trigger: boolean
 }
 
 interface SyncStatus {
@@ -43,12 +44,10 @@ export default function ImportSourcesPage() {
   const router       = useRouter()
   const { boutiqueId } = useBoutique()
 
-  const [sources,      setSources]      = useState<ImportSource[]>([])
-  const [loading,      setLoading]      = useState(false)
-  const [syncing,      setSyncing]      = useState<Record<string, SyncStatus>>({})
-  const [deleting,     setDeleting]     = useState<Record<string, boolean>>({})
-  const [showScript,   setShowScript]   = useState<Record<string, boolean>>({})
-  const [copied,       setCopied]       = useState<Record<string, boolean>>({})
+  const [sources,  setSources]  = useState<ImportSource[]>([])
+  const [loading,  setLoading]  = useState(false)
+  const [syncing,  setSyncing]  = useState<Record<string, SyncStatus>>({})
+  const [deleting, setDeleting] = useState<Record<string, boolean>>({})
 
   const fetchSources = useCallback(() => {
     if (!boutiqueId) return
@@ -87,17 +86,6 @@ export default function ImportSourcesPage() {
     } catch {
       setSyncing(p => ({ ...p, [source.id]: { loading: false, result: null, error: 'Erreur réseau' } }))
     }
-  }
-
-  function getWebhookUrl(id: string) {
-    return `${window.location.origin}/api/webhooks/sheet/${id}`
-  }
-
-  function copyText(id: string, text: string) {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(p => ({ ...p, [id]: true }))
-      setTimeout(() => setCopied(p => ({ ...p, [id]: false })), 2000)
-    })
   }
 
   async function deleteSource(id: string) {
@@ -275,72 +263,28 @@ export default function ImportSourcesPage() {
                           {status.error}
                         </div>
                       )}
-                      {/* ── Instant trigger section ── */}
-                      <div style={{ marginTop: 10 }}>
-                        <button
-                          onClick={() => setShowScript(p => ({ ...p, [source.id]: !p[source.id] }))}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: 5,
-                            background: 'none', border: 'none', cursor: 'pointer',
-                            fontSize: 11.5, color: '#7C3AED', fontFamily: fonts.sans, padding: 0,
-                          }}
-                        >
-                          <Zap size={12} />
-                          {showScript[source.id] ? 'Masquer le déclencheur instantané' : 'Configurer déclencheur instantané (Apps Script)'}
-                        </button>
-
-                        {showScript[source.id] && (
-                          <div style={{
-                            marginTop: 8, background: '#F5F3FF',
-                            border: '1px solid #DDD6FE', borderRadius: 6, padding: 12,
+                      {/* ── Live trigger badge ── */}
+                      <div style={{ marginTop: 8 }}>
+                        {source.has_live_trigger ? (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 4,
+                            fontSize: 11, fontWeight: 600, color: '#7C3AED',
+                            background: '#F5F3FF', border: '1px solid #DDD6FE',
+                            borderRadius: 20, padding: '3px 8px',
                           }}>
-                            <div style={{ fontSize: 12, color: '#5B21B6', marginBottom: 8, fontWeight: 600 }}>
-                              Ajoutez ce script dans votre Google Sheet → Extensions → Apps Script
-                            </div>
-                            <div style={{ fontSize: 11, color: '#7C3AED', marginBottom: 8 }}>
-                              Collez le code, puis exécutez <code style={{ background: '#EDE9FE', padding: '1px 4px', borderRadius: 3 }}>setup()</code> une seule fois pour activer le déclencheur.
-                            </div>
-                            <div style={{ position: 'relative' }}>
-                              <pre style={{
-                                background: '#1E1B4B', color: '#E0E7FF',
-                                borderRadius: 5, padding: '10px 12px', fontSize: 11,
-                                fontFamily: 'monospace', overflowX: 'auto', margin: 0,
-                                lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-all',
-                              }}>{`function syncToEcomanager() {
-  UrlFetchApp.fetch(
-    '${typeof window !== 'undefined' ? getWebhookUrl(source.id) : ''}',
-    { method: 'post', muteHttpExceptions: true }
-  );
-}
-
-function setup() {
-  // Delete existing triggers then create a new onChange trigger
-  ScriptApp.getProjectTriggers()
-    .forEach(t => ScriptApp.deleteTrigger(t));
-  ScriptApp.newTrigger('syncToEcomanager')
-    .forSpreadsheet(SpreadsheetApp.getActive())
-    .onChange()
-    .create();
-}`}</pre>
-                              <button
-                                onClick={() => copyText(
-                                  source.id,
-                                  `function syncToEcomanager() {\n  UrlFetchApp.fetch(\n    '${getWebhookUrl(source.id)}',\n    { method: 'post', muteHttpExceptions: true }\n  );\n}\n\nfunction setup() {\n  ScriptApp.getProjectTriggers()\n    .forEach(t => ScriptApp.deleteTrigger(t));\n  ScriptApp.newTrigger('syncToEcomanager')\n    .forSpreadsheet(SpreadsheetApp.getActive())\n    .onChange()\n    .create();\n}`
-                                )}
-                                style={{
-                                  position: 'absolute', top: 8, right: 8,
-                                  display: 'flex', alignItems: 'center', gap: 4,
-                                  background: copied[source.id] ? '#22C55E' : '#4F46E5',
-                                  color: '#fff', border: 'none', borderRadius: 4,
-                                  padding: '4px 10px', fontSize: 11, cursor: 'pointer',
-                                  fontFamily: fonts.sans,
-                                }}
-                              >
-                                <Copy size={10} />
-                                {copied[source.id] ? 'Copié !' : 'Copier'}
-                              </button>
-                            </div>
-                          </div>
+                            <Zap size={10} fill="#7C3AED" />
+                            Déclencheur instantané actif
+                          </span>
+                        ) : (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 4,
+                            fontSize: 11, color: colors.textLt,
+                            background: '#F9FAFB', border: `1px solid ${colors.border}`,
+                            borderRadius: 20, padding: '3px 8px',
+                          }}>
+                            <Zap size={10} />
+                            Sync toutes les 15 min
+                          </span>
                         )}
                       </div>
                     </div>

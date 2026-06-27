@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { syncGoogleSheet, getAccessToken } from '@/lib/sync-google-sheet'
+import { syncGoogleSheet, getAccessToken, registerDriveWatch, stopDriveWatch } from '@/lib/sync-google-sheet'
 import { v4 as uuid } from 'uuid'
 
 // Called by Vercel Cron on schedule — authenticated via CRON_SECRET header
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const anyS = source as any
 
-    let creds: { refresh_token?: string; google_email?: string; last_row?: number } = {}
+    let creds: { refresh_token?: string; google_email?: string; last_row?: number; watch_channel_id?: string; watch_resource_id?: string; watch_expiration?: number } = {}
     try { creds = JSON.parse(anyS.credentials_ref ?? '{}') } catch { /* ignore */ }
 
     if (!creds.refresh_token) {
@@ -77,6 +77,32 @@ export async function POST(req: NextRequest) {
       }).eq('id', runId)
 
       results.push({ id: anyS.id, imported: result.imported, skipped: result.skipped, failed: result.failed })
+
+      // Renew Drive watch if it expires within 48 hours
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL
+      if (appUrl && !appUrl.includes('localhost') && creds.watch_channel_id) {
+        const expiresAt = creds.watch_expiration ?? 0
+        if (expiresAt - Date.now() < 48 * 60 * 60 * 1000) {
+          try {
+            const freshToken = await getAccessToken(creds.refresh_token)
+            // Stop old channel first
+            if (creds.watch_resource_id) {
+              await stopDriveWatch(freshToken, creds.watch_channel_id, creds.watch_resource_id).catch(() => {})
+            }
+            const newChannelId = uuid()
+            const watch = await registerDriveWatch(freshToken, anyS.sheet_id, `${appUrl}/api/webhooks/drive/${anyS.id}`, newChannelId)
+            // Merge renewed watch info into creds
+            const renewedCreds = {
+              ...creds,
+              last_row:            result.last_row,
+              watch_channel_id:    watch.channelId,
+              watch_resource_id:   watch.resourceId,
+              watch_expiration:    watch.expiration,
+            }
+            await db.from('import_sources').update({ credentials_ref: JSON.stringify(renewedCreds) }).eq('id', anyS.id)
+          } catch { /* silent — watch renewal failed, cron fallback still runs */ }
+        }
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
       await db.from('import_runs').update({ status: 'failed', errors: [{ reason: msg }] }).eq('id', runId)

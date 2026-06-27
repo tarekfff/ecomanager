@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { getAccessToken, stopDriveWatch } from '@/lib/sync-google-sheet'
 
 async function getOwnedSource(id: string, tenantId: string) {
   const { data } = await db
@@ -48,6 +49,16 @@ export async function DELETE(
 
   const source = await getOwnedSource(id, user.tenantId)
   if (!source) return NextResponse.json({ error: 'Introuvable' }, { status: 404 })
+
+  // Stop the Drive watch before deleting so Google stops sending notifications
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const creds = JSON.parse((source as any).credentials_ref ?? '{}')
+    if (creds.refresh_token && creds.watch_channel_id && creds.watch_resource_id) {
+      const accessToken = await getAccessToken(creds.refresh_token)
+      await stopDriveWatch(accessToken, creds.watch_channel_id, creds.watch_resource_id)
+    }
+  } catch { /* silent */ }
 
   const { error } = await db.from('import_sources').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

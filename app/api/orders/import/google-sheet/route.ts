@@ -70,14 +70,25 @@ export async function POST(req: NextRequest) {
     const sheets  = google.sheets({ version: 'v4', auth })
     const tabName = sheet_name || 'Sheet1'
 
-    // Fetch last 30 days: we read the whole sheet and filter by date if there's a date column
-    // For large sheets we read up to MAX_ROWS + 1 (header) rows
-    const { data } = await sheets.spreadsheets.values.get({
-      spreadsheetId: sheet_id,
-      range:         `${tabName}!A1:ZZ${MAX_ROWS + 1}`,
+    // Use spreadsheets.get with includeGridData to avoid range-string parsing issues
+    const { data } = await sheets.spreadsheets.get({
+      spreadsheetId:   sheet_id,
+      includeGridData: true,
     })
 
-    rawRows = (data.values ?? []) as string[][]
+    const targetSheet = tabName
+      ? data.sheets?.find(s => s.properties?.title === tabName) ?? data.sheets?.[0]
+      : data.sheets?.[0]
+
+    const allRowData = targetSheet?.data?.[0]?.rowData ?? []
+
+    rawRows = allRowData
+      .slice(0, MAX_ROWS + 1)
+      .map(row =>
+        (row.values ?? []).map(cell =>
+          String(cell.formattedValue ?? cell.userEnteredValue?.stringValue ?? '').trim()
+        )
+      )
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     return NextResponse.json({ error: `Erreur lecture Google Sheets: ${msg}` }, { status: 500 })

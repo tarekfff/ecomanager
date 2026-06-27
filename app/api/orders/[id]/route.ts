@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { v4 as uuid } from 'uuid'
+import {
+  getOrderItems,
+  deductStockForOrder,
+  restoreStockForOrder,
+  STOCK_DEDUCTED_STATUSES,
+} from '@/lib/stock-order'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -244,7 +250,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   // Verify ownership — include deleted orders so restore/undo_delete can work
   const { data: order } = await db
     .from('orders')
-    .select('boutique_id, tracking_status, sync_enabled')
+    .select('boutique_id, tracking_status, sync_enabled, reference')
     .eq('id', id)
     .single()
 
@@ -389,6 +395,32 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     action:     body.action,
     new_values: update,
   })
+
+  // ── Stock movements ────────────────────────────────────────────────────────
+  const o         = order as { boutique_id: string; tracking_status: string; sync_enabled: boolean; reference: string }
+  const orderRef  = o.reference
+  const prevStatus = o.tracking_status
+
+  if (body.action === 'confirm') {
+    const items = await getOrderItems(id)
+    await deductStockForOrder(id, user.tenantId, user.sub, orderRef, items)
+  }
+
+  if (body.action === 'go_back_to_confirmation') {
+    const items = await getOrderItems(id)
+    await restoreStockForOrder(id, user.tenantId, user.sub, orderRef, 'Retour confirmation commande', items)
+  }
+
+  if (body.action === 'cancel' && STOCK_DEDUCTED_STATUSES.has(prevStatus)) {
+    const items = await getOrderItems(id)
+    await restoreStockForOrder(id, user.tenantId, user.sub, orderRef, 'Annulation commande', items)
+  }
+
+  if (body.action === 'validate_return') {
+    const items = await getOrderItems(id)
+    await restoreStockForOrder(id, user.tenantId, user.sub, orderRef, 'Retour marchandise commande', items)
+  }
+  // ──────────────────────────────────────────────────────────────────────────
 
   return NextResponse.json(updated)
 }

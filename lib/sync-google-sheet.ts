@@ -261,6 +261,60 @@ export async function syncGoogleSheet(params: SyncParams): Promise<SyncResult> {
   return { imported, skipped, failed: errors.length, errors, last_row: newLastRow }
 }
 
+// ── Drive push-notification helpers ───────────────────────────────────────────
+
+export interface WatchInfo {
+  channelId:  string
+  resourceId: string
+  expiration: number   // ms since epoch
+}
+
+/**
+ * Register a Drive push-notification channel so Google POSTs to webhookUrl
+ * whenever the spreadsheet changes. Returns channel info to store in creds.
+ * Expiration: up to 7 days for Workspace files (Sheets).
+ */
+export async function registerDriveWatch(
+  accessToken: string,
+  sheetId:     string,
+  webhookUrl:  string,
+  channelId:   string
+): Promise<WatchInfo> {
+  const auth = new google.auth.OAuth2()
+  auth.setCredentials({ access_token: accessToken })
+  const drive  = google.drive({ version: 'v3', auth })
+  const expMs  = Date.now() + 7 * 24 * 60 * 60 * 1000   // 7 days
+  const res    = await drive.files.watch({
+    fileId: sheetId,
+    requestBody: {
+      kind:       'api#channel',
+      id:         channelId,
+      type:       'web_hook',
+      address:    webhookUrl,
+      expiration: String(expMs),
+    },
+  })
+  return {
+    channelId:  res.data.id         ?? channelId,
+    resourceId: res.data.resourceId ?? '',
+    expiration: Number(res.data.expiration ?? expMs),
+  }
+}
+
+/**
+ * Stop (unsubscribe) a Drive push-notification channel.
+ */
+export async function stopDriveWatch(
+  accessToken: string,
+  channelId:   string,
+  resourceId:  string
+): Promise<void> {
+  const auth = new google.auth.OAuth2()
+  auth.setCredentials({ access_token: accessToken })
+  const drive = google.drive({ version: 'v3', auth })
+  await drive.channels.stop({ requestBody: { id: channelId, resourceId } })
+}
+
 /** Exchange a refresh token for a fresh access token */
 export async function getAccessToken(refreshToken: string): Promise<string> {
   const oauth2 = new google.auth.OAuth2(

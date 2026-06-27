@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { v4 as uuid } from 'uuid'
+import {
+  getOrderItems,
+  deductStockForOrder,
+  restoreStockForOrder,
+  STOCK_DEDUCTED_STATUSES,
+} from '@/lib/stock-order'
 
 type BulkAction =
   | 'confirm' | 'cancel' | 'delete' | 'assign' | 'set_confirmation_status'
@@ -51,17 +57,39 @@ export async function POST(req: NextRequest) {
   const now = new Date().toISOString()
 
   switch (action) {
-    case 'confirm':
+    case 'confirm': {
       await db.from('orders')
         .update({ tracking_status: 'en_preparation', confirmed_at: now })
         .in('id', verifiedIds)
+      // Fetch references once, then deduct stock per order
+      const { data: refs } = await db
+        .from('orders')
+        .select('id, reference')
+        .in('id', verifiedIds)
+      for (const o of (refs ?? []) as { id: string; reference: string }[]) {
+        const items = await getOrderItems(o.id)
+        await deductStockForOrder(o.id, user.tenantId, user.sub, o.reference, items)
+      }
       break
+    }
 
-    case 'cancel':
+    case 'cancel': {
+      // Fetch current statuses before updating so we know which orders had stock deducted
+      const { data: preCancel } = await db
+        .from('orders')
+        .select('id, reference, tracking_status')
+        .in('id', verifiedIds)
       await db.from('orders')
         .update({ tracking_status: 'annulee', cancelled_at: now })
         .in('id', verifiedIds)
+      for (const o of (preCancel ?? []) as { id: string; reference: string; tracking_status: string }[]) {
+        if (STOCK_DEDUCTED_STATUSES.has(o.tracking_status)) {
+          const items = await getOrderItems(o.id)
+          await restoreStockForOrder(o.id, user.tenantId, user.sub, o.reference, 'Annulation commande', items)
+        }
+      }
       break
+    }
 
     case 'delete':
       await db.from('orders')
@@ -162,11 +190,20 @@ export async function POST(req: NextRequest) {
         .in('id', verifiedIds)
       break
 
-    case 'validate_return':
+    case 'validate_return': {
       await db.from('orders')
         .update({ tracking_status: 'retournee', returned_at: now })
         .in('id', verifiedIds)
+      const { data: retRefs } = await db
+        .from('orders')
+        .select('id, reference')
+        .in('id', verifiedIds)
+      for (const o of (retRefs ?? []) as { id: string; reference: string }[]) {
+        const items = await getOrderItems(o.id)
+        await restoreStockForOrder(o.id, user.tenantId, user.sub, o.reference, 'Retour marchandise commande', items)
+      }
       break
+    }
 
     case 'prepare_encaissement':
     case 'prepare_retour': {
