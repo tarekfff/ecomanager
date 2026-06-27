@@ -358,21 +358,25 @@ export async function getAccessToken(refreshToken: string): Promise<string> {
   return credentials.access_token ?? ''
 }
 
-// Lock window: only one sync may run per source per this interval. It both
-// throttles (cron runs every 60s, so this must be < 60s) and prevents Google's
-// duplicate Drive notifications (~50ms apart) from double-importing. Must be
-// larger than a normal incremental sync (1-5s) for crash safety.
-const SYNC_LOCK_MS = 45_000
+// Crash-recovery timeout: a normal sync releases its lock the instant it
+// finishes, so this only matters if a run dies mid-sync. Set well above the
+// longest possible sync so a healthy run is never stolen.
+const SYNC_STALE_MS = 120_000
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SourceRow = any
 
 /**
- * Sync one source end-to-end behind an ATOMIC database lock. The lock is a
- * conditional UPDATE on last_synced_at: only one concurrent caller can flip it
- * (Postgres serializes the row update), so cron, Drive push (incl. Google's
- * duplicate notifications), and manual syncs can never double-import the same
- * rows. Returns null if skipped (lock not won / no token), else the SyncResult.
+ * Sync one source end-to-end behind a HELD atomic lock (sync_locked_at).
+ *
+ * Acquire is a compare-and-swap: a single conditional UPDATE that only one
+ * concurrent caller can win (Postgres serializes the row update), so cron,
+ * Drive push (incl. Google's duplicate ~50ms-apart notifications), manual
+ * "Sync now", and on-open triggers can never double-import.
+ *
+ * The lock is held only WHILE the sync runs and released in `finally`, so an
+ * on-open sync is blocked only if a sync is literally in progress (~2-5s) —
+ * never for a fixed window. Returns null if skipped (lock not won / no token).
  */
 export async function syncSourceWithLock(
   source:   SourceRow,
@@ -384,19 +388,37 @@ export async function syncSourceWithLock(
 
   if (!creds.refresh_token) return null
 
-  // ── Atomic lock ──────────────────────────────────────────────────────────
-  // Claim only if no sync ran within SYNC_LOCK_MS. The .or() filter + single
-  // UPDATE is a compare-and-swap: of two simultaneous callers, exactly one gets
-  // a row back; the other gets none and bails. No app-level race possible.
-  const cutoff = new Date(Date.now() - SYNC_LOCK_MS).toISOString()
-  const { data: claimed } = await db
+  // ── Acquire lock (atomic CAS) ───────────────────────────────────────────
+  // Win only if not currently locked, or the lock is stale (crashed run).
+  // Held lock via sync_locked_at (released in finally) gives instant on-open
+  // syncs. If that column hasn't been added yet, fall back to a last_synced_at
+  // CAS so syncing keeps working — auto-upgrades once the column exists.
+  const now         = new Date().toISOString()
+  const staleCutoff = new Date(Date.now() - SYNC_STALE_MS).toISOString()
+  let heldLock      = true
+
+  const lockRes = await db
     .from('import_sources')
-    .update({ last_synced_at: new Date().toISOString() })
+    .update({ sync_locked_at: now })
     .eq('id', source.id)
-    .or(`last_synced_at.is.null,last_synced_at.lt.${cutoff}`)
+    .or(`sync_locked_at.is.null,sync_locked_at.lt.${staleCutoff}`)
     .select('id')
 
-  if (!claimed || claimed.length === 0) return null   // lost the race / synced too recently
+  let claimed = lockRes.data
+  if (lockRes.error) {
+    // Column missing — fall back to time-window CAS on last_synced_at (45s)
+    heldLock = false
+    const winCutoff = new Date(Date.now() - 45_000).toISOString()
+    const fb = await db
+      .from('import_sources')
+      .update({ last_synced_at: now })
+      .eq('id', source.id)
+      .or(`last_synced_at.is.null,last_synced_at.lt.${winCutoff}`)
+      .select('id')
+    claimed = fb.data
+  }
+
+  if (!claimed || claimed.length === 0) return null   // a sync is already running
 
   const runId = uuid()
   try {
@@ -418,7 +440,6 @@ export async function syncSourceWithLock(
       userId,
     })
 
-    // Persist new last_row (refresh last_synced_at to mark successful finish)
     const next = { ...creds, last_row: result.last_row }
     await db.from('import_sources').update({
       credentials_ref: JSON.stringify(next),
@@ -438,5 +459,11 @@ export async function syncSourceWithLock(
     const msg = err instanceof Error ? err.message : String(err)
     await db.from('import_runs').update({ status: 'failed', errors: [{ reason: msg }] }).eq('id', runId)
     return null
+  } finally {
+    // Release immediately so an on-open sync isn't blocked by the minute-cron.
+    // (Fallback path has no held lock — its 45s window self-expires.)
+    if (heldLock) {
+      await db.from('import_sources').update({ sync_locked_at: null }).eq('id', source.id)
+    }
   }
 }

@@ -224,6 +224,25 @@ export default function EnConfirmationPage() {
 
   useEffect(() => { fetchOrders() }, [fetchOrders])
 
+  // ── Instant sheet sync on open / tab focus ─────────────────────────────────
+  // Pull any new sheet rows the moment the user opens or returns to the page,
+  // then refresh the list — so a command added in n8n shows up immediately
+  // instead of waiting for the next minute-cron. Fires only on open/focus
+  // (sporadic), not on a loop, so it's quota-safe at scale. Goes through the
+  // atomic-locked sync, so it can never duplicate with the cron / Drive push.
+  const lastSyncRef = useRef(0)
+  const triggerSync = useCallback(() => {
+    if (!boutiqueId) return
+    if (Date.now() - lastSyncRef.current < 3000) return  // debounce focus flapping
+    lastSyncRef.current = Date.now()
+    fetch(`/api/import-sources/poll?boutique_id=${boutiqueId}`, { method: 'POST', headers: authHeader() })
+      .then(r => r.json())
+      .then(d => { if ((d.imported ?? 0) > 0) fetchOrders() })
+      .catch(() => {})
+  }, [boutiqueId, fetchOrders])
+
+  useEffect(() => { triggerSync() }, [triggerSync])  // on open
+
   // ── Background poll — detect new orders every 10s ──────────────────────────
   // Cheap DB-only count check (no Google calls — sheets are synced centrally by
   // the cron). Scales to any number of users. If the user is idle on page 1
@@ -249,9 +268,8 @@ export default function EnConfirmationPage() {
     }
     const id = setInterval(check, 10_000)
 
-    // Refresh instantly when the user returns to this tab (e.g. after adding
-    // rows in n8n / Google Sheets in another tab) — the poll pauses while hidden.
-    const onVisible = () => { if (!document.hidden) check() }
+    // On returning to this tab: pull fresh sheet rows AND re-check the count.
+    const onVisible = () => { if (!document.hidden) { triggerSync(); check() } }
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('focus', onVisible)
 
@@ -260,7 +278,7 @@ export default function EnConfirmationPage() {
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('focus', onVisible)
     }
-  }, [boutiqueId, page, selectedIds, dbSearch, fetchOrders])
+  }, [boutiqueId, page, selectedIds, dbSearch, fetchOrders, triggerSync])
 
   // ── Search debounce ───────────────────────────────────────────────────────
 
