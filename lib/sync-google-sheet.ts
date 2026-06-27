@@ -40,6 +40,7 @@ interface SyncParams {
   startRow:     number    // 1 = start fresh (row 2 = first data); N = resume from row N+1
   tenantId:     string
   userId:       string
+  prependMode?: boolean   // sheet inserts new rows at top instead of bottom
 }
 
 function cell(row: string[], headers: string[], col: string): string {
@@ -51,7 +52,7 @@ function cell(row: string[], headers: string[], col: string): string {
 export async function syncGoogleSheet(params: SyncParams): Promise<SyncResult> {
   const {
     accessToken, sheetId, sheetName, separator, boutiqueId,
-    mapping, startRow, tenantId, userId,
+    mapping, startRow, tenantId, userId, prependMode,
   } = params
 
   // ── Read sheet rows ──────────────────────────────────────────────────────────
@@ -84,9 +85,11 @@ export async function syncGoogleSheet(params: SyncParams): Promise<SyncResult> {
   const currentCount = allDataRows.length          // data rows currently in the sheet
 
   // How many data rows we believe we already processed (startRow counts header).
-  let processed   = Math.max(0, startRow - 1)
-  let recovery    = false
-  if (processed > currentCount) {
+  // In prepend mode rows are inserted at the top so position tracking is useless —
+  // always read everything from row 0 and rely on phone+subtotal dedup instead.
+  let processed   = prependMode ? 0 : Math.max(0, startRow - 1)
+  let recovery    = !!prependMode
+  if (!prependMode && processed > currentCount) {
     // Counter is ahead of the sheet → rows were deleted/sheet rebuilt.
     // Reprocess from the top, but skip any row that already produced an order
     // (matched by phone+subtotal, incl. soft-deleted) so we neither lose new
@@ -402,7 +405,7 @@ export async function syncSourceWithLock(
   tenantId: string,
   userId:   string,
 ): Promise<SyncResult | null> {
-  let creds: { refresh_token?: string; last_row?: number } = {}
+  let creds: { refresh_token?: string; last_row?: number; prepend_mode?: boolean } = {}
   try { creds = JSON.parse(source.credentials_ref ?? '{}') } catch { /* ignore */ }
 
   if (!creds.refresh_token) return null
@@ -446,6 +449,7 @@ export async function syncSourceWithLock(
       rows_total: 0, rows_imported: 0, rows_failed: 0, status: 'running', errors: [],
     })
 
+    const prependMode = !!creds.prepend_mode
     const accessToken = await getAccessToken(creds.refresh_token)
     const result = await syncGoogleSheet({
       accessToken,
@@ -454,9 +458,10 @@ export async function syncSourceWithLock(
       separator:  source.separator  ?? '|',
       boutiqueId: source.boutique_id,
       mapping:    source.column_mapping ?? {},
-      startRow:   creds.last_row ?? 1,
+      startRow:   prependMode ? 1 : (creds.last_row ?? 1),
       tenantId,
       userId,
+      prependMode,
     })
 
     const next = { ...creds, last_row: result.last_row }

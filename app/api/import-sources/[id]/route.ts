@@ -28,11 +28,19 @@ export async function PATCH(
   const source = await getOwnedSource(id, user.tenantId)
   if (!source) return NextResponse.json({ error: 'Introuvable' }, { status: 404 })
 
-  const body = await req.json() as { is_active?: boolean; name?: string }
+  const body = await req.json() as { is_active?: boolean; name?: string; prepend_mode?: boolean }
 
   const updates: Record<string, unknown> = {}
   if (body.is_active !== undefined) updates.is_active = body.is_active
   if (body.name      !== undefined) updates.name      = body.name
+
+  if (body.prepend_mode !== undefined) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let creds: Record<string, unknown> = {}
+    try { creds = JSON.parse((source as any).credentials_ref ?? '{}') } catch { /* ignore */ }
+    creds.prepend_mode = body.prepend_mode
+    updates.credentials_ref = JSON.stringify(creds)
+  }
 
   const { error } = await db.from('import_sources').update(updates).eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

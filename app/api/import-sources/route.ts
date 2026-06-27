@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const items = (data ?? []).map((s: any) => {
-    let creds: { google_email?: string; last_row?: number; watch_channel_id?: string; watch_expiration?: number } = {}
+    let creds: { google_email?: string; last_row?: number; watch_channel_id?: string; watch_expiration?: number; prepend_mode?: boolean } = {}
     try { creds = JSON.parse(s.credentials_ref ?? '{}') } catch { /* ignore */ }
     const hasLiveTrigger = !!creds.watch_channel_id && (creds.watch_expiration ?? 0) > Date.now()
     return {
@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
       google_email:     creds.google_email ?? '',
       last_row:         creds.last_row ?? 0,
       has_live_trigger: hasLiveTrigger,
+      prepend_mode:     !!creds.prepend_mode,
     }
   })
 

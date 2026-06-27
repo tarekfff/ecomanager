@@ -21,6 +21,7 @@ interface ImportSource {
   google_email:    string
   last_row:        number
   has_live_trigger: boolean
+  prepend_mode:    boolean
 }
 
 interface SyncStatus {
@@ -66,6 +67,15 @@ export default function ImportSourcesPage() {
       method:  'PATCH',
       headers: { 'Content-Type': 'application/json', ...authHeader() },
       body:    JSON.stringify({ is_active: !source.is_active }),
+    })
+    fetchSources()
+  }
+
+  async function togglePrependMode(source: ImportSource) {
+    await fetch(`/api/import-sources/${source.id}`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body:    JSON.stringify({ prepend_mode: !source.prepend_mode }),
     })
     fetchSources()
   }
@@ -263,8 +273,26 @@ export default function ImportSourcesPage() {
                           {status.error}
                         </div>
                       )}
+                      {/* ── Prepend mode toggle ── */}
+                      <div style={{ marginTop: 6 }}>
+                        <button
+                          onClick={() => togglePrependMode(source)}
+                          title="Activer si les nouvelles lignes sont ajoutées en haut de la feuille (et non en bas)"
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 5,
+                            fontSize: 11, fontWeight: 600,
+                            color: source.prepend_mode ? '#92400E' : colors.textLt,
+                            background: source.prepend_mode ? '#FEF3C7' : '#F9FAFB',
+                            border: `1px solid ${source.prepend_mode ? '#FCD34D' : colors.border}`,
+                            borderRadius: 20, padding: '3px 8px', cursor: 'pointer',
+                          }}
+                        >
+                          ↑ {source.prepend_mode ? 'Mode ajout en tête : actif' : 'Mode ajout en tête : inactif'}
+                        </button>
+                      </div>
+
                       {/* ── Live trigger badge ── */}
-                      <div style={{ marginTop: 8 }}>
+                      <div style={{ marginTop: 6 }}>
                         {source.has_live_trigger ? (
                           <span style={{
                             display: 'inline-flex', alignItems: 'center', gap: 4,
