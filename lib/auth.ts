@@ -19,5 +19,6 @@ export function requireAuth(req: NextRequest): AuthUser {
 }
 
 export function signToken(payload: AuthUser): string {
-  return jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn: '7d' })
+  // 30-day session so users stay logged in across browser restarts
+  return jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn: '30d' })
 }

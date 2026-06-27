@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import {
   Eye, Pencil, X, ChevronDown, AlertCircle,
   XCircle, Send, WifiOff, Printer, MapPin, Package,
-  Calendar, Wifi, Truck,
+  Calendar, Wifi, Truck, Download,
 } from 'lucide-react'
 import { PageHeader, Button, SearchInput, Select, Pagination } from '@/components/ui'
 import { colors, fonts } from '@/lib/tokens'
@@ -174,8 +174,9 @@ export default function EnDispatchPage() {
   const [bulkLoading, setBulkLoading] = useState(false)
   const [bulkError,   setBulkError]   = useState('')
 
-  const [drawerOrderId, setDrawerOrderId] = useState<string | null>(null)
-  const [printLoading,  setPrintLoading]  = useState(false)
+  const [drawerOrderId,    setDrawerOrderId]    = useState<string | null>(null)
+  const [printLoading,     setPrintLoading]     = useState(false)
+  const [labelLoading,     setLabelLoading]     = useState(false)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -283,6 +284,39 @@ export default function EnDispatchPage() {
     } finally {
       setPrintLoading(false)
     }
+  }
+
+  // ── NOEST label download ──────────────────────────────────────────────────
+
+  async function handleNoestLabels() {
+    if (selectedIds.size === 0) return
+    setLabelLoading(true)
+    setBulkError('')
+    const ids = Array.from(selectedIds)
+    let downloaded = 0
+    for (const orderId of ids) {
+      try {
+        const res = await fetch(`/api/orders/${orderId}/noest/label`, { headers: authHeader() })
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({})) as { error?: string }
+          if (ids.length === 1) { setBulkError(err.error ?? 'Erreur étiquette NOEST'); break }
+          continue
+        }
+        const blob = await res.blob()
+        const url  = URL.createObjectURL(blob)
+        const a    = document.createElement('a')
+        a.href     = url
+        a.download = `etiquette-${orderId}.pdf`
+        a.click()
+        URL.revokeObjectURL(url)
+        downloaded++
+        if (ids.length > 1) await new Promise(r => setTimeout(r, 300))
+      } catch {
+        if (ids.length === 1) setBulkError('Erreur réseau lors du téléchargement')
+      }
+    }
+    if (downloaded === 0 && !bulkError) setBulkError('Aucune étiquette NOEST disponible pour la sélection')
+    setLabelLoading(false)
   }
 
   // ── Derived ───────────────────────────────────────────────────────────────
@@ -459,11 +493,13 @@ export default function EnDispatchPage() {
               color={colors.red}
             />
 
-            {/* Imprimer étiquettes */}
+            {/* Étiquettes NOEST */}
             <BulkBtn
-              icon={<Printer size={13} />}
-              label="Imprimer étiquettes"
-              onClick={() => {}}
+              icon={<Download size={13} />}
+              label="Étiquettes NOEST"
+              onClick={handleNoestLabels}
+              loading={labelLoading}
+              color="#0D47A1"
             />
 
             {/* Feuille de route */}

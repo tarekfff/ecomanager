@@ -70,6 +70,7 @@ interface OrderDetail {
 interface OrderLog {
   id:         string
   action:     string
+  new_values: Record<string, unknown> | null
   created_at: string
   user_name:  string | null
 }
@@ -116,20 +117,25 @@ const LOG_LABELS: Record<string, string> = {
   set_confirmation_status:  'Statut confirmation modifié',
   delete:                   'Supprimée',
   dispatch:               'Dispatché → En dispatch',
-  assign_carrier:         'Livreur affecté',
-  go_back_to_confirmation:'Retour en confirmation',
-  ship:                   'Expédié → En livraison',
-  toggle_sync:            'Synchronisation modifiée',
-  go_back_to_preparation: 'Retour en préparation',
-  updated:                'Commande modifiée',
-  deliver:                'Livrée',
-  request_return:         'Retour demandé → En retour',
-  set_delivery_status:    'Statut livraison modifié',
-  set_carrier_fee:        'Frais livreur modifiés',
-  go_back_to_livraison:   'Retour en livraison',
-  validate_return:        'Retour validé → Retournée',
-  restore:                'Restaurée → En confirmation',
-  undo_delete:            'Suppression annulée',
+  assign_carrier:          'Livreur affecté',
+  go_back_to_confirmation: 'Retour en confirmation',
+  ship:                    'Expédié → En livraison',
+  toggle_sync:             'Synchronisation modifiée',
+  go_back_to_preparation:  'Retour en préparation',
+  updated:                 'Commande modifiée',
+  deliver:                 'Livrée',
+  request_return:          'Retour demandé → En retour',
+  set_delivery_status:     'Statut livraison modifié',
+  set_carrier_fee:         'Frais livreur modifiés',
+  go_back_to_livraison:    'Retour en livraison',
+  validate_return:         'Retour validé → Retournée',
+  restore:                 'Restaurée → En confirmation',
+  undo_delete:             'Suppression annulée',
+  noest_push:              'Envoyée sur NOEST ✓',
+  noest_push_failed:       'Échec envoi NOEST',
+  noest_validate:          'Validée sur NOEST ✓',
+  noest_return_requested:  'Retour demandé sur NOEST ✓',
+  noest_new_attempt:       'Nouvelle tentative NOEST ✓',
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -1015,6 +1021,40 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
                           <div style={{ fontSize: 12.5, color: colors.text, fontWeight: 500 }}>
                             {LOG_LABELS[log.action] ?? log.action}
                           </div>
+                          {log.action === 'noest_push' && log.new_values?.noest_tracking && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                              <span style={{
+                                fontSize: 11, fontFamily: 'monospace',
+                                background: '#E3F2FD', color: '#1565C0',
+                                padding: '1px 6px', borderRadius: 3,
+                              }}>
+                                {String(log.new_values.noest_tracking)}
+                              </span>
+                              <button
+                                onClick={() => {
+                                  if (!orderId) return
+                                  fetch(`/api/orders/${orderId}/noest/label`, { headers: authHeader() })
+                                    .then(r => r.blob())
+                                    .then(blob => {
+                                      const url = URL.createObjectURL(blob)
+                                      const a   = document.createElement('a')
+                                      a.href     = url
+                                      a.download = `etiquette-${String(log.new_values?.noest_tracking)}.pdf`
+                                      a.click()
+                                      URL.revokeObjectURL(url)
+                                    })
+                                    .catch(() => {})
+                                }}
+                                style={{
+                                  fontSize: 10.5, color: '#1565C0', background: 'none',
+                                  border: 'none', cursor: 'pointer', padding: 0,
+                                  textDecoration: 'underline',
+                                }}
+                              >
+                                Télécharger étiquette
+                              </button>
+                            </div>
+                          )}
                           <div style={{ fontSize: 11, color: colors.textLt, marginTop: 1 }}>
                             {log.user_name && `${log.user_name} · `}
                             {log.created_at ? fmtDateTime(log.created_at) : '—'}

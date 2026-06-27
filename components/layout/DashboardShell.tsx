@@ -5,6 +5,7 @@ import { Globe, MessageSquare, Bell, BookOpen, LogOut, ChevronDown, ShoppingBag,
 import Sidebar from '@/components/layout/Sidebar'
 import { useBoutique } from '@/contexts/BoutiqueContext'
 import { colors, fonts } from '@/lib/tokens'
+import { getStoredToken, isTokenValid, clearAuth } from '@/lib/client-auth'
 
 interface BoutiqueOption { id: string; name: string; prefix: string }
 
@@ -114,8 +115,9 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
   const navMenuRef      = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const token = localStorage.getItem('token')
-    if (!token) { router.replace('/login'); return }
+    const token = getStoredToken()
+    // Missing OR expired token → clear and send to login
+    if (!isTokenValid(token)) { clearAuth(); router.replace('/login'); return }
     setReady(true)
 
     fetch('/api/boutiques', { headers: { Authorization: `Bearer ${token}` } })
@@ -154,9 +156,7 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
   }
 
   function handleLogout() {
-    localStorage.removeItem('token')
-    localStorage.removeItem('boutiqueId')
-    localStorage.removeItem('boutiqueName')
+    clearAuth()
     router.push('/login')
   }
 

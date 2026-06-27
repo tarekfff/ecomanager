@@ -8,6 +8,12 @@ import {
   restoreStockForOrder,
   STOCK_DEDUCTED_STATUSES,
 } from '@/lib/stock-order'
+import {
+  noestCreateOrder,
+  noestValidateOrder,
+  noestRequestReturn,
+  NoestCreatePayload,
+} from '@/lib/noest'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -250,7 +256,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   // Verify ownership — include deleted orders so restore/undo_delete can work
   const { data: order } = await db
     .from('orders')
-    .select('boutique_id, tracking_status, sync_enabled, reference')
+    .select('boutique_id, tracking_status, sync_enabled, reference, assigned_carrier_id')
     .eq('id', id)
     .single()
 
@@ -397,8 +403,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   })
 
   // ── Stock movements ────────────────────────────────────────────────────────
-  const o         = order as { boutique_id: string; tracking_status: string; sync_enabled: boolean; reference: string }
-  const orderRef  = o.reference
+  const o          = order as { boutique_id: string; tracking_status: string; sync_enabled: boolean; reference: string; assigned_carrier_id: string | null }
+  const orderRef   = o.reference
   const prevStatus = o.tracking_status
 
   if (body.action === 'confirm') {
@@ -419,6 +425,118 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (body.action === 'validate_return') {
     const items = await getOrderItems(id)
     await restoreStockForOrder(id, user.tenantId, user.sub, orderRef, 'Retour marchandise commande', items)
+  }
+  // ──────────────────────────────────────────────────────────────────────────
+
+  // ── NOEST carrier integration ──────────────────────────────────────────────
+  try {
+    const carrierId = body.action === 'dispatch' ? (body.value ?? null) : o.assigned_carrier_id
+
+    if (carrierId && (body.action === 'dispatch' || body.action === 'ship' || body.action === 'request_return')) {
+      const { data: carrier } = await db
+        .from('carriers')
+        .select('platform')
+        .eq('id', carrierId)
+        .single()
+
+      if ((carrier as { platform: string | null } | null)?.platform?.toLowerCase() === 'noest') {
+        if (body.action === 'dispatch') {
+          // Create order on NOEST
+          const { data: fullOrder } = await db
+            .from('orders')
+            .select(`
+              reference, phone, phone2, address, wilaya_id, total, remark, delivery_method,
+              clients!client_id(full_name),
+              communes!commune_id(name),
+              order_items(product_name, quantity)
+            `)
+            .eq('id', id)
+            .single()
+
+          if (fullOrder) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const fo = fullOrder as any
+            const produit = (fo.order_items as { product_name: string; quantity: number }[])
+              .map((i: { product_name: string; quantity: number }) => i.quantity > 1 ? `${i.product_name} x${i.quantity}` : i.product_name)
+              .join(', ') || 'Produit'
+
+            const payload: NoestCreatePayload = {
+              reference: fo.reference,
+              client:    fo.clients?.full_name ?? fo.phone,
+              phone:     fo.phone,
+              phone_2:   fo.phone2 ?? undefined,
+              adresse:   fo.address ?? '',
+              wilaya_id: fo.wilaya_id ?? 16,
+              commune:   fo.communes?.name ?? '',
+              montant:   fo.total ?? 0,
+              remarque:  fo.remark ?? undefined,
+              produit,
+              type_id:   1,
+              stop_desk: fo.delivery_method === 'stopdesk' ? 1 : 0,
+            }
+
+            const result = await noestCreateOrder(payload)
+            await db.from('order_logs').insert({
+              id:         uuid(),
+              order_id:   id,
+              user_id:    user.sub,
+              action:     result.success && result.tracking ? 'noest_push' : 'noest_push_failed',
+              new_values: result.success && result.tracking
+                ? { noest_tracking: result.tracking }
+                : { error: JSON.stringify(result) },
+            })
+          }
+        }
+
+        if (body.action === 'ship') {
+          // Validate order on NOEST
+          const { data: noestLog } = await db
+            .from('order_logs')
+            .select('new_values')
+            .eq('order_id', id)
+            .eq('action', 'noest_push')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+
+          const noestTracking = (noestLog?.new_values as { noest_tracking?: string } | null)?.noest_tracking
+          if (noestTracking) {
+            const result = await noestValidateOrder(noestTracking)
+            if (result.success) {
+              await db.from('order_logs').insert({
+                id: uuid(), order_id: id, user_id: user.sub,
+                action: 'noest_validate', new_values: { noest_tracking: noestTracking },
+              })
+            }
+          }
+        }
+
+        if (body.action === 'request_return') {
+          // Request return on NOEST
+          const { data: noestLog } = await db
+            .from('order_logs')
+            .select('new_values')
+            .eq('order_id', id)
+            .eq('action', 'noest_push')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+
+          const noestTracking = (noestLog?.new_values as { noest_tracking?: string } | null)?.noest_tracking
+          if (noestTracking) {
+            const result = await noestRequestReturn(noestTracking)
+            if (result.success) {
+              await db.from('order_logs').insert({
+                id: uuid(), order_id: id, user_id: user.sub,
+                action: 'noest_return_requested', new_values: { noest_tracking: noestTracking },
+              })
+            }
+          }
+        }
+      }
+    }
+  } catch {
+    // NOEST errors are non-blocking — order state in DB is already updated
   }
   // ──────────────────────────────────────────────────────────────────────────
 

@@ -28,10 +28,10 @@ export async function GET(req: NextRequest, { params }: Ctx) {
 
   const { data, error } = await db
     .from('order_logs')
-    .select('id, action, created_at, users!user_id(name)')
+    .select('id, action, new_values, created_at, users!user_id(name)')
     .eq('order_id', id)
     .order('created_at', { ascending: false })
-    .limit(30)
+    .limit(50)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
@@ -39,6 +39,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   const logs = (data ?? []).map((l: any) => ({
     id:         l.id,
     action:     l.action,
+    new_values: l.new_values ?? null,
     created_at: l.created_at,
     user_name:  (l.users as { name: string } | null)?.name ?? null,
   }))

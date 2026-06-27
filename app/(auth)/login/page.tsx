@@ -1,7 +1,8 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Mail, Lock, ArrowRight, Eye, EyeOff, ShoppingBag, TrendingUp, Package, Users } from 'lucide-react'
+import { isLoggedIn } from '@/lib/client-auth'
 
 const PRIMARY   = '#BF4C98'
 const PRIMARY_DK = '#A03A80'
@@ -17,6 +18,18 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [emailFocus,   setEmailFocus]   = useState(false)
   const [passFocus,    setPassFocus]    = useState(false)
+  const [checking,     setChecking]     = useState(true)
+
+  // Already logged in with a valid (non-expired) token? Skip straight to the
+  // dashboard so reopening the site doesn't force a re-login.
+  useEffect(() => {
+    if (isLoggedIn()) {
+      router.replace('/dashboard')
+    } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time mount session check
+      setChecking(false)
+    }
+  }, [router])
 
   async function handleLogin() {
     if (!email || !password) { setError('Veuillez remplir tous les champs'); return }
@@ -38,6 +51,8 @@ export default function LoginPage() {
       setLoading(false)
     }
   }
+
+  if (checking) return null   // avoid flashing the form while checking the session
 
   return (
     <div style={{
