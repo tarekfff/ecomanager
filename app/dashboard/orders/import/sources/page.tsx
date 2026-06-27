@@ -153,8 +153,8 @@ export default function ImportSourcesPage() {
           background: '#EEF2FF', border: '1px solid #C7D2FE',
           borderRadius: 6, padding: '10px 14px', marginBottom: 20, fontSize: 13, color: '#3730A3',
         }}>
-          <RefreshCw size={14} />
-          Import instantané via déclencheur Google Drive. Un sync de secours tourne chaque nuit à 2h pour rattraper les éventuelles lignes manquées.
+          <Zap size={14} />
+          Les nouvelles lignes ajoutées à Google Sheet apparaissent ici en quelques secondes via le déclencheur instantané. Le sync nocturne (2h) ne sert que de filet de sécurité.
         </div>
 
         {loading ? (
