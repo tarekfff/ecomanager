@@ -16,7 +16,7 @@ const DIMENSIONS = [
   { value: 'boutique',  label: 'Boutique' },
 ]
 
-interface AppUser { id: string; name: string }
+interface AppUser { id: string; name: string; email: string }
 
 const todayStr     = () => new Date().toISOString().slice(0, 10)
 const firstOfMonth = () => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10) }
@@ -29,6 +29,7 @@ export default function StatsConfirmateurPage() {
   const [boutiques,   setBoutiques]   = useState<{ id: string; name: string }[]>([])
   const [users,       setUsers]       = useState<AppUser[]>([])
   const [confirmerId, setConfirmerId] = useState('')
+  const [loadingU,    setLoadingU]    = useState(true)
   const [dimension,   setDimension]   = useState('product')
   const [filters, setFilters] = useState<StatsFiltersValue>({
     boutiqueId:  '',
@@ -46,8 +47,12 @@ export default function StatsConfirmateurPage() {
     fetch('/api/boutiques', { headers: authHeader() })
       .then(r => r.json()).then(d => { if (Array.isArray(d)) setBoutiques(d) }).catch(() => {})
 
+    setLoadingU(true)
     fetch('/api/users', { headers: authHeader() })
-      .then(r => r.json()).then(d => { if (Array.isArray(d)) setUsers(d) }).catch(() => {})
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d)) setUsers(d) })
+      .catch(() => {})
+      .finally(() => setLoadingU(false))
   }, [])
 
   const fetchStats = useCallback(() => {
@@ -89,11 +94,20 @@ export default function StatsConfirmateurPage() {
         gap: 12,
         flexWrap: 'wrap',
       }}>
-        <div style={{ minWidth: 220 }}>
-          <label style={lbl}>Confirmateur</label>
-          <select value={confirmerId} onChange={e => setConfirmerId(e.target.value)} style={sel}>
-            <option value="">Tous les confirmateurs</option>
-            {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+        <div style={{ minWidth: 240 }}>
+          <label style={lbl}>
+            Confirmateur {loadingU && <span style={{ color: colors.textLt, fontWeight: 400 }}>— chargement…</span>}
+          </label>
+          <select
+            value={confirmerId}
+            onChange={e => setConfirmerId(e.target.value)}
+            style={{ ...sel, minWidth: 240 }}
+            disabled={loadingU}
+          >
+            <option value="">Tous les confirmateurs ({users.length})</option>
+            {users.map(u => (
+              <option key={u.id} value={u.id}>{u.name}</option>
+            ))}
           </select>
         </div>
 

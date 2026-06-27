@@ -43,7 +43,10 @@ export default function StatsBoutiquePage() {
   useEffect(() => {
     fetch('/api/boutiques', { headers: authHeader() })
       .then(r => r.json())
-      .then(d => { if (Array.isArray(d)) setBoutiques(d) })
+      .then(d => {
+        if (Array.isArray(d)) setBoutiques(d)
+        else if (d && !d.error) setBoutiques([])  // handle unexpected format gracefully
+      })
       .catch(() => {})
   }, [])
 

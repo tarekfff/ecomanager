@@ -27,12 +27,14 @@ function authHeader(): HeadersInit {
 }
 
 export default function StatsWilayaPage() {
-  const [boutiques, setBoutiques] = useState<{ id: string; name: string }[]>([])
-  const [wilayas,   setWilayas]   = useState<Wilaya[]>([])
-  const [communes,  setCommunes]  = useState<Commune[]>([])
-  const [wilayaId,  setWilayaId]  = useState('')
-  const [communeId, setCommuneId] = useState('')
-  const [dimension, setDimension] = useState('carrier')
+  const [boutiques,     setBoutiques]     = useState<{ id: string; name: string }[]>([])
+  const [wilayas,       setWilayas]       = useState<Wilaya[]>([])
+  const [communes,      setCommunes]      = useState<Commune[]>([])
+  const [wilayaId,      setWilayaId]      = useState('')
+  const [communeId,     setCommuneId]     = useState('')
+  const [loadingW,      setLoadingW]      = useState(true)
+  const [loadingC,      setLoadingC]      = useState(false)
+  const [dimension,     setDimension]     = useState('carrier')
   const [filters, setFilters] = useState<StatsFiltersValue>({
     boutiqueId:  '',
     base:        'all',
@@ -48,8 +50,13 @@ export default function StatsWilayaPage() {
   useEffect(() => {
     fetch('/api/boutiques', { headers: authHeader() })
       .then(r => r.json()).then(d => { if (Array.isArray(d)) setBoutiques(d) }).catch(() => {})
+
+    setLoadingW(true)
     fetch('/api/wilayas')
-      .then(r => r.json()).then(d => { if (Array.isArray(d)) setWilayas(d) }).catch(() => {})
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d)) setWilayas(d) })
+      .catch(() => {})
+      .finally(() => setLoadingW(false))
   }, [])
 
   // Load communes when wilaya changes
@@ -57,10 +64,12 @@ export default function StatsWilayaPage() {
     setCommuneId('')
     setCommunes([])
     if (!wilayaId) return
+    setLoadingC(true)
     fetch(`/api/communes?wilaya_id=${wilayaId}`)
       .then(r => r.json())
       .then(d => { if (Array.isArray(d)) setCommunes(d) })
       .catch(() => {})
+      .finally(() => setLoadingC(false))
   }, [wilayaId])
 
   const fetchStats = useCallback(() => {
@@ -103,26 +112,47 @@ export default function StatsWilayaPage() {
         gap: 12,
         flexWrap: 'wrap',
       }}>
-        <div style={{ minWidth: 200 }}>
-          <label style={lbl}>Wilaya</label>
-          <select value={wilayaId} onChange={e => setWilayaId(e.target.value)} style={sel}>
-            <option value="">Toutes les wilayas</option>
+        {/* Wilaya selector */}
+        <div style={{ minWidth: 220 }}>
+          <label style={lbl}>
+            Wilaya {loadingW && <span style={{ color: colors.textLt, fontWeight: 400 }}>— chargement…</span>}
+          </label>
+          <select
+            value={wilayaId}
+            onChange={e => setWilayaId(e.target.value)}
+            style={{ ...sel, minWidth: 220 }}
+            disabled={loadingW}
+          >
+            <option value="">Toutes les wilayas ({wilayas.length})</option>
             {wilayas.map(w => (
-              <option key={w.id} value={String(w.id)}>{w.id} — {w.name}</option>
+              <option key={w.id} value={String(w.id)}>
+                {String(w.id).padStart(2, '0')} — {w.name}
+              </option>
             ))}
           </select>
         </div>
 
-        {communes.length > 0 && (
-          <div style={{ minWidth: 200 }}>
-            <label style={lbl}>Commune</label>
-            <select value={communeId} onChange={e => setCommuneId(e.target.value)} style={sel}>
-              <option value="">Toutes les communes</option>
-              {communes.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
+        {/* Commune selector — only when wilaya selected */}
+        {wilayaId && (
+          <div style={{ minWidth: 220 }}>
+            <label style={lbl}>
+              Commune {loadingC && <span style={{ color: colors.textLt, fontWeight: 400 }}>— chargement…</span>}
+            </label>
+            <select
+              value={communeId}
+              onChange={e => setCommuneId(e.target.value)}
+              style={{ ...sel, minWidth: 220 }}
+              disabled={loadingC}
+            >
+              <option value="">Toutes les communes ({communes.length})</option>
+              {communes.map(c => (
+                <option key={c.id} value={String(c.id)}>{c.name}</option>
+              ))}
             </select>
           </div>
         )}
 
+        {/* Dimension pills */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto', flexWrap: 'wrap' }}>
           <span style={{ fontSize: 12, color: colors.textMd, fontWeight: 500 }}>Trier par</span>
           {DIMENSIONS.map(d => (

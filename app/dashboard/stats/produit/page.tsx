@@ -16,10 +16,10 @@ const DIMENSIONS = [
   { value: 'boutique',  label: 'Boutique' },
 ]
 
-interface Product { id: string; name: string }
-interface Variant { id: string; sku: string }
+interface Product { id: string; name: string; sku: string }
+interface Variant { id: string; sku: string; price: number | null; is_active: boolean }
 
-const todayStr  = () => new Date().toISOString().slice(0, 10)
+const todayStr     = () => new Date().toISOString().slice(0, 10)
 const firstOfMonth = () => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10) }
 
 function authHeader(): HeadersInit {
@@ -27,12 +27,14 @@ function authHeader(): HeadersInit {
 }
 
 export default function StatsProduitPage() {
-  const [boutiques, setBoutiques] = useState<{ id: string; name: string }[]>([])
-  const [products,  setProducts]  = useState<Product[]>([])
-  const [variants,  setVariants]  = useState<Variant[]>([])
-  const [productId, setProductId] = useState('')
-  const [variantId, setVariantId] = useState('')
-  const [dimension, setDimension] = useState('wilaya')
+  const [boutiques,     setBoutiques]     = useState<{ id: string; name: string }[]>([])
+  const [products,      setProducts]      = useState<Product[]>([])
+  const [variants,      setVariants]      = useState<Variant[]>([])
+  const [productId,     setProductId]     = useState('')
+  const [variantId,     setVariantId]     = useState('')
+  const [loadingProds,  setLoadingProds]  = useState(true)
+  const [loadingVars,   setLoadingVars]   = useState(false)
+  const [dimension,     setDimension]     = useState('wilaya')
   const [filters, setFilters] = useState<StatsFiltersValue>({
     boutiqueId:  '',
     base:        'all',
@@ -45,31 +47,34 @@ export default function StatsProduitPage() {
   const [rows, setRows]       = useState<StatsRow[]>([])
   const [loading, setLoading] = useState(false)
 
+  // Load boutiques + ALL tenant products on mount (no boutique required)
   useEffect(() => {
     fetch('/api/boutiques', { headers: authHeader() })
       .then(r => r.json()).then(d => { if (Array.isArray(d)) setBoutiques(d) }).catch(() => {})
-  }, [])
 
-  // Reload product list when boutique changes
-  useEffect(() => {
-    setProductId('')
-    setProducts([])
-    if (!filters.boutiqueId) return
-    fetch(`/api/products?boutique_id=${filters.boutiqueId}&limit=100`, { headers: authHeader() })
+    setLoadingProds(true)
+    fetch('/api/stats/products', { headers: authHeader() })
       .then(r => r.json())
-      .then(d => { if (Array.isArray(d.items)) setProducts(d.items) })
+      .then(d => { if (Array.isArray(d)) setProducts(d) })
       .catch(() => {})
-  }, [filters.boutiqueId])
+      .finally(() => setLoadingProds(false))
+  }, [])
 
   // Load variants when product changes
   useEffect(() => {
     setVariantId('')
     setVariants([])
     if (!productId) return
+    setLoadingVars(true)
     fetch(`/api/products/${productId}`, { headers: authHeader() })
       .then(r => r.json())
-      .then(d => { if (Array.isArray(d.variants)) setVariants(d.variants) })
+      .then(d => {
+        // product_variants is the key from the products/[id] API
+        const vars = d.product_variants ?? d.variants ?? []
+        if (Array.isArray(vars)) setVariants(vars.filter((v: Variant) => v.is_active))
+      })
       .catch(() => {})
+      .finally(() => setLoadingVars(false))
   }, [productId])
 
   const fetchStats = useCallback(() => {
@@ -102,7 +107,7 @@ export default function StatsProduitPage() {
       <PageHeader title="Stats par produit" subtitle="Performance des produits par statut et dimension" />
       <StatsFilters value={filters} onChange={setFilters} boutiques={boutiques} />
 
-      {/* Extra filters */}
+      {/* Extra filters + dimension bar */}
       <div style={{
         background: '#fff',
         borderBottom: `1px solid ${colors.border}`,
@@ -112,31 +117,45 @@ export default function StatsProduitPage() {
         gap: 12,
         flexWrap: 'wrap',
       }}>
-        <div style={{ minWidth: 240 }}>
-          <label style={lbl}>Produit</label>
+        {/* Product selector */}
+        <div style={{ minWidth: 260 }}>
+          <label style={lbl}>
+            Produit {loadingProds && <span style={{ color: colors.textLt, fontWeight: 400 }}>— chargement…</span>}
+          </label>
           <select
             value={productId}
-            onChange={e => setProductId(e.target.value)}
-            style={sel}
+            onChange={e => { setProductId(e.target.value); setVariantId('') }}
+            style={{ ...sel, minWidth: 260 }}
+            disabled={loadingProds}
           >
-            <option value="">Tous les produits</option>
-            {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            <option value="">Tous les produits ({products.length})</option>
+            {products.map(p => (
+              <option key={p.id} value={p.id}>{p.name}{p.sku ? ` — ${p.sku}` : ''}</option>
+            ))}
           </select>
         </div>
-        {variants.length > 0 && (
-          <div style={{ minWidth: 180 }}>
-            <label style={lbl}>Variante</label>
+
+        {/* Variant selector — only when product selected */}
+        {productId && (
+          <div style={{ minWidth: 200 }}>
+            <label style={lbl}>
+              Variante {loadingVars && <span style={{ color: colors.textLt, fontWeight: 400 }}>— chargement…</span>}
+            </label>
             <select
               value={variantId}
               onChange={e => setVariantId(e.target.value)}
               style={sel}
+              disabled={loadingVars}
             >
               <option value="">Toutes les variantes</option>
-              {variants.map(v => <option key={v.id} value={v.id}>{v.sku}</option>)}
+              {variants.map(v => (
+                <option key={v.id} value={v.id}>{v.sku}</option>
+              ))}
             </select>
           </div>
         )}
 
+        {/* Dimension pills */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto', flexWrap: 'wrap' }}>
           <span style={{ fontSize: 12, color: colors.textMd, fontWeight: 500 }}>Trier par</span>
           {DIMENSIONS.map(d => (
@@ -157,16 +176,13 @@ export default function StatsProduitPage() {
 
 function DimBtn({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
-    <button
-      onClick={onClick}
-      style={{
-        fontSize: 12, padding: '4px 12px', borderRadius: 4,
-        border: `1px solid ${active ? colors.primary : colors.border}`,
-        background: active ? colors.primaryLt : '#fff',
-        color: active ? colors.primary : colors.textMd,
-        cursor: 'pointer', fontFamily: fonts.sans, fontWeight: active ? 600 : 400,
-      }}
-    >
+    <button onClick={onClick} style={{
+      fontSize: 12, padding: '4px 12px', borderRadius: 4,
+      border: `1px solid ${active ? colors.primary : colors.border}`,
+      background: active ? colors.primaryLt : '#fff',
+      color: active ? colors.primary : colors.textMd,
+      cursor: 'pointer', fontFamily: fonts.sans, fontWeight: active ? 600 : 400,
+    }}>
       {label}
     </button>
   )

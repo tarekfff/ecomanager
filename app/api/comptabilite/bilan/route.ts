@@ -3,7 +3,7 @@ import { requireAuth } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 type FactRow = {
-  id:               string
+  order_id:         string
   subtotal:         number | null
   delivery_fee:     number | null
   carrier_fee:      number | null
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let factsQ: any = db
     .from('v_bilan_facts')
-    .select('id,subtotal,delivery_fee,carrier_fee,discount,items_cost,sav_cost,tracking_status,confirmed_at')
+    .select('order_id,subtotal,delivery_fee,carrier_fee,discount,items_cost,sav_cost,tracking_status,confirmed_at')
     .eq('tenant_id', user.tenantId)
     .eq('boutique_id', boutiqueId)
     .gte(dateCol, from)
@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
   let item_qty = 0
   const packCfg = packCfgRes.data
   if (packCfg?.apply_per === 'product' && rows.length > 0) {
-    const orderIds = rows.map(r => r.id).filter(Boolean)
+    const orderIds = rows.map(r => r.order_id).filter(Boolean)
     const { data: itmData } = await db
       .from('order_items')
       .select('quantity')

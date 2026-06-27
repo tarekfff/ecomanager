@@ -29,6 +29,7 @@ export default function StatsLivreurPage() {
   const [boutiques, setBoutiques] = useState<{ id: string; name: string }[]>([])
   const [carriers,  setCarriers]  = useState<Carrier[]>([])
   const [carrierId, setCarrierId] = useState('')
+  const [loadingC,  setLoadingC]  = useState(true)
   const [dimension, setDimension] = useState('wilaya')
   const [filters, setFilters] = useState<StatsFiltersValue>({
     boutiqueId:  '',
@@ -46,10 +47,16 @@ export default function StatsLivreurPage() {
     fetch('/api/boutiques', { headers: authHeader() })
       .then(r => r.json()).then(d => { if (Array.isArray(d)) setBoutiques(d) }).catch(() => {})
 
+    setLoadingC(true)
     fetch('/api/carriers?limit=200', { headers: authHeader() })
       .then(r => r.json())
-      .then(d => { if (Array.isArray(d.carriers)) setCarriers(d.carriers) })
+      .then(d => {
+        // carriers API returns { carriers: [...], total: N }
+        const list = Array.isArray(d) ? d : (d.carriers ?? [])
+        if (Array.isArray(list)) setCarriers(list)
+      })
       .catch(() => {})
+      .finally(() => setLoadingC(false))
   }, [])
 
   const fetchStats = useCallback(() => {
@@ -91,11 +98,20 @@ export default function StatsLivreurPage() {
         gap: 12,
         flexWrap: 'wrap',
       }}>
-        <div style={{ minWidth: 200 }}>
-          <label style={lbl}>Livreur</label>
-          <select value={carrierId} onChange={e => setCarrierId(e.target.value)} style={sel}>
-            <option value="">Tous les livreurs</option>
-            {carriers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        <div style={{ minWidth: 220 }}>
+          <label style={lbl}>
+            Livreur {loadingC && <span style={{ color: colors.textLt, fontWeight: 400 }}>— chargement…</span>}
+          </label>
+          <select
+            value={carrierId}
+            onChange={e => setCarrierId(e.target.value)}
+            style={{ ...sel, minWidth: 220 }}
+            disabled={loadingC}
+          >
+            <option value="">Tous les livreurs ({carriers.length})</option>
+            {carriers.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
           </select>
         </div>
 
