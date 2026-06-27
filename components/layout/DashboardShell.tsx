@@ -103,10 +103,14 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
       }}>
 
         {/* Brand logo */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          marginRight: 20, flexShrink: 0,
-        }}>
+        <div
+          onClick={() => router.push('/dashboard')}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            marginRight: 20, flexShrink: 0,
+            cursor: 'pointer',
+          }}
+        >
           <div style={{
             width: 28, height: 28,
             background: 'rgba(255,255,255,0.2)',
@@ -243,7 +247,7 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
 
       {/* ── Body: sidebar + page content ── */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden', minHeight: 0 }}>
-        <Sidebar activeItem={activeItem} onItemClick={handleSidebarClick} />
+        <Sidebar activeItem={activeItem} boutiqueName={displayName} onItemClick={handleSidebarClick} />
 
         <div style={{
           flex: 1,

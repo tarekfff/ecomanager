@@ -1,5 +1,6 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   ChevronDown, ChevronRight,
   ShoppingCart, Users, Package, Boxes, Tag, Building2,
@@ -11,24 +12,21 @@ import {
   PackageX, FilePlus, Search, BookOpen, ShoppingBag,
 } from 'lucide-react'
 
-// ── Dark sidebar tokens ───────────────────────────────────────
-const D = {
-  bg:           '#181C2E',
-  headerBg:     '#141728',
-  text:         'rgba(255,255,255,0.82)',
-  textDim:      'rgba(255,255,255,0.40)',
-  textActive:   '#ffffff',
-  icon:         'rgba(255,255,255,0.38)',
-  primary:      '#BF4C98',
-  primaryBg:    'rgba(191,76,152,0.16)',
-  primaryFg:    '#E891CF',
-  hover:        'rgba(255,255,255,0.05)',
-  border:       'rgba(255,255,255,0.07)',
-  sectionLabel: 'rgba(255,255,255,0.28)',
-  badgeBg:      'rgba(255,255,255,0.10)',
-  badgeFg:      'rgba(255,255,255,0.60)',
-  newBadge:     '#ff9800',
-  childSec:     'rgba(255,255,255,0.22)',
+// ── Tokens ───────────────────────────────────────────────────
+const S = {
+  bg:          '#16192A',
+  headerBg:    '#12152200',   // transparent — blends with bg
+  text:        'rgba(255,255,255,0.55)',
+  textHover:   'rgba(255,255,255,0.82)',
+  textActive:  '#E891CF',          // pink — active label
+  iconMuted:   'rgba(255,255,255,0.30)',
+  iconActive:  '#BF4C98',
+  activeBg:    'rgba(191,76,152,0.13)',
+  hoverBg:     'rgba(255,255,255,0.045)',
+  sectionFg:   'rgba(255,255,255,0.22)',
+  divider:     'rgba(255,255,255,0.06)',
+  primary:     '#BF4C98',
+  newBadge:    '#f59e0b',
 }
 
 // ── Types ────────────────────────────────────────────────────
@@ -37,21 +35,21 @@ type ChildItem =
   | { type: 'section'; label: string }
 
 interface NavGroup {
-  icon: React.ElementType
-  label: string
-  badge?: string
-  children: ChildItem[]
+  icon:      React.ElementType
+  label:     string
+  badge?:    string
+  children:  ChildItem[]
 }
 
 interface SidebarSection {
   sectionLabel?: string
-  groups: NavGroup[]
+  groups:        NavGroup[]
 }
 
 const sec = (label: string): ChildItem => ({ type: 'section', label })
 const it  = (icon: React.ElementType, label: string): ChildItem => ({ icon, label })
 
-// ── Navigation structure with top-level sections ─────────────
+// ── Nav tree ─────────────────────────────────────────────────
 const SECTIONS: SidebarSection[] = [
   {
     groups: [
@@ -97,7 +95,7 @@ const SECTIONS: SidebarSection[] = [
     ],
   },
   {
-    sectionLabel: 'STOCK',
+    sectionLabel: 'Stock',
     groups: [
       {
         icon: Boxes, label: 'Gestion de stock',
@@ -110,39 +108,21 @@ const SECTIONS: SidebarSection[] = [
           it(ClipboardList,     'Méga inventaire'),
         ],
       },
-      {
-        icon: Tag, label: 'Marques',
-        children: [
-          it(List,       'Liste des marques'),
-          it(PlusCircle, 'Ajouter une marque'),
-        ],
-      },
-      {
-        icon: Building2, label: 'Fournisseurs',
-        children: [
-          it(List,       'Liste des fournisseurs'),
-          it(PlusCircle, 'Ajouter un fournisseur'),
-        ],
-      },
+      { icon: Tag,       label: 'Marques',      children: [it(List, 'Liste des marques'),      it(PlusCircle, 'Ajouter une marque')]    },
+      { icon: Building2, label: 'Fournisseurs', children: [it(List, 'Liste des fournisseurs'), it(PlusCircle, 'Ajouter un fournisseur')] },
     ],
   },
   {
-    sectionLabel: 'LIVRAISON',
+    sectionLabel: 'Livraison',
     groups: [
-      {
-        icon: Truck, label: 'Livraison',
-        children: [
-          it(List,       'Liste des livreurs'),
-          it(PlusCircle, 'Ajouter un livreur'),
-        ],
-      },
+      { icon: Truck, label: 'Livraison', children: [it(List, 'Liste des livreurs'), it(PlusCircle, 'Ajouter un livreur')] },
     ],
   },
   {
-    sectionLabel: 'ANALYSE',
+    sectionLabel: 'Analyse',
     groups: [
       {
-        icon: BarChart2, label: 'Statistiques V2', badge: 'new',
+        icon: BarChart2, label: 'Statistiques', badge: 'new',
         children: [
           it(Store,    'Par boutique'),
           it(Package,  'Par produit'),
@@ -160,40 +140,15 @@ const SECTIONS: SidebarSection[] = [
           it(Megaphone,  'Coûts publicitaires'),
         ],
       },
-      {
-        icon: Database, label: 'Données',
-        children: [
-          it(Download,  'Exporter les données'),
-          it(BarChart2, 'Rapports'),
-        ],
-      },
+      { icon: Database, label: 'Données', children: [it(Download, 'Exporter les données'), it(BarChart2, 'Rapports')] },
     ],
   },
   {
-    sectionLabel: 'SYSTÈME',
+    sectionLabel: 'Système',
     groups: [
-      {
-        icon: Zap, label: 'Webhooks',
-        children: [
-          it(List,       'Liste des webhooks'),
-          it(PlusCircle, 'Ajouter un webhook'),
-          it(FileText,   'Logs des webhooks'),
-        ],
-      },
-      {
-        icon: Shield, label: 'Modérateurs',
-        children: [
-          it(Users,  'Gestion des utilisateurs'),
-          it(Shield, 'Rôles & permissions'),
-        ],
-      },
-      {
-        icon: Store, label: 'Boutiques',
-        children: [
-          it(List,       'Liste des boutiques'),
-          it(PlusCircle, 'Ajouter une boutique'),
-        ],
-      },
+      { icon: Zap,      label: 'Webhooks',     children: [it(List, 'Liste des webhooks'), it(PlusCircle, 'Ajouter un webhook'), it(FileText, 'Logs')] },
+      { icon: Shield,   label: 'Modérateurs',  children: [it(Users, 'Utilisateurs'), it(Shield, 'Rôles & permissions')] },
+      { icon: Store,    label: 'Boutiques',    children: [it(List, 'Liste des boutiques'), it(PlusCircle, 'Ajouter une boutique')] },
       {
         icon: Settings, label: 'Configuration',
         children: [
@@ -210,16 +165,30 @@ const SECTIONS: SidebarSection[] = [
   },
 ]
 
-// ── Props ────────────────────────────────────────────────────
+// ── Props ─────────────────────────────────────────────────────
 interface SidebarProps {
-  activeItem?:  string
+  activeItem?:   string
   boutiqueName?: string
-  onItemClick?: (label: string) => void
+  onItemClick?:  (label: string) => void
 }
 
-// ── Component ────────────────────────────────────────────────
+// ── Component ─────────────────────────────────────────────────
 export default function Sidebar({ activeItem, boutiqueName, onItemClick }: SidebarProps) {
+  const router = useRouter()
   const [open, setOpen] = useState<Record<string, boolean>>({ Commandes: true })
+
+  // Auto-open parent group when navigating to a child page
+  useEffect(() => {
+    if (!activeItem) return
+    for (const sec of SECTIONS) {
+      for (const group of sec.groups) {
+        if (group.children.some(c => c.type !== 'section' && c.label === activeItem)) {
+          setOpen(prev => ({ ...prev, [group.label]: true }))
+          return
+        }
+      }
+    }
+  }, [activeItem])
 
   function toggle(label: string) {
     setOpen(prev => ({ ...prev, [label]: !prev[label] }))
@@ -230,234 +199,196 @@ export default function Sidebar({ activeItem, boutiqueName, onItemClick }: Sideb
   }
 
   return (
-    <nav style={{
-      width: 234,
-      minWidth: 234,
-      background: D.bg,
-      borderRight: `1px solid ${D.border}`,
-      display: 'flex',
-      flexDirection: 'column',
-      overflowY: 'auto',
-      fontFamily: "'Inter', sans-serif",
-    }}>
-
+    <nav
+      className="chic-sidebar"
+      style={{
+        width: 228,
+        minWidth: 228,
+        background: S.bg,
+        display: 'flex',
+        flexDirection: 'column',
+        overflowY: 'auto',
+        fontFamily: "'Inter', sans-serif",
+        borderRight: `1px solid ${S.divider}`,
+      }}
+    >
       {/* ── Brand header ── */}
-      <div style={{
-        padding: '16px 14px 15px',
-        background: D.headerBg,
-        borderBottom: `1px solid ${D.border}`,
-        flexShrink: 0,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {/* Logo tile */}
+      <div style={{ padding: '18px 16px 16px', flexShrink: 0 }}>
+        <div
+          onClick={() => router.push('/dashboard')}
+          style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
+        >
           <div style={{
-            width: 38, height: 38,
-            background: 'linear-gradient(135deg, #BF4C98 0%, #7B1E5A 100%)',
-            borderRadius: 11,
+            width: 34, height: 34, borderRadius: 9, flexShrink: 0,
+            background: 'linear-gradient(140deg, #BF4C98 0%, #7B1E5A 100%)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0,
-            boxShadow: '0 4px 14px rgba(191,76,152,0.45)',
+            boxShadow: '0 0 0 1px rgba(255,255,255,0.08)',
           }}>
-            <ShoppingBag size={19} color="#fff" strokeWidth={1.8} />
+            <ShoppingBag size={17} color="#fff" strokeWidth={1.8} />
           </div>
-
-          <div style={{ overflow: 'hidden' }}>
-            <div style={{
-              fontSize: 16, fontWeight: 800, color: '#fff',
-              letterSpacing: '-0.4px', lineHeight: 1.15,
-            }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', letterSpacing: '-0.3px', lineHeight: 1.2 }}>
               chic<span style={{ color: '#E891CF' }}>N</span>
             </div>
-            <div style={{
-              fontSize: 11, color: D.textDim, marginTop: 2,
-              fontWeight: 400, overflow: 'hidden',
-              textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}>
-              {boutiqueName || 'Tableau de bord'}
-            </div>
+            {boutiqueName && (
+              <div style={{ fontSize: 11, color: S.text, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 150 }}>
+                {boutiqueName}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* ── Navigation ── */}
-      <div style={{ flex: 1, paddingTop: 8, paddingBottom: 24, overflowY: 'auto' }}>
-        {SECTIONS.map((section, si) => (
-          <div key={si}>
+      {/* Divider */}
+      <div style={{ height: 1, background: S.divider, marginBottom: 6, flexShrink: 0 }} />
 
-            {/* Top-level section label */}
+      {/* ── Navigation ── */}
+      <div style={{ flex: 1, padding: '4px 8px 20px' }}>
+        {SECTIONS.map((section, si) => (
+          <div key={si} style={{ marginTop: si === 0 ? 0 : 6 }}>
+
+            {/* Section label */}
             {section.sectionLabel && (
               <div style={{
-                padding: '10px 18px 4px',
-                fontSize: 10, fontWeight: 700,
-                color: D.sectionLabel,
+                padding: '10px 8px 4px',
+                fontSize: 10.5, fontWeight: 600,
+                color: S.sectionFg,
                 textTransform: 'uppercase',
-                letterSpacing: '1.2px',
-                marginTop: 6,
+                letterSpacing: '0.8px',
               }}>
                 {section.sectionLabel}
               </div>
             )}
 
             {section.groups.map(({ icon: Icon, label, badge, children }) => {
-              const isOpen       = !!open[label]
-              const childActive  = hasActiveChild(children)
-              const isParentActive = activeItem === label
+              const isOpen      = !!open[label]
+              const childActive = hasActiveChild(children)
+              const parentSelf  = activeItem === label
 
               return (
                 <div key={label}>
 
                   {/* ── Parent row ── */}
-                  <div
-                    role="button"
-                    tabIndex={0}
+                  <button
                     onClick={() => { toggle(label); onItemClick?.(label) }}
-                    onKeyDown={e => e.key === 'Enter' && toggle(label)}
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
+                      width: '100%', display: 'flex', alignItems: 'center',
                       justifyContent: 'space-between',
-                      margin: '1px 8px',
-                      padding: '8px 10px 8px 12px',
-                      borderRadius: 9,
+                      padding: '7px 8px',
+                      borderRadius: 7,
+                      border: 'none',
                       cursor: 'pointer',
-                      fontSize: 13,
+                      fontSize: 13.5,
                       fontWeight: childActive ? 600 : 500,
-                      color: isParentActive
-                        ? '#fff'
+                      color: parentSelf
+                        ? S.textActive
                         : childActive
-                          ? '#fff'
-                          : D.text,
-                      background: isParentActive
-                        ? D.primary
-                        : childActive
-                          ? D.primaryBg
-                          : 'transparent',
+                          ? 'rgba(255,255,255,0.90)'
+                          : S.text,
+                      background: parentSelf
+                        ? S.activeBg
+                        : 'transparent',
+                      fontFamily: "'Inter', sans-serif",
+                      transition: 'color .12s, background .12s',
                       userSelect: 'none',
-                      transition: 'background .12s',
-                      borderLeft: childActive && !isParentActive
-                        ? `3px solid ${D.primary}`
-                        : isParentActive
-                          ? '3px solid transparent'
-                          : '3px solid transparent',
                     }}
                     onMouseEnter={e => {
-                      if (!isParentActive && !childActive)
-                        (e.currentTarget as HTMLDivElement).style.background = D.hover
+                      if (!parentSelf)
+                        (e.currentTarget as HTMLButtonElement).style.background = S.hoverBg
+                      if (!parentSelf && !childActive)
+                        (e.currentTarget as HTMLButtonElement).style.color = S.textHover
                     }}
                     onMouseLeave={e => {
-                      if (!isParentActive && !childActive)
-                        (e.currentTarget as HTMLDivElement).style.background = 'transparent'
+                      if (!parentSelf)
+                        (e.currentTarget as HTMLButtonElement).style.background = 'transparent'
+                      if (!parentSelf && !childActive)
+                        (e.currentTarget as HTMLButtonElement).style.color = S.text
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                      {/* Icon tile */}
-                      <div style={{
-                        width: 26, height: 26,
-                        borderRadius: 7,
-                        background: isParentActive
-                          ? 'rgba(255,255,255,0.2)'
-                          : childActive
-                            ? `rgba(191,76,152,0.25)`
-                            : 'rgba(255,255,255,0.07)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        flexShrink: 0,
-                        transition: 'background .12s',
-                      }}>
-                        <Icon
-                          size={13}
-                          strokeWidth={isParentActive || childActive ? 2.2 : 1.8}
-                          color={isParentActive ? '#fff' : childActive ? D.primary : D.icon}
-                        />
-                      </div>
-
+                      <Icon
+                        size={15}
+                        strokeWidth={childActive || parentSelf ? 2.2 : 1.8}
+                        color={childActive || parentSelf ? S.iconActive : S.iconMuted}
+                        style={{ flexShrink: 0 }}
+                      />
                       <span>{label}</span>
-
                       {badge && (
                         <span style={{
-                          background: badge === 'new' ? D.newBadge : D.badgeBg,
-                          color: badge === 'new' ? '#fff' : D.badgeFg,
-                          borderRadius: 5, padding: '1px 6px',
-                          fontSize: 9, fontWeight: 700, letterSpacing: '0.5px',
+                          background: S.newBadge, color: '#fff',
+                          borderRadius: 4, padding: '0px 5px',
+                          fontSize: 9, fontWeight: 700,
+                          letterSpacing: '0.3px', lineHeight: '18px',
                         }}>
-                          {badge.toUpperCase()}
+                          NEW
                         </span>
                       )}
                     </div>
-
                     {isOpen
-                      ? <ChevronDown  size={11} color={isParentActive ? 'rgba(255,255,255,0.7)' : D.textDim} />
-                      : <ChevronRight size={11} color={D.textDim} />
+                      ? <ChevronDown  size={12} color="rgba(255,255,255,0.22)" />
+                      : <ChevronRight size={12} color="rgba(255,255,255,0.18)" />
                     }
-                  </div>
+                  </button>
 
                   {/* ── Children ── */}
                   {isOpen && (
-                    <div style={{ paddingBottom: 3 }}>
+                    <div style={{ marginTop: 1, marginBottom: 2 }}>
                       {children.map((child, idx) => {
 
-                        /* Section separator within children */
+                        /* Sub-section label (Archives, Bons, Pickups) */
                         if (child.type === 'section') {
                           return (
-                            <div key={`sec-${idx}`} style={{
-                              padding: '7px 14px 3px 46px',
-                              fontSize: 9.5, fontWeight: 700,
-                              color: D.childSec,
+                            <div key={`s${idx}`} style={{
+                              padding: '6px 8px 3px 36px',
+                              fontSize: 10, fontWeight: 600,
+                              color: 'rgba(255,255,255,0.18)',
                               textTransform: 'uppercase',
-                              letterSpacing: '0.9px',
-                              borderTop: idx === 0 ? 'none' : `1px solid ${D.border}`,
-                              marginTop: idx === 0 ? 2 : 6,
+                              letterSpacing: '0.7px',
+                              marginTop: idx === 0 ? 0 : 4,
                             }}>
                               {child.label}
                             </div>
                           )
                         }
 
-                        const isChildActive = activeItem === child.label
-                        const CIcon = (child as { icon?: React.ElementType }).icon
+                        /* Child item */
+                        const isActive = activeItem === child.label
 
                         return (
-                          <div
+                          <button
                             key={child.label}
-                            role="button"
-                            tabIndex={0}
                             onClick={() => onItemClick?.(child.label)}
-                            onKeyDown={e => e.key === 'Enter' && onItemClick?.(child.label)}
                             style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 8,
-                              margin: '1px 8px 1px 22px',
-                              padding: '5.5px 10px 5.5px 20px',
-                              borderRadius: 7,
+                              width: '100%', display: 'flex', alignItems: 'center',
+                              gap: 0,
+                              padding: '6px 8px 6px 34px',
+                              borderRadius: 6,
+                              border: 'none',
                               cursor: 'pointer',
-                              fontSize: 12,
-                              color: isChildActive ? D.primaryFg : D.textDim,
-                              fontWeight: isChildActive ? 600 : 400,
-                              background: isChildActive
-                                ? 'rgba(191,76,152,0.16)'
-                                : 'transparent',
-                              borderLeft: `2px solid ${isChildActive ? D.primary : 'transparent'}`,
+                              fontSize: 13,
+                              fontWeight: isActive ? 600 : 400,
+                              color: isActive ? S.textActive : S.text,
+                              background: isActive ? S.activeBg : 'transparent',
+                              fontFamily: "'Inter', sans-serif",
+                              textAlign: 'left',
+                              transition: 'color .1s, background .1s',
                               userSelect: 'none',
-                              transition: 'background .1s, color .1s',
                             }}
                             onMouseEnter={e => {
-                              if (!isChildActive)
-                                (e.currentTarget as HTMLDivElement).style.background = D.hover
+                              if (!isActive) {
+                                (e.currentTarget as HTMLButtonElement).style.background = S.hoverBg
+                                ;(e.currentTarget as HTMLButtonElement).style.color = S.textHover
+                              }
                             }}
                             onMouseLeave={e => {
-                              if (!isChildActive)
-                                (e.currentTarget as HTMLDivElement).style.background = 'transparent'
+                              if (!isActive) {
+                                (e.currentTarget as HTMLButtonElement).style.background = 'transparent'
+                                ;(e.currentTarget as HTMLButtonElement).style.color = S.text
+                              }
                             }}
                           >
-                            {CIcon && (
-                              <CIcon
-                                size={11}
-                                strokeWidth={isChildActive ? 2.2 : 1.8}
-                                color={isChildActive ? D.primary : 'rgba(255,255,255,0.28)'}
-                              />
-                            )}
-                            <span>{child.label}</span>
-                          </div>
+                            {child.label}
+                          </button>
                         )
                       })}
                     </div>
@@ -471,20 +402,14 @@ export default function Sidebar({ activeItem, boutiqueName, onItemClick }: Sideb
 
       {/* ── Footer ── */}
       <div style={{
-        padding: '10px 14px 12px',
-        borderTop: `1px solid ${D.border}`,
+        padding: '10px 16px 14px',
+        borderTop: `1px solid ${S.divider}`,
         flexShrink: 0,
-        fontSize: 10.5,
-        color: D.textDim,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 5,
+        display: 'flex', alignItems: 'center', gap: 7,
+        fontSize: 11, color: S.sectionFg,
       }}>
-        <div style={{
-          width: 5, height: 5, borderRadius: '50%',
-          background: '#2ECC71', flexShrink: 0,
-        }} />
-        Connecté · chicN V2.41
+        <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#34d399', flexShrink: 0 }} />
+        chicN · V1
       </div>
     </nav>
   )

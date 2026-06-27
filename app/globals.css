@@ -223,3 +223,33 @@ body, #root {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* ── Sidebar scrollbar (dark, thin) ────────────────────────── */
+.chic-sidebar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.08) transparent;
+}
+.chic-sidebar::-webkit-scrollbar       { width: 3px; }
+.chic-sidebar::-webkit-scrollbar-track { background: transparent; }
+.chic-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.10);
+  border-radius: 99px;
+}
+.chic-sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.20);
+}
+
+/* ── Page content scrollbar (light, thin) ───────────────────── */
+.page-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #D8CDD8 transparent;
+}
+.page-scroll::-webkit-scrollbar       { width: 4px; }
+.page-scroll::-webkit-scrollbar-track { background: transparent; }
+.page-scroll::-webkit-scrollbar-thumb {
+  background: #D8CDD8;
+  border-radius: 99px;
+}
+.page-scroll::-webkit-scrollbar-thumb:hover {
+  background: #C0B0C0;
+}
