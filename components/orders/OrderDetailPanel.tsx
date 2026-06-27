@@ -5,7 +5,7 @@ import {
   X, User, Phone, MapPin, Mail, Package,
   Truck, CreditCard, Clock, ChevronDown,
   CheckCircle, XCircle, UserCheck, Tag,
-  AlertCircle, Activity,
+  AlertCircle, Activity, RotateCcw, RefreshCw,
 } from 'lucide-react'
 import { Button, Select } from '@/components/ui'
 import { colors, fonts } from '@/lib/tokens'
@@ -49,6 +49,7 @@ interface OrderDetail {
   remark:                string | null
   referrer:              string | null
   source_type:           string
+  boutique_id:           string
   created_at:            string
   confirmed_at:          string | null
   cancelled_at:          string | null
@@ -67,7 +68,8 @@ interface OrderLog {
   user_name:  string | null
 }
 
-interface AppUser { id: string; name: string }
+interface AppUser    { id: string; name: string }
+interface Carrier    { id: string; name: string }
 
 export interface OrderDetailPanelProps {
   orderId:        string | null
@@ -100,12 +102,16 @@ const CONF_LABELS: Record<string, { label: string; color: string; bg: string }> 
 const CONF_STATUS_OPTIONS = Object.entries(CONF_LABELS).map(([value, { label }]) => ({ value, label }))
 
 const LOG_LABELS: Record<string, string> = {
-  created:                 'Commande créée',
-  confirm:                 'Confirmée → En préparation',
-  cancel:                  'Annulée',
-  assign_confirmer:        'Confirmateur affecté',
-  set_confirmation_status: 'Statut confirmation modifié',
-  delete:                  'Supprimée',
+  created:                  'Commande créée',
+  confirm:                  'Confirmée → En préparation',
+  cancel:                   'Annulée',
+  assign_confirmer:         'Confirmateur affecté',
+  set_confirmation_status:  'Statut confirmation modifié',
+  delete:                   'Supprimée',
+  dispatch:                 'Dispatché → En dispatch',
+  assign_carrier:           'Livreur affecté',
+  go_back_to_confirmation:  'Retour en confirmation',
+  updated:                  'Commande modifiée',
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -218,17 +224,22 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
   const [order,        setOrder]        = useState<OrderDetail | null>(null)
   const [logs,         setLogs]         = useState<OrderLog[]>([])
   const [users,        setUsers]        = useState<AppUser[]>([])
+  const [carriers,     setCarriers]     = useState<Carrier[]>([])
   const [loading,      setLoading]      = useState(false)
   const [logsLoading,  setLogsLoading]  = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
   const [actionError,  setActionError]  = useState('')
   const [mounted,      setMounted]      = useState(false)
 
-  // Assign dropdown
-  const [showAssign,     setShowAssign]     = useState(false)
-  const [showConfStatus, setShowConfStatus] = useState(false)
-  const assignRef     = useRef<HTMLDivElement>(null)
-  const confStatusRef = useRef<HTMLDivElement>(null)
+  // Dropdowns
+  const [showAssign,       setShowAssign]       = useState(false)
+  const [showConfStatus,   setShowConfStatus]   = useState(false)
+  const [showDispatch,     setShowDispatch]     = useState(false)
+  const [showCarrierMenu,  setShowCarrierMenu]  = useState(false)
+  const assignRef      = useRef<HTMLDivElement>(null)
+  const confStatusRef  = useRef<HTMLDivElement>(null)
+  const dispatchRef    = useRef<HTMLDivElement>(null)
+  const carrierMenuRef = useRef<HTMLDivElement>(null)
 
   // Slide-in animation
   useEffect(() => {
@@ -239,8 +250,10 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
   // Close dropdowns on outside click
   useEffect(() => {
     function handler(e: MouseEvent) {
-      if (assignRef.current && !assignRef.current.contains(e.target as Node)) setShowAssign(false)
-      if (confStatusRef.current && !confStatusRef.current.contains(e.target as Node)) setShowConfStatus(false)
+      if (assignRef.current      && !assignRef.current.contains(e.target as Node))      setShowAssign(false)
+      if (confStatusRef.current  && !confStatusRef.current.contains(e.target as Node))  setShowConfStatus(false)
+      if (dispatchRef.current    && !dispatchRef.current.contains(e.target as Node))    setShowDispatch(false)
+      if (carrierMenuRef.current && !carrierMenuRef.current.contains(e.target as Node)) setShowCarrierMenu(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -253,6 +266,15 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
       .then((d: AppUser[]) => { if (Array.isArray(d)) setUsers(d) })
       .catch(() => {})
   }, [])
+
+  // Load carriers when order's boutique is known
+  useEffect(() => {
+    if (!order?.boutique_id) return
+    fetch(`/api/carriers?boutique_id=${order.boutique_id}`, { headers: authHeader() })
+      .then(r => r.json())
+      .then((d: Carrier[]) => { if (Array.isArray(d)) setCarriers(d) })
+      .catch(() => {})
+  }, [order?.boutique_id])
 
   // Fetch order details
   const fetchOrder = useCallback(async () => {
@@ -297,6 +319,8 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
     setActionError('')
     setShowAssign(false)
     setShowConfStatus(false)
+    setShowDispatch(false)
+    setShowCarrierMenu(false)
     try {
       const res = await fetch(`/api/orders/${orderId}`, {
         method:  'PATCH',
@@ -308,8 +332,8 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
       await fetchOrder()
       await fetchLogs()
       onStatusChange()
-      // Close panel for destructive transitions
-      if (action === 'confirm' || action === 'cancel') onClose()
+      // Close panel for status transitions that remove order from this view
+      if (['confirm', 'cancel', 'dispatch', 'go_back_to_confirmation'].includes(action)) onClose()
     } finally {
       setActionLoading(false)
     }
@@ -396,7 +420,69 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
       )
     }
 
-    // Other statuses — placeholder for future steps
+    if (status === 'en_preparation') {
+      return (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          {/* Dispatcher */}
+          <div ref={dispatchRef} style={{ position: 'relative' }}>
+            <Button
+              variant="primary" size="sm" loading={actionLoading}
+              onClick={() => { setShowDispatch(v => !v); setShowCarrierMenu(false) }}
+            >
+              <Truck size={13} /> Dispatcher <ChevronDown size={11} />
+            </Button>
+            {showDispatch && (
+              <FloatingMenu>
+                {carriers.length === 0
+                  ? <div style={{ padding: '10px 14px', fontSize: 12.5, color: colors.textLt }}>Aucun livreur disponible</div>
+                  : carriers.map(c => (
+                    <MenuBtn key={c.id} onClick={() => doAction('dispatch', c.id)}>{c.name}</MenuBtn>
+                  ))
+                }
+              </FloatingMenu>
+            )}
+          </div>
+
+          {/* Changer livreur */}
+          <div ref={carrierMenuRef} style={{ position: 'relative' }}>
+            <Button
+              variant="secondary" size="sm" loading={actionLoading}
+              onClick={() => { setShowCarrierMenu(v => !v); setShowDispatch(false) }}
+            >
+              <RefreshCw size={13} /> Changer livreur <ChevronDown size={11} />
+            </Button>
+            {showCarrierMenu && (
+              <FloatingMenu>
+                {carriers.length === 0
+                  ? <div style={{ padding: '10px 14px', fontSize: 12.5, color: colors.textLt }}>Aucun livreur disponible</div>
+                  : carriers.map(c => (
+                    <MenuBtn key={c.id} onClick={() => doAction('assign_carrier', c.id)}>{c.name}</MenuBtn>
+                  ))
+                }
+              </FloatingMenu>
+            )}
+          </div>
+
+          {/* Annuler */}
+          <Button
+            variant="danger" size="sm" loading={actionLoading}
+            onClick={() => doAction('cancel')}
+          >
+            <XCircle size={13} /> Annuler
+          </Button>
+
+          {/* Retour en confirmation */}
+          <Button
+            variant="secondary" size="sm" loading={actionLoading}
+            onClick={() => doAction('go_back_to_confirmation')}
+          >
+            <RotateCcw size={13} /> Retour
+          </Button>
+        </div>
+      )
+    }
+
+    // Other statuses
     return (
       <span style={{ fontSize: 12, color: colors.textLt, fontFamily: fonts.sans }}>
         Actions disponibles selon le statut pipeline.

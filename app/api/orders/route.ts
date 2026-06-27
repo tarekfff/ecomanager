@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
   const limit      = Math.min(100, parseInt(sp.get('limit') ?? '25'))
   const search     = (sp.get('search')      ?? '').trim()
   const assignedTo = (sp.get('assigned_to') ?? '').trim()
+  const carrierId  = (sp.get('carrier_id')  ?? '').trim()
   const dateFrom   = (sp.get('date_from')   ?? '').trim()
   const dateTo     = (sp.get('date_to')     ?? '').trim()
   const offset     = (page - 1) * limit
@@ -46,11 +47,12 @@ export async function GET(req: NextRequest) {
     .select(
       `id, reference, tracking_status, confirmation_status,
        total, subtotal, delivery_fee, discount, delivery_method,
-       return_risk_score, assigned_confirmer_id, created_at, phone,
+       return_risk_score, assigned_confirmer_id, created_at, confirmed_at, phone,
        clients!client_id(full_name, phone),
        wilayas!wilaya_id(name),
        communes!commune_id(name),
-       users!assigned_confirmer_id(name)`,
+       users!assigned_confirmer_id(name),
+       carriers!assigned_carrier_id(name)`,
       { count: 'exact' }
     )
     .eq('boutique_id', boutiqueId)
@@ -65,6 +67,7 @@ export async function GET(req: NextRequest) {
     query = query.or(orParts.join(','))
   }
   if (assignedTo) query = query.eq('assigned_confirmer_id', assignedTo)
+  if (carrierId)  query = query.eq('assigned_carrier_id', carrierId)
   if (dateFrom)   query = query.gte('created_at', dateFrom)
   if (dateTo) {
     const end = new Date(dateTo)
@@ -102,12 +105,14 @@ export async function GET(req: NextRequest) {
     return_risk_score:     o.return_risk_score,
     assigned_confirmer_id: o.assigned_confirmer_id,
     created_at:            o.created_at,
+    confirmed_at:          o.confirmed_at,
     phone:                 o.phone,
-    client_name:     (o.clients  as { full_name: string } | null)?.full_name ?? null,
-    client_phone:    (o.clients  as { phone: string }     | null)?.phone     ?? o.phone,
-    wilaya_name:     (o.wilayas  as { name: string }      | null)?.name      ?? null,
-    commune_name:    (o.communes as { name: string }      | null)?.name      ?? null,
-    confirmer_name:  (o.users    as { name: string }      | null)?.name      ?? null,
+    client_name:     (o.clients   as { full_name: string } | null)?.full_name ?? null,
+    client_phone:    (o.clients   as { phone: string }     | null)?.phone     ?? o.phone,
+    wilaya_name:     (o.wilayas   as { name: string }      | null)?.name      ?? null,
+    commune_name:    (o.communes  as { name: string }      | null)?.name      ?? null,
+    confirmer_name:  (o.users     as { name: string }      | null)?.name      ?? null,
+    carrier_name:    (o.carriers  as { name: string }      | null)?.name      ?? null,
     items_count:     itemCountMap.get(o.id) ?? 0,
   }))
 

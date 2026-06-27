@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { db } from '@/lib/db'
 
-type BulkAction = 'confirm' | 'cancel' | 'delete' | 'assign' | 'set_confirmation_status'
+type BulkAction = 'confirm' | 'cancel' | 'delete' | 'assign' | 'set_confirmation_status' | 'dispatch' | 'assign_carrier'
 
 interface BulkBody {
   ids:    string[]
@@ -83,6 +83,38 @@ export async function POST(req: NextRequest) {
         .update({ confirmation_status: value })
         .in('id', verifiedIds)
       break
+
+    case 'dispatch': {
+      if (!value) return NextResponse.json({ error: 'Transporteur requis' }, { status: 400 })
+      const { data: carrier } = await db
+        .from('carriers')
+        .select('id')
+        .eq('id', value)
+        .eq('tenant_id', user.tenantId)
+        .eq('is_active', true)
+        .single()
+      if (!carrier) return NextResponse.json({ error: 'Transporteur introuvable' }, { status: 404 })
+      await db.from('orders')
+        .update({ tracking_status: 'en_dispatch', assigned_carrier_id: value, dispatched_at: now })
+        .in('id', verifiedIds)
+      break
+    }
+
+    case 'assign_carrier': {
+      if (!value) return NextResponse.json({ error: 'Transporteur requis' }, { status: 400 })
+      const { data: carrier } = await db
+        .from('carriers')
+        .select('id')
+        .eq('id', value)
+        .eq('tenant_id', user.tenantId)
+        .eq('is_active', true)
+        .single()
+      if (!carrier) return NextResponse.json({ error: 'Transporteur introuvable' }, { status: 404 })
+      await db.from('orders')
+        .update({ assigned_carrier_id: value })
+        .in('id', verifiedIds)
+      break
+    }
 
     default:
       return NextResponse.json({ error: `Action inconnue: ${action}` }, { status: 400 })
