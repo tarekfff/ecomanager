@@ -48,12 +48,18 @@ export default function StatsProduitPage() {
   useEffect(() => {
     fetch('/api/boutiques', { headers: authHeader() })
       .then(r => r.json()).then(d => { if (Array.isArray(d)) setBoutiques(d) }).catch(() => {})
+  }, [])
 
-    fetch('/api/products?limit=200', { headers: authHeader() })
+  // Reload product list when boutique changes
+  useEffect(() => {
+    setProductId('')
+    setProducts([])
+    if (!filters.boutiqueId) return
+    fetch(`/api/products?boutique_id=${filters.boutiqueId}&limit=100`, { headers: authHeader() })
       .then(r => r.json())
       .then(d => { if (Array.isArray(d.items)) setProducts(d.items) })
       .catch(() => {})
-  }, [])
+  }, [filters.boutiqueId])
 
   // Load variants when product changes
   useEffect(() => {

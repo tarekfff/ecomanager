@@ -57,10 +57,13 @@ export default function StatsChart({ rows, displayMode }: StatsChartProps) {
           />
           <Tooltip
             contentStyle={{ fontSize: 12, fontFamily: fonts.sans, border: `1px solid ${colors.border}` }}
-            formatter={(val: number, name: string) => {
-              const col = STATUS_COLS.find(s => s.slug === name)
-              const label = col?.label ?? name
-              return [displayMode === 'percent' ? val + '%' : val, label]
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            formatter={(val: any, name: any) => {
+              const slug = String(name ?? '')
+              const col = STATUS_COLS.find(s => s.slug === slug)
+              const label = col?.label ?? slug
+              const n = Number(val ?? 0)
+              return [displayMode === 'percent' ? n + '%' : n, label]
             }}
           />
           <Legend

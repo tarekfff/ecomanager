@@ -71,8 +71,9 @@ interface OrderLog {
   user_name:  string | null
 }
 
-interface AppUser    { id: string; name: string }
-interface Carrier    { id: string; name: string }
+interface AppUser        { id: string; name: string }
+interface Carrier        { id: string; name: string }
+interface DeliveryStatus { id: string; name: string; slug: string }
 
 export interface OrderDetailPanelProps {
   orderId:        string | null
@@ -118,6 +119,10 @@ const LOG_LABELS: Record<string, string> = {
   toggle_sync:            'Synchronisation modifiée',
   go_back_to_preparation: 'Retour en préparation',
   updated:                'Commande modifiée',
+  deliver:                'Livrée',
+  request_return:         'Retour demandé → En retour',
+  set_delivery_status:    'Statut livraison modifié',
+  set_carrier_fee:        'Frais livreur modifiés',
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -227,25 +232,32 @@ function Pulse() {
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: OrderDetailPanelProps) {
-  const [order,        setOrder]        = useState<OrderDetail | null>(null)
-  const [logs,         setLogs]         = useState<OrderLog[]>([])
-  const [users,        setUsers]        = useState<AppUser[]>([])
-  const [carriers,     setCarriers]     = useState<Carrier[]>([])
-  const [loading,      setLoading]      = useState(false)
-  const [logsLoading,  setLogsLoading]  = useState(false)
-  const [actionLoading, setActionLoading] = useState(false)
-  const [actionError,  setActionError]  = useState('')
-  const [mounted,      setMounted]      = useState(false)
+  const [order,           setOrder]           = useState<OrderDetail | null>(null)
+  const [logs,            setLogs]            = useState<OrderLog[]>([])
+  const [users,           setUsers]           = useState<AppUser[]>([])
+  const [carriers,        setCarriers]        = useState<Carrier[]>([])
+  const [deliveryStatuses, setDeliveryStatuses] = useState<DeliveryStatus[]>([])
+  const [loading,         setLoading]         = useState(false)
+  const [logsLoading,     setLogsLoading]     = useState(false)
+  const [actionLoading,   setActionLoading]   = useState(false)
+  const [actionError,     setActionError]     = useState('')
+  const [mounted,         setMounted]         = useState(false)
+
+  // Carrier fee inline edit
+  const [carrierFeeEditing, setCarrierFeeEditing] = useState(false)
+  const [carrierFeeInput,   setCarrierFeeInput]   = useState('')
 
   // Dropdowns
-  const [showAssign,       setShowAssign]       = useState(false)
-  const [showConfStatus,   setShowConfStatus]   = useState(false)
-  const [showDispatch,     setShowDispatch]     = useState(false)
-  const [showCarrierMenu,  setShowCarrierMenu]  = useState(false)
-  const assignRef      = useRef<HTMLDivElement>(null)
-  const confStatusRef  = useRef<HTMLDivElement>(null)
-  const dispatchRef    = useRef<HTMLDivElement>(null)
-  const carrierMenuRef = useRef<HTMLDivElement>(null)
+  const [showAssign,        setShowAssign]        = useState(false)
+  const [showConfStatus,    setShowConfStatus]     = useState(false)
+  const [showDispatch,      setShowDispatch]       = useState(false)
+  const [showCarrierMenu,   setShowCarrierMenu]    = useState(false)
+  const [showDelivStatus,   setShowDelivStatus]    = useState(false)
+  const assignRef        = useRef<HTMLDivElement>(null)
+  const confStatusRef    = useRef<HTMLDivElement>(null)
+  const dispatchRef      = useRef<HTMLDivElement>(null)
+  const carrierMenuRef   = useRef<HTMLDivElement>(null)
+  const delivStatusRef   = useRef<HTMLDivElement>(null)
 
   // Slide-in animation
   useEffect(() => {
@@ -260,6 +272,7 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
       if (confStatusRef.current  && !confStatusRef.current.contains(e.target as Node))  setShowConfStatus(false)
       if (dispatchRef.current    && !dispatchRef.current.contains(e.target as Node))    setShowDispatch(false)
       if (carrierMenuRef.current && !carrierMenuRef.current.contains(e.target as Node)) setShowCarrierMenu(false)
+      if (delivStatusRef.current && !delivStatusRef.current.contains(e.target as Node)) setShowDelivStatus(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -276,11 +289,26 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
   // Load carriers when order's boutique is known
   useEffect(() => {
     if (!order?.boutique_id) return
-    fetch(`/api/carriers?boutique_id=${order.boutique_id}`, { headers: authHeader() })
+    fetch('/api/carriers?limit=100', { headers: authHeader() })
       .then(r => r.json())
-      .then((d: Carrier[]) => { if (Array.isArray(d)) setCarriers(d) })
+      .then((d: { carriers?: Carrier[] }) => {
+        const list = d.carriers ?? []
+        // Filter to carriers associated with this boutique
+        setCarriers(list.filter((c: Carrier & { boutique_ids?: string[] }) =>
+          !c.boutique_ids?.length || c.boutique_ids.includes(order.boutique_id)
+        ))
+      })
       .catch(() => {})
   }, [order?.boutique_id])
+
+  // Load delivery statuses when order is en_livraison
+  useEffect(() => {
+    if (order?.tracking_status !== 'en_livraison') return
+    fetch('/api/delivery-statuses', { headers: authHeader() })
+      .then(r => r.json())
+      .then((d: DeliveryStatus[]) => { if (Array.isArray(d)) setDeliveryStatuses(d) })
+      .catch(() => {})
+  }, [order?.tracking_status])
 
   // Fetch order details
   const fetchOrder = useCallback(async () => {
@@ -327,6 +355,7 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
     setShowConfStatus(false)
     setShowDispatch(false)
     setShowCarrierMenu(false)
+    setShowDelivStatus(false)
     try {
       const res = await fetch(`/api/orders/${orderId}`, {
         method:  'PATCH',
@@ -340,7 +369,8 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
       onStatusChange()
       // Close panel for status transitions that remove order from this view
       if (['confirm', 'cancel', 'dispatch', 'go_back_to_confirmation',
-           'ship', 'go_back_to_preparation'].includes(action)) onClose()
+           'ship', 'go_back_to_preparation',
+           'deliver', 'request_return'].includes(action)) onClose()
     } finally {
       setActionLoading(false)
     }
@@ -518,6 +548,110 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
           >
             <RotateCcw size={13} /> Retour
           </Button>
+        </div>
+      )
+    }
+
+    if (status === 'en_livraison') {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {/* Main action buttons */}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            {/* Valider livraison */}
+            <Button
+              variant="primary" size="sm" loading={actionLoading}
+              onClick={() => doAction('deliver')}
+            >
+              <PackageCheck size={13} /> Valider livraison
+            </Button>
+
+            {/* Demander retour */}
+            <Button
+              variant="danger" size="sm" loading={actionLoading}
+              onClick={() => doAction('request_return')}
+            >
+              <RotateCcw size={13} /> Demander retour
+            </Button>
+
+            {/* Modifier statut livraison */}
+            <div ref={delivStatusRef} style={{ position: 'relative' }}>
+              <Button
+                variant="secondary" size="sm" loading={actionLoading}
+                onClick={() => setShowDelivStatus(v => !v)}
+              >
+                <Tag size={13} /> Statut livraison <ChevronDown size={11} />
+              </Button>
+              {showDelivStatus && (
+                <FloatingMenu>
+                  {deliveryStatuses.length === 0
+                    ? <div style={{ padding: '10px 14px', fontSize: 12.5, color: colors.textLt }}>Aucun statut</div>
+                    : deliveryStatuses.map(s => (
+                      <MenuBtn key={s.id} onClick={() => doAction('set_delivery_status', s.slug)}>
+                        {s.name}
+                      </MenuBtn>
+                    ))
+                  }
+                </FloatingMenu>
+              )}
+            </div>
+          </div>
+
+          {/* Carrier fee inline edit */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12, color: colors.textMd, fontFamily: fonts.sans }}>Frais livreur :</span>
+            {carrierFeeEditing ? (
+              <>
+                <input
+                  type="number"
+                  min={0}
+                  value={carrierFeeInput}
+                  onChange={e => setCarrierFeeInput(e.target.value)}
+                  autoFocus
+                  style={{
+                    width: 84, padding: '4px 7px', fontSize: 12,
+                    border: `1px solid ${colors.border}`, borderRadius: 4,
+                    fontFamily: fonts.sans, color: colors.text, outline: 'none',
+                  }}
+                />
+                <Button
+                  size="sm" loading={actionLoading}
+                  onClick={async () => {
+                    await doAction('set_carrier_fee', carrierFeeInput)
+                    setCarrierFeeEditing(false)
+                  }}
+                >
+                  Sauvegarder
+                </Button>
+                <button
+                  onClick={() => setCarrierFeeEditing(false)}
+                  style={{
+                    fontSize: 12, color: colors.textLt, border: 'none',
+                    background: 'none', cursor: 'pointer', padding: 0,
+                    fontFamily: fonts.sans,
+                  }}
+                >
+                  Annuler
+                </button>
+              </>
+            ) : (
+              <>
+                <span style={{ fontSize: 12, fontWeight: 600, color: colors.text, fontFamily: fonts.sans }}>
+                  {fmtAmt(o.carrier_fee ?? 0)}
+                </span>
+                <button
+                  onClick={() => { setCarrierFeeInput(String(o.carrier_fee ?? 0)); setCarrierFeeEditing(true) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 3,
+                    fontSize: 11, color: colors.primary, border: 'none',
+                    background: 'none', cursor: 'pointer', padding: 0,
+                    fontFamily: fonts.sans,
+                  }}
+                >
+                  <Pencil size={10} /> Modifier
+                </button>
+              </>
+            )}
+          </div>
         </div>
       )
     }
