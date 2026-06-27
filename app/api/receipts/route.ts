@@ -8,6 +8,60 @@ interface ReceiptBody {
   type:     'encaissement' | 'retour'
 }
 
+export async function GET(req: NextRequest) {
+  const user = requireAuth(req)
+  const sp         = req.nextUrl.searchParams
+  const type       = sp.get('type') as 'encaissement' | 'retour' | null
+  const boutiqueId = sp.get('boutique_id') ?? ''
+  const status     = sp.get('status') ?? 'pending'
+
+  if (!type || (type !== 'encaissement' && type !== 'retour')) {
+    return NextResponse.json({ error: 'type invalide' }, { status: 400 })
+  }
+  if (!boutiqueId) {
+    return NextResponse.json({ error: 'boutique_id requis' }, { status: 400 })
+  }
+
+  const { data, error } = await db
+    .from('receipts')
+    .select(`
+      id, order_id, carrier_id, type, status, amount, created_at,
+      orders!inner(
+        reference, total, carrier_fee, boutique_id,
+        boutiques!inner(tenant_id),
+        clients!client_id(full_name)
+      ),
+      carriers(name)
+    `)
+    .eq('type', type)
+    .eq('status', status)
+    .eq('orders.boutique_id', boutiqueId)
+    .eq('orders.boutiques.tenant_id', user.tenantId)
+    .order('created_at', { ascending: true })
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = (data ?? []).map((r: any) => ({
+    id:           r.id,
+    order_id:     r.order_id,
+    carrier_id:   r.carrier_id ?? null,
+    amount:       r.amount ?? 0,
+    created_at:   r.created_at,
+    reference:    r.orders?.reference ?? '',
+    total:        r.orders?.total ?? 0,
+    carrier_fee:  r.orders?.carrier_fee ?? 0,
+    client_name:  r.orders?.clients?.full_name ?? '',
+    carrier_name: r.carriers?.name ?? 'Sans livreur',
+  }))
+
+  rows.sort((a: { carrier_name: string }, b: { carrier_name: string }) =>
+    a.carrier_name.localeCompare(b.carrier_name, 'fr')
+  )
+
+  return NextResponse.json(rows)
+}
+
 export async function POST(req: NextRequest) {
   const user = requireAuth(req)
   const body = await req.json() as ReceiptBody

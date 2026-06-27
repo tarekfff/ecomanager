@@ -21,6 +21,15 @@ const ITEM_ROUTES: Record<string, string> = {
   'Retournées':          '/dashboard/orders/archives/retournees',
   'Annulées':            '/dashboard/orders/archives/annulees',
   'Corbeille':           '/dashboard/orders/corbeille',
+  // Bons
+  "Bon d'encaissement":  '/dashboard/orders/bons/encaissement',
+  'Bon de retour':       '/dashboard/orders/bons/retour',
+  // Pickups
+  'En collecte':         '/dashboard/orders/pickups/en-collecte',
+  'Collecté':            '/dashboard/orders/pickups/collecte',
+  'Reçus':               '/dashboard/orders/pickups/recus',
+  'Traités':             '/dashboard/orders/pickups/traites',
+  'Annulés':             '/dashboard/orders/pickups/annules',
   // Clients
   'Liste des clients':   '/dashboard/clients',
   'Import clients':      '/dashboard/clients/import',
@@ -55,6 +64,13 @@ function getActiveItem(pathname: string): string {
   if (pathname.startsWith('/dashboard/orders/archives/retournees'))    return 'Retournées'
   if (pathname.startsWith('/dashboard/orders/archives/annulees'))      return 'Annulées'
   if (pathname.startsWith('/dashboard/orders/corbeille'))              return 'Corbeille'
+  if (pathname.startsWith('/dashboard/orders/bons/encaissement'))      return "Bon d'encaissement"
+  if (pathname.startsWith('/dashboard/orders/bons/retour'))            return 'Bon de retour'
+  if (pathname.startsWith('/dashboard/orders/pickups/en-collecte'))    return 'En collecte'
+  if (pathname.startsWith('/dashboard/orders/pickups/collecte'))       return 'Collecté'
+  if (pathname.startsWith('/dashboard/orders/pickups/recus'))          return 'Reçus'
+  if (pathname.startsWith('/dashboard/orders/pickups/traites'))        return 'Traités'
+  if (pathname.startsWith('/dashboard/orders/pickups/annules'))        return 'Annulés'
   if (pathname === '/dashboard/clients/import')                  return 'Import clients'
   if (pathname.startsWith('/dashboard/clients'))                 return 'Liste des clients'
   if (pathname.startsWith('/dashboard/products/new'))            return 'Ajouter un produit'
