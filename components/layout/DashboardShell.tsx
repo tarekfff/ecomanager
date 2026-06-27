@@ -28,6 +28,12 @@ const ITEM_ROUTES: Record<string, string> = {
   // Livraison
   'Liste des livreurs':  '/dashboard/livraison/livreurs',
   'Ajouter un livreur':  '/dashboard/livraison/livreurs',
+  // Statistiques
+  'Par boutique':        '/dashboard/stats/boutique',
+  'Par produit':         '/dashboard/stats/produit',
+  'Par confirmateur':    '/dashboard/stats/confirmateur',
+  'Par livreur':         '/dashboard/stats/livreur',
+  'Par wilaya':          '/dashboard/stats/wilaya',
 }
 
 function getActiveItem(pathname: string): string {
@@ -44,7 +50,12 @@ function getActiveItem(pathname: string): string {
   if (pathname.startsWith('/dashboard/products/options'))        return 'Options & attributs'
   if (pathname.startsWith('/dashboard/products/import'))         return 'Import en masse'
   if (pathname.startsWith('/dashboard/products'))                return 'Liste des produits'
-  if (pathname.startsWith('/dashboard/livraison/livreurs'))     return 'Liste des livreurs'
+  if (pathname.startsWith('/dashboard/livraison/livreurs'))  return 'Liste des livreurs'
+  if (pathname.startsWith('/dashboard/stats/boutique'))       return 'Par boutique'
+  if (pathname.startsWith('/dashboard/stats/produit'))        return 'Par produit'
+  if (pathname.startsWith('/dashboard/stats/confirmateur'))   return 'Par confirmateur'
+  if (pathname.startsWith('/dashboard/stats/livreur'))        return 'Par livreur'
+  if (pathname.startsWith('/dashboard/stats/wilaya'))         return 'Par wilaya'
   return ''
 }
 
