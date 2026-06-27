@@ -34,6 +34,8 @@ const ITEM_ROUTES: Record<string, string> = {
   'Par confirmateur':    '/dashboard/stats/confirmateur',
   'Par livreur':         '/dashboard/stats/livreur',
   'Par wilaya':          '/dashboard/stats/wilaya',
+  // Comptabilité
+  'Bilan général':       '/dashboard/comptabilite/bilan',
 }
 
 function getActiveItem(pathname: string): string {
@@ -55,7 +57,8 @@ function getActiveItem(pathname: string): string {
   if (pathname.startsWith('/dashboard/stats/produit'))        return 'Par produit'
   if (pathname.startsWith('/dashboard/stats/confirmateur'))   return 'Par confirmateur'
   if (pathname.startsWith('/dashboard/stats/livreur'))        return 'Par livreur'
-  if (pathname.startsWith('/dashboard/stats/wilaya'))         return 'Par wilaya'
+  if (pathname.startsWith('/dashboard/stats/wilaya'))              return 'Par wilaya'
+  if (pathname.startsWith('/dashboard/comptabilite/bilan'))        return 'Bilan général'
   return ''
 }
 
