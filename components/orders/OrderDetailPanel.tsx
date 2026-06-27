@@ -229,6 +229,69 @@ function TotalRow({ label, value, bold, primary }: { label: string; value: strin
   )
 }
 
+// ── NOEST helpers ─────────────────────────────────────────────────────────────
+
+function tryParseNoestError(raw: string | undefined): string {
+  if (!raw) return 'Erreur inconnue'
+  try {
+    const obj = JSON.parse(raw) as Record<string, unknown>
+    // Collect field-level validation messages
+    const msgs: string[] = []
+    for (const [k, v] of Object.entries(obj)) {
+      if (k === 'success') continue
+      if (Array.isArray(v)) msgs.push(`${k}: ${v.join(', ')}`)
+      else if (typeof v === 'string') msgs.push(v)
+    }
+    return msgs.length ? msgs.join(' | ') : raw
+  } catch {
+    return raw
+  }
+}
+
+function NoestErrorBox({
+  rawError, orderId, retrying, retryMsg, onRetry,
+}: {
+  rawError:  string | undefined
+  orderId:   string | null
+  retrying:  boolean
+  retryMsg:  string
+  onRetry:   () => void
+}) {
+  const msg = tryParseNoestError(rawError)
+  return (
+    <div style={{
+      background: '#FFF3E0', border: '1px solid #FFB74D',
+      borderRadius: 4, padding: '6px 10px', fontSize: 11.5,
+    }}>
+      <div style={{ color: '#E65100', fontWeight: 600, marginBottom: 2 }}>Erreur NOEST</div>
+      <div style={{ color: '#795548', wordBreak: 'break-word', marginBottom: 6 }}>{msg}</div>
+      {orderId && (
+        <button
+          onClick={onRetry}
+          disabled={retrying}
+          style={{
+            fontSize: 11, padding: '3px 10px', borderRadius: 4,
+            border: '1px solid #FFB74D', background: '#fff',
+            color: '#E65100', cursor: retrying ? 'not-allowed' : 'pointer',
+            fontWeight: 600, opacity: retrying ? 0.6 : 1,
+          }}
+        >
+          {retrying ? 'Envoi…' : 'Réessayer'}
+        </button>
+      )}
+      {retryMsg && (
+        <div style={{
+          marginTop: 5, fontSize: 11,
+          color: retryMsg.startsWith('✓') ? '#1B5E20' : '#B71C1C',
+          fontWeight: 500,
+        }}>
+          {retryMsg}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Pulse() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 16 }}>
@@ -255,6 +318,8 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
   const [actionLoading,   setActionLoading]   = useState(false)
   const [actionError,     setActionError]     = useState('')
   const [mounted,         setMounted]         = useState(false)
+  const [noestRetrying,   setNoestRetrying]   = useState(false)
+  const [noestRetryMsg,   setNoestRetryMsg]   = useState('')
 
   // Carrier fee inline edit
   const [carrierFeeEditing, setCarrierFeeEditing] = useState(false)
@@ -1053,6 +1118,44 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
                               >
                                 Télécharger étiquette
                               </button>
+                            </div>
+                          )}
+                          {log.action === 'noest_push_failed' && (
+                            <div style={{ marginTop: 4 }}>
+                              <NoestErrorBox
+                                rawError={log.new_values?.error as string | undefined}
+                                orderId={orderId}
+                                retrying={noestRetrying}
+                                retryMsg={noestRetryMsg}
+                                onRetry={async () => {
+                                  if (!orderId) return
+                                  setNoestRetrying(true)
+                                  setNoestRetryMsg('')
+                                  try {
+                                    const res  = await fetch(`/api/orders/${orderId}/noest`, {
+                                      method:  'POST',
+                                      headers: { 'Content-Type': 'application/json', ...authHeader() },
+                                      body:    JSON.stringify({ action: 'push' }),
+                                    })
+                                    const data = await res.json() as { success?: boolean; noest_tracking?: string; error?: unknown }
+                                    if (res.ok && data.success) {
+                                      setNoestRetryMsg(`✓ Envoyée — ${data.noest_tracking}`)
+                                      // Reload logs
+                                      const lr = await fetch(`/api/orders/${orderId}/logs`, { headers: authHeader() })
+                                      if (lr.ok) setLogs(await lr.json())
+                                    } else {
+                                      const parsed = typeof data.error === 'string'
+                                        ? tryParseNoestError(data.error)
+                                        : JSON.stringify(data.error)
+                                      setNoestRetryMsg(`Échec : ${parsed}`)
+                                    }
+                                  } catch {
+                                    setNoestRetryMsg('Erreur réseau')
+                                  } finally {
+                                    setNoestRetrying(false)
+                                  }
+                                }}
+                              />
                             </div>
                           )}
                           <div style={{ fontSize: 11, color: colors.textLt, marginTop: 1 }}>

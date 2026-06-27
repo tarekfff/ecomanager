@@ -2,6 +2,14 @@ const BASE_URL   = process.env.NOEST_BASE_URL  ?? 'https://app.noest-dz.com'
 const API_TOKEN  = process.env.NOEST_API_TOKEN ?? ''
 const USER_GUID  = process.env.NOEST_USER_GUID ?? ''
 
+// Strip spaces, +213 prefix → 0XXX format expected by NOEST (9-10 digits)
+export function normalizePhone(phone: string): string {
+  let p = phone.replace(/\s+/g, '').replace(/[^0-9+]/g, '')
+  if (p.startsWith('+213')) p = '0' + p.slice(4)
+  else if (p.startsWith('213')) p = '0' + p.slice(3)
+  return p
+}
+
 async function call(path: string, init: RequestInit = {}) {
   return fetch(`${BASE_URL}${path}`, {
     ...init,

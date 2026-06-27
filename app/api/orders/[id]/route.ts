@@ -12,6 +12,7 @@ import {
   noestCreateOrder,
   noestValidateOrder,
   noestRequestReturn,
+  normalizePhone,
   NoestCreatePayload,
 } from '@/lib/noest'
 
@@ -463,9 +464,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
             const payload: NoestCreatePayload = {
               reference: fo.reference,
               client:    fo.clients?.full_name ?? fo.phone,
-              phone:     fo.phone,
-              phone_2:   fo.phone2 ?? undefined,
-              adresse:   fo.address ?? '',
+              phone:     normalizePhone(fo.phone),
+              phone_2:   fo.phone2 ? normalizePhone(fo.phone2) : undefined,
+              adresse:   fo.address?.trim() || fo.communes?.name || 'Adresse non renseignée',
               wilaya_id: fo.wilaya_id ?? 16,
               commune:   fo.communes?.name ?? '',
               montant:   fo.total ?? 0,
