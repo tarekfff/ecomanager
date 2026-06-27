@@ -258,6 +258,15 @@ export async function syncGoogleSheet(params: SyncParams): Promise<SyncResult> {
 
       if (existing) {
         clientId = (existing as { id: string }).id
+        // Always update with the latest data from the sheet row
+        await db.from('clients').update({
+          full_name:  clientName,
+          phone2:     phone2    || null,
+          email:      email     || null,
+          wilaya_id:  wilayaId,
+          commune_id: communeId || null,
+          address:    address   || null,
+        }).eq('id', clientId)
       } else {
         clientId = uuid()
         const { error: cErr } = await db.from('clients').insert({
