@@ -224,23 +224,31 @@ export default function EnConfirmationPage() {
 
   useEffect(() => { fetchOrders() }, [fetchOrders])
 
-  // ── Background poll — detect new orders every 30s ──────────────────────────
+  // ── Background poll — detect new orders every 10s ──────────────────────────
+  // If the user is idle on page 1 (no selection, no search), auto-refresh the
+  // list so new synced orders appear without a click. Otherwise just flag the
+  // banner so we don't yank the table while they're working.
   useEffect(() => {
     if (!boutiqueId) return
     const check = () => {
+      if (document.hidden) return  // skip polling on background tabs
       const qs = new URLSearchParams({ status: 'en_confirmation', boutique_id: boutiqueId, page: '1', limit: '1' })
       fetch(`/api/orders?${qs}`, { headers: authHeader() })
         .then(r => r.json())
         .then(d => {
           const t = d.total ?? 0
           if (knownTotalRef.current === null) { knownTotalRef.current = t; return }
-          if (t > knownTotalRef.current) setNewCount(t - knownTotalRef.current)
+          if (t > knownTotalRef.current) {
+            const idle = page === 1 && selectedIds.size === 0 && !dbSearch
+            if (idle) fetchOrders()              // seamless auto-refresh
+            else setNewCount(t - knownTotalRef.current)  // show banner instead
+          }
         })
         .catch(() => {})
     }
-    const id = setInterval(check, 30_000)
+    const id = setInterval(check, 10_000)
     return () => clearInterval(id)
-  }, [boutiqueId])
+  }, [boutiqueId, page, selectedIds, dbSearch, fetchOrders])
 
   // ── Search debounce ───────────────────────────────────────────────────────
 
