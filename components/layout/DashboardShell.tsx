@@ -11,6 +11,7 @@ interface BoutiqueOption { id: string; name: string; prefix: string }
 const ITEM_ROUTES: Record<string, string> = {
   // Orders
   'Nouvelle commande':   '/dashboard/orders/new',
+  'Import Google Sheet':   '/dashboard/orders/import/google-sheet',
   'En confirmation':     '/dashboard/orders/en-confirmation',
   'En préparation':      '/dashboard/orders/en-preparation',
   'En dispatch':         '/dashboard/orders/en-dispatch',
@@ -54,6 +55,7 @@ const ITEM_ROUTES: Record<string, string> = {
 
 function getActiveItem(pathname: string): string {
   if (pathname.startsWith('/dashboard/orders/new'))              return 'Nouvelle commande'
+  if (pathname.startsWith('/dashboard/orders/import/google-sheet')) return 'Import Google Sheet'
   if (pathname.startsWith('/dashboard/orders/en-confirmation'))  return 'En confirmation'
   if (pathname.startsWith('/dashboard/orders/en-preparation'))   return 'En préparation'
   if (pathname.startsWith('/dashboard/orders/en-dispatch'))      return 'En dispatch'
