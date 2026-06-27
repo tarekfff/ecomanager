@@ -164,7 +164,12 @@ export async function syncGoogleSheet(params: SyncParams): Promise<SyncResult> {
 
     // ── Wilaya / commune lookup ────────────────────────────────────────────────
 
-    const wilayaId = wilayaMap.get(wilayaRaw.toLowerCase().trim()) ?? null
+    // Try by name first, then by numeric ID (province code)
+    let wilayaId: number | null = wilayaMap.get(wilayaRaw.toLowerCase().trim()) ?? null
+    if (!wilayaId) {
+      const numId = parseInt(wilayaRaw.trim())
+      if (!isNaN(numId) && numId >= 1 && numId <= 58) wilayaId = numId
+    }
     if (!wilayaId) {
       errors.push({ row: rowNum, reason: `Wilaya introuvable: "${wilayaRaw}"` })
       continue
@@ -192,13 +197,27 @@ export async function syncGoogleSheet(params: SyncParams): Promise<SyncResult> {
     for (let si = 0; si < skuList.length; si++) {
       const sku = skuList[si]
       if (!skuCache.has(sku)) {
-        const { data: prod } = await db
+        // Try SKU / barcode first, then fall back to product name
+        let prod: { id: string; name: string } | null = null
+        const { data: byCode } = await db
           .from('products')
           .select('id, name')
           .eq('tenant_id', tenantId)
           .or(`sku.eq.${sku},barcode.eq.${sku}`)
           .is('deleted_at', null)
           .maybeSingle()
+        if (byCode) {
+          prod = byCode as { id: string; name: string }
+        } else {
+          const { data: byName } = await db
+            .from('products')
+            .select('id, name')
+            .eq('tenant_id', tenantId)
+            .ilike('name', sku)
+            .is('deleted_at', null)
+            .maybeSingle()
+          if (byName) prod = byName as { id: string; name: string }
+        }
         skuCache.set(sku, prod ? { product_id: prod.id, product_name: prod.name } : null)
       }
 

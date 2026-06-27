@@ -4,7 +4,6 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   PieChart, Pie, Cell, ResponsiveContainer,
 } from 'recharts'
-import { Plus, DollarSign, Undo2, X, Trash2, Search, Send } from 'lucide-react'
 import { useBoutique } from '@/contexts/BoutiqueContext'
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -118,41 +117,8 @@ export default function DashboardPage() {
 
   const donutData = DONUT_DEFS.map(d => ({ name: d.name, value: counts[d.key], color: d.color }))
 
-  const statusBarCounts: Record<string, number> = {
-    'En confirmation': counts.en_confirmation,
-    'En préparation':  counts.en_preparation,
-    'En dispatch':     counts.en_dispatch,
-    'En livraison':    counts.en_livraison,
-    'Livrées':         counts.livree,
-    'En retour':       counts.en_retour,
-  }
-
   return (
-    <>
-      {/* ── Status bar ──────────────────────────────────────────────────── */}
-      <div className="statusbar">
-        <button className="status-btn add">
-          <Plus size={12} /> Ajouter <span className="status-new">new</span>
-        </button>
-        <div className="status-divider" />
-        {Object.entries(statusBarCounts).map(([label, count]) => (
-          <button key={label} className="status-btn">
-            {label}
-            {count > 0 && <span className="status-badge">{count}</span>}
-          </button>
-        ))}
-        <div className="status-divider" />
-        <button className="status-icon-btn" title="Encaisser" style={{ color: '#28a745' }}><DollarSign size={14} /></button>
-        <button className="status-icon-btn" title="Retour"    style={{ color: '#ff9800' }}><Undo2 size={14} /></button>
-        <button className="status-icon-btn" title="Annuler"   style={{ color: '#dc3545' }}><X size={14} /></button>
-        <button className="status-icon-btn" title="Supprimer" style={{ color: '#888' }}><Trash2 size={14} /></button>
-        <button className="sav-btn"><Send size={12} /> SAV</button>
-        <div className="status-divider" />
-        <button className="status-icon-btn" title="Rechercher"><Search size={14} style={{ color: '#666' }} /></button>
-      </div>
-
-      {/* ── Charts ──────────────────────────────────────────────────────── */}
-      <main className="main-content">
+    <main className="main-content">
         <div className="charts-grid">
 
           {/* COL 1 — Performance */}
@@ -225,7 +191,6 @@ export default function DashboardPage() {
           </div>
 
         </div>
-      </main>
-    </>
+    </main>
   )
 }

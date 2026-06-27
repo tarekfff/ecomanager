@@ -1,6 +1,7 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useMemo } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
+import { useBoutique } from '@/contexts/BoutiqueContext'
 import {
   ChevronDown, ChevronRight,
   ShoppingCart, Users, Package, Boxes, Tag, Building2,
@@ -15,10 +16,10 @@ import {
 // ── Tokens ───────────────────────────────────────────────────
 const S = {
   bg:          '#16192A',
-  headerBg:    '#12152200',   // transparent — blends with bg
+  headerBg:    '#12152200',
   text:        'rgba(255,255,255,0.55)',
   textHover:   'rgba(255,255,255,0.82)',
-  textActive:  '#E891CF',          // pink — active label
+  textActive:  '#E891CF',
   iconMuted:   'rgba(255,255,255,0.30)',
   iconActive:  '#BF4C98',
   activeBg:    'rgba(191,76,152,0.13)',
@@ -31,7 +32,7 @@ const S = {
 
 // ── Types ────────────────────────────────────────────────────
 type ChildItem =
-  | { type?: 'item'; icon?: React.ElementType; label: string }
+  | { type?: 'item'; icon?: React.ElementType; label: string; href?: string }
   | { type: 'section'; label: string }
 
 interface NavGroup {
@@ -47,7 +48,7 @@ interface SidebarSection {
 }
 
 const sec = (label: string): ChildItem => ({ type: 'section', label })
-const it  = (icon: React.ElementType, label: string): ChildItem => ({ icon, label })
+const it  = (icon: React.ElementType, label: string, href?: string): ChildItem => ({ icon, label, href })
 
 // ── Nav tree ─────────────────────────────────────────────────
 const SECTIONS: SidebarSection[] = [
@@ -56,48 +57,48 @@ const SECTIONS: SidebarSection[] = [
       {
         icon: ShoppingCart, label: 'Commandes',
         children: [
-          it(FilePlus,     'Nouvelle commande'),
-          it(Upload,       'Import Google Sheet'),
-          it(Link,         'Sources connectées'),
+          it(FilePlus,      'Nouvelle commande',   '/dashboard/orders/new'),
+          it(Upload,        'Import Google Sheet', '/dashboard/orders/import/google-sheet'),
+          it(Link,          'Sources connectées',  '/dashboard/orders/import/sources'),
           sec('Pipeline'),
-          it(ClipboardList,'En confirmation'),
-          it(Package,      'En préparation'),
-          it(Truck,        'En dispatch'),
-          it(Truck,        'En livraison'),
-          it(PackageCheck, 'Livrées'),
-          it(RotateCcw,    'En retour'),
+          it(ClipboardList, 'En confirmation', '/dashboard/orders/en-confirmation'),
+          it(Package,       'En préparation',  '/dashboard/orders/en-preparation'),
+          it(Truck,         'En dispatch',     '/dashboard/orders/en-dispatch'),
+          it(Truck,         'En livraison',    '/dashboard/orders/en-livraison'),
+          it(PackageCheck,  'Livrées',         '/dashboard/orders/livrees'),
+          it(RotateCcw,     'En retour',       '/dashboard/orders/en-retour'),
           sec('Archives'),
-          it(Archive,      'Encaissées'),
-          it(Archive,      'Retournées'),
-          it(Archive,      'Annulées'),
-          it(Trash2,       'Corbeille'),
+          it(Archive,   'Encaissées', '/dashboard/orders/archives/encaissees'),
+          it(Archive,   'Retournées', '/dashboard/orders/archives/retournees'),
+          it(Archive,   'Annulées',   '/dashboard/orders/archives/annulees'),
+          it(Trash2,    'Corbeille',  '/dashboard/orders/corbeille'),
           sec('Bons'),
-          it(Receipt,      "Bon d'encaissement"),
-          it(RotateCcw,    'Bon de retour'),
+          it(Receipt,   "Bon d'encaissement", '/dashboard/orders/bons/encaissement'),
+          it(RotateCcw, 'Bon de retour',      '/dashboard/orders/bons/retour'),
           sec('Pickups'),
-          it(Truck,        'En collecte'),
-          it(Package,      'Collecté'),
-          it(PackageCheck, 'Reçus'),
-          it(PackageCheck, 'Traités'),
-          it(PackageX,     'Annulés'),
+          it(Truck,        'En collecte', '/dashboard/orders/pickups/en-collecte'),
+          it(Package,      'Collecté',    '/dashboard/orders/pickups/collecte'),
+          it(PackageCheck, 'Reçus',       '/dashboard/orders/pickups/recus'),
+          it(PackageCheck, 'Traités',     '/dashboard/orders/pickups/traites'),
+          it(PackageX,     'Annulés',     '/dashboard/orders/pickups/annules'),
         ],
       },
       {
         icon: Users, label: 'Clients',
         children: [
-          it(List,       'Liste des clients'),
-          it(PlusCircle, 'Ajouter un client'),
-          it(Upload,     'Import en masse'),
-          it(Search,     'Rechercher un client'),
+          it(List,       'Liste des clients',    '/dashboard/clients'),
+          it(PlusCircle, 'Ajouter un client',    '/dashboard/clients'),
+          it(Upload,     'Import en masse',      '/dashboard/clients/import'),
+          it(Search,     'Rechercher un client', '/dashboard/clients'),
         ],
       },
       {
         icon: Package, label: 'Produits',
         children: [
-          it(List,       'Liste des produits'),
-          it(PlusCircle, 'Ajouter un produit'),
-          it(Upload,     'Import en masse'),
-          it(Tag,        'Options & attributs'),
+          it(List,       'Liste des produits', '/dashboard/products'),
+          it(PlusCircle, 'Ajouter un produit', '/dashboard/products/new'),
+          it(Upload,     'Import en masse',    '/dashboard/products/import'),
+          it(Tag,        'Options & attributs', '/dashboard/products/options'),
         ],
       },
     ],
@@ -108,22 +109,40 @@ const SECTIONS: SidebarSection[] = [
       {
         icon: Boxes, label: 'Gestion de stock',
         children: [
-          it(SlidersHorizontal, 'Ajustement de stock'),
-          it(ArrowUpDown,       'Mouvements de stock'),
-          it(Layers,            'Lots de stock'),
-          it(AlertTriangle,     'Alertes de stock'),
-          it(ClipboardList,     'Inventaire'),
-          it(ClipboardList,     'Méga inventaire'),
+          it(SlidersHorizontal, 'Ajustement de stock', '/dashboard/stock/ajustement'),
+          it(ArrowUpDown,       'Mouvements de stock', '/dashboard/stock/mouvements'),
+          it(Layers,            'Lots de stock',       '/dashboard/stock/lots'),
+          it(AlertTriangle,     'Alertes de stock',    '/dashboard/stock/alertes'),
+          it(ClipboardList,     'Inventaire',          '/dashboard/stock/inventaire'),
+          it(ClipboardList,     'Méga inventaire',     '/dashboard/stock/mega-inventaire'),
         ],
       },
-      { icon: Tag,       label: 'Marques',      children: [it(List, 'Liste des marques'),      it(PlusCircle, 'Ajouter une marque')]    },
-      { icon: Building2, label: 'Fournisseurs', children: [it(List, 'Liste des fournisseurs'), it(PlusCircle, 'Ajouter un fournisseur')] },
+      {
+        icon: Tag, label: 'Marques',
+        children: [
+          it(List,       'Liste des marques',   '/dashboard/marques'),
+          it(PlusCircle, 'Ajouter une marque',  '/dashboard/marques'),
+        ],
+      },
+      {
+        icon: Building2, label: 'Fournisseurs',
+        children: [
+          it(List,       'Liste des fournisseurs',   '/dashboard/fournisseurs'),
+          it(PlusCircle, 'Ajouter un fournisseur',   '/dashboard/fournisseurs'),
+        ],
+      },
     ],
   },
   {
     sectionLabel: 'Livraison',
     groups: [
-      { icon: Truck, label: 'Livraison', children: [it(List, 'Liste des livreurs'), it(PlusCircle, 'Ajouter un livreur')] },
+      {
+        icon: Truck, label: 'Livraison',
+        children: [
+          it(List,       'Liste des livreurs',  '/dashboard/livraison/livreurs'),
+          it(PlusCircle, 'Ajouter un livreur',  '/dashboard/livraison/livreurs'),
+        ],
+      },
     ],
   },
   {
@@ -132,41 +151,66 @@ const SECTIONS: SidebarSection[] = [
       {
         icon: BarChart2, label: 'Statistiques', badge: 'new',
         children: [
-          it(Store,    'Par boutique'),
-          it(Package,  'Par produit'),
-          it(UserCog,  'Par confirmateur'),
-          it(Truck,    'Par livreur'),
-          it(BookOpen, 'Par wilaya'),
+          it(Store,    'Par boutique',     '/dashboard/stats/boutique'),
+          it(Package,  'Par produit',      '/dashboard/stats/produit'),
+          it(UserCog,  'Par confirmateur', '/dashboard/stats/confirmateur'),
+          it(Truck,    'Par livreur',      '/dashboard/stats/livreur'),
+          it(BookOpen, 'Par wilaya',       '/dashboard/stats/wilaya'),
         ],
       },
       {
         icon: Banknote, label: 'Comptabilité',
         children: [
-          it(FileText,   'Bilan général'),
-          it(TrendingUp, 'Rentabilité produit'),
-          it(CreditCard, 'Saisir des dépenses'),
-          it(Megaphone,  'Coûts publicitaires'),
+          it(FileText,   'Bilan général',       '/dashboard/comptabilite/bilan'),
+          it(TrendingUp, 'Rentabilité produit', '/dashboard/comptabilite/rentabilite'),
+          it(CreditCard, 'Saisir des dépenses', '/dashboard/comptabilite/depenses'),
+          it(Megaphone,  'Coûts publicitaires', '/dashboard/comptabilite/publicite'),
         ],
       },
-      { icon: Database, label: 'Données', children: [it(Download, 'Exporter les données'), it(BarChart2, 'Rapports')] },
+      {
+        icon: Database, label: 'Données',
+        children: [
+          it(Download,  'Exporter les données', '/dashboard/donnees/export'),
+          it(BarChart2, 'Rapports',             '/dashboard/donnees/rapports'),
+        ],
+      },
     ],
   },
   {
     sectionLabel: 'Système',
     groups: [
-      { icon: Zap,      label: 'Webhooks',     children: [it(List, 'Liste des webhooks'), it(PlusCircle, 'Ajouter un webhook'), it(FileText, 'Logs')] },
-      { icon: Shield,   label: 'Modérateurs',  children: [it(Users, 'Utilisateurs'), it(Shield, 'Rôles & permissions')] },
-      { icon: Store,    label: 'Boutiques',    children: [it(List, 'Liste des boutiques'), it(PlusCircle, 'Ajouter une boutique')] },
+      {
+        icon: Zap, label: 'Webhooks',
+        children: [
+          it(List,       'Liste des webhooks', '/dashboard/webhooks'),
+          it(PlusCircle, 'Ajouter un webhook', '/dashboard/webhooks'),
+          it(FileText,   'Logs',               '/dashboard/webhooks/logs'),
+        ],
+      },
+      {
+        icon: Shield, label: 'Modérateurs',
+        children: [
+          it(Users,  'Utilisateurs',        '/dashboard/moderateurs/utilisateurs'),
+          it(Shield, 'Rôles & permissions', '/dashboard/moderateurs/roles'),
+        ],
+      },
+      {
+        icon: Store, label: 'Boutiques',
+        children: [
+          it(List,       'Liste des boutiques',   '/dashboard/boutiques'),
+          it(PlusCircle, 'Ajouter une boutique',  '/dashboard/boutiques'),
+        ],
+      },
       {
         icon: Settings, label: 'Configuration',
         children: [
-          it(SlidersHorizontal, 'Statuts de livraison'),
-          it(SlidersHorizontal, 'Statuts de confirmation'),
-          it(Link,              "Sources d'import"),
-          it(Truck,             'Config. livraison'),
-          it(Users,             'Config. clients'),
-          it(CreditCard,        'Abonnement'),
-          it(Settings,          'Paramètres avancés'),
+          it(SlidersHorizontal, 'Statuts de livraison',    '/dashboard/config/statuts'),
+          it(SlidersHorizontal, 'Statuts de confirmation', '/dashboard/config/statuts'),
+          it(Link,              "Sources d'import",         '/dashboard/config/sources'),
+          it(Truck,             'Config. livraison',        '/dashboard/config/livraison'),
+          it(Users,             'Config. clients',          '/dashboard/config/clients'),
+          it(CreditCard,        'Abonnement',               '/dashboard/config/abonnement'),
+          it(Settings,          'Paramètres avancés',       '/dashboard/config/avance'),
         ],
       },
     ],
@@ -182,28 +226,58 @@ interface SidebarProps {
 
 // ── Component ─────────────────────────────────────────────────
 export default function Sidebar({ activeItem, boutiqueName, onItemClick }: SidebarProps) {
-  const router = useRouter()
+  const router   = useRouter()
+  const pathname = usePathname()
+  const { boutiqueName: ctxBoutiqueName } = useBoutique()
+  const displayBoutiqueName = boutiqueName ?? ctxBoutiqueName
   const [open, setOpen] = useState<Record<string, boolean>>({ Commandes: true })
 
-  // Auto-open parent group when navigating to a child page
+  // Find the active child label by picking the most specific href match (longest path wins).
+  // When multiple children share the same href, the first one in the tree is preferred.
+  const activeLabel = useMemo(() => {
+    const matches: { label: string; len: number }[] = []
+    for (const section of SECTIONS) {
+      for (const group of section.groups) {
+        for (const child of group.children) {
+          if (child.type === 'section' || !child.href) continue
+          if (pathname === child.href || pathname.startsWith(child.href + '/')) {
+            matches.push({ label: child.label, len: child.href.length })
+          }
+        }
+      }
+    }
+    if (matches.length === 0) return activeItem ?? ''
+    const maxLen = Math.max(...matches.map(m => m.len))
+    return matches.find(m => m.len === maxLen)?.label ?? activeItem ?? ''
+  }, [pathname, activeItem])
+
+  // Auto-expand parent group when a child matches current URL
   useEffect(() => {
-    if (!activeItem) return
-    for (const sec of SECTIONS) {
-      for (const group of sec.groups) {
-        if (group.children.some(c => c.type !== 'section' && c.label === activeItem)) {
+    if (!activeLabel) return
+    for (const section of SECTIONS) {
+      for (const group of section.groups) {
+        if (group.children.some(c => c.type !== 'section' && c.label === activeLabel)) {
           setOpen(prev => ({ ...prev, [group.label]: true }))
           return
         }
       }
     }
-  }, [activeItem])
+  }, [activeLabel])
 
   function toggle(label: string) {
     setOpen(prev => ({ ...prev, [label]: !prev[label] }))
   }
 
   function hasActiveChild(children: ChildItem[]): boolean {
-    return children.some(c => c.type !== 'section' && c.label === activeItem)
+    return children.some(c => c.type !== 'section' && c.label === activeLabel)
+  }
+
+  function handleChildClick(label: string, href?: string) {
+    if (href) {
+      router.push(href)
+    } else {
+      onItemClick?.(label)
+    }
   }
 
   return (
@@ -238,9 +312,9 @@ export default function Sidebar({ activeItem, boutiqueName, onItemClick }: Sideb
             <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', letterSpacing: '-0.3px', lineHeight: 1.2 }}>
               chic<span style={{ color: '#E891CF' }}>N</span>
             </div>
-            {boutiqueName && (
+            {displayBoutiqueName && (
               <div style={{ fontSize: 11, color: S.text, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 150 }}>
-                {boutiqueName}
+                {displayBoutiqueName}
               </div>
             )}
           </div>
@@ -271,14 +345,14 @@ export default function Sidebar({ activeItem, boutiqueName, onItemClick }: Sideb
             {section.groups.map(({ icon: Icon, label, badge, children }) => {
               const isOpen      = !!open[label]
               const childActive = hasActiveChild(children)
-              const parentSelf  = activeItem === label
+              const parentSelf  = activeLabel === label
 
               return (
                 <div key={label}>
 
                   {/* ── Parent row ── */}
                   <button
-                    onClick={() => { toggle(label); onItemClick?.(label) }}
+                    onClick={() => toggle(label)}
                     style={{
                       width: '100%', display: 'flex', alignItems: 'center',
                       justifyContent: 'space-between',
@@ -293,9 +367,7 @@ export default function Sidebar({ activeItem, boutiqueName, onItemClick }: Sideb
                         : childActive
                           ? 'rgba(255,255,255,0.90)'
                           : S.text,
-                      background: parentSelf
-                        ? S.activeBg
-                        : 'transparent',
+                      background: parentSelf ? S.activeBg : 'transparent',
                       fontFamily: "'Inter', sans-serif",
                       transition: 'color .12s, background .12s',
                       userSelect: 'none',
@@ -343,7 +415,7 @@ export default function Sidebar({ activeItem, boutiqueName, onItemClick }: Sideb
                     <div style={{ marginTop: 1, marginBottom: 2 }}>
                       {children.map((child, idx) => {
 
-                        /* Sub-section label (Archives, Bons, Pickups) */
+                        /* Sub-section label */
                         if (child.type === 'section') {
                           return (
                             <div key={`s${idx}`} style={{
@@ -360,12 +432,12 @@ export default function Sidebar({ activeItem, boutiqueName, onItemClick }: Sideb
                         }
 
                         /* Child item */
-                        const isActive = activeItem === child.label
+                        const isActive = child.label === activeLabel
 
                         return (
                           <button
-                            key={child.label}
-                            onClick={() => onItemClick?.(child.label)}
+                            key={`${child.label}-${idx}`}
+                            onClick={() => handleChildClick(child.label, child.href)}
                             style={{
                               width: '100%', display: 'flex', alignItems: 'center',
                               gap: 0,

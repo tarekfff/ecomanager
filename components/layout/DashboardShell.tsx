@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, ReactNode } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { Globe, MessageSquare, Bell, BookOpen, LogOut, ChevronDown, ShoppingBag, Store, ShoppingCart } from 'lucide-react'
 import Sidebar from '@/components/layout/Sidebar'
+import StatusBar from '@/components/layout/StatusBar'
 import { useBoutique } from '@/contexts/BoutiqueContext'
 import { colors, fonts } from '@/lib/tokens'
 import { getStoredToken, isTokenValid, clearAuth } from '@/lib/client-auth'
@@ -151,6 +152,7 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
   const displayName = boutiqueName || boutiques[0]?.name || '…'
 
   function handleSidebarClick(label: string) {
+    // Fallback for sidebar items without an href — Sidebar handles href items itself
     const route = ITEM_ROUTES[label]
     if (route) router.push(route)
   }
@@ -402,6 +404,9 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
           </button>
         </div>
       </div>
+
+      {/* ── Order pipeline status bar ── */}
+      <StatusBar />
 
       {/* ── Body: sidebar + page content ── */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden', minHeight: 0 }}>
