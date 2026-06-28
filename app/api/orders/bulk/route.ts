@@ -10,6 +10,7 @@ import {
 } from '@/lib/stock-order'
 import { bulkActionPerm } from '@/lib/permission-maps'
 import { fireOrderWebhooks, shouldFireWebhooks, resolveCarrierForWebhook } from '@/lib/webhooks'
+import { notifyOrderDelivered, notifyOrderReturned } from '@/lib/notifications'
 
 type BulkAction =
   | 'confirm' | 'cancel' | 'delete' | 'assign' | 'set_confirmation_status'
@@ -200,11 +201,19 @@ export async function POST(req: NextRequest) {
         .in('id', verifiedIds)
       break
 
-    case 'deliver':
+    case 'deliver': {
       await db.from('orders')
         .update({ tracking_status: 'livree', delivered_at: now })
         .in('id', verifiedIds)
+      const { data: delRefs } = await db
+        .from('orders')
+        .select('reference')
+        .in('id', verifiedIds)
+      for (const o of (delRefs ?? []) as { reference: string }[]) {
+        await notifyOrderDelivered(user.tenantId, o.reference)
+      }
       break
+    }
 
     case 'request_return':
       await db.from('orders')
@@ -238,6 +247,7 @@ export async function POST(req: NextRequest) {
       for (const o of (retRefs ?? []) as { id: string; reference: string }[]) {
         const items = await getOrderItems(o.id)
         await restoreStockForOrder(o.id, user.tenantId, user.sub, o.reference, 'Retour marchandise commande', items)
+        await notifyOrderReturned(user.tenantId, o.reference)
       }
       break
     }

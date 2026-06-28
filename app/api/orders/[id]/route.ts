@@ -15,6 +15,7 @@ import {
   STOCK_DEDUCTED_STATUSES,
 } from '@/lib/stock-order'
 import { fireOrderWebhooks, resolveCarrierForWebhook } from '@/lib/webhooks'
+import { notifyOrderDelivered, notifyOrderReturned } from '@/lib/notifications'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -460,6 +461,10 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     await restoreStockForOrder(id, user.tenantId, user.sub, orderRef, 'Retour marchandise commande', items)
   }
   // ──────────────────────────────────────────────────────────────────────────
+
+  // ── In-app notifications for delivered / returned orders ────────────────────
+  if (body.action === 'deliver')        await notifyOrderDelivered(user.tenantId, orderRef)
+  if (body.action === 'validate_return') await notifyOrderReturned(user.tenantId, orderRef)
 
   // ── Webhooks (generic + NOEST livraison société) ────────────────────────────
   // Best-effort: fires saved webhooks for this event and logs to webhook_logs.

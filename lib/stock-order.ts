@@ -1,5 +1,6 @@
 import { db } from './db'
 import { v4 as uuid } from 'uuid'
+import { notifyStockAlert } from './notifications'
 
 interface OrderItem {
   product_id: string
@@ -43,6 +44,12 @@ export async function deductStockForOrder(
 ) {
   for (const item of items) {
     await deductItem(tenantId, userId, item, orderRef)
+  }
+
+  // After deducting, raise a low-stock notification for any product that has
+  // crossed its alert threshold (one check per distinct product).
+  for (const productId of new Set(items.map(i => i.product_id))) {
+    await notifyStockAlert(tenantId, productId)
   }
 }
 

@@ -1,15 +1,25 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import {
   Globe, MessageSquare, Bell, BookOpen, LogOut,
   ChevronDown, ShoppingBag, Store, ShoppingCart,
+  User as UserIcon, CheckCheck, Package, Truck, RotateCcw,
 } from 'lucide-react'
 import { useBoutique } from '@/contexts/BoutiqueContext'
 import { colors, fonts } from '@/lib/tokens'
 import { getStoredToken, clearAuth } from '@/lib/client-auth'
 
 interface BoutiqueOption { id: string; name: string; prefix: string }
+
+interface Notification {
+  id: string
+  type: string
+  title: string
+  body: string | null
+  is_read: boolean
+  created_at: string
+}
 
 const PIPELINE = [
   { label: 'En confirmation', path: '/dashboard/orders/en-confirmation', dot: '#4472C4' },
@@ -20,6 +30,25 @@ const PIPELINE = [
   { label: 'En retour',       path: '/dashboard/orders/en-retour',        dot: '#E84B6A' },
 ]
 
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const s = Math.floor(diff / 1000)
+  if (s < 60) return "à l'instant"
+  const m = Math.floor(s / 60)
+  if (m < 60) return `il y a ${m} min`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `il y a ${h} h`
+  const j = Math.floor(h / 24)
+  return `il y a ${j} j`
+}
+
+function notifIcon(type: string) {
+  if (type === 'stock_alert')    return <Package size={15} color={colors.orange} strokeWidth={1.9} />
+  if (type === 'order_delivered') return <Truck size={15} color={colors.green} strokeWidth={1.9} />
+  if (type === 'order_returned') return <RotateCcw size={15} color={colors.red} strokeWidth={1.9} />
+  return <Bell size={15} color={colors.primary} strokeWidth={1.9} />
+}
+
 export default function Topbar() {
   const router   = useRouter()
   const pathname = usePathname()
@@ -28,8 +57,17 @@ export default function Topbar() {
   const [boutiques,        setBoutiques]        = useState<BoutiqueOption[]>([])
   const [showBoutiqueMenu, setShowBoutiqueMenu] = useState(false)
   const [showNavMenu,      setShowNavMenu]      = useState(false)
+  const [showNotifMenu,    setShowNotifMenu]    = useState(false)
+  const [showUserMenu,     setShowUserMenu]     = useState(false)
+
+  const [userName,      setUserName]      = useState('Admin')
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [unread,        setUnread]        = useState(0)
+
   const boutiqueMenuRef = useRef<HTMLDivElement>(null)
   const navMenuRef      = useRef<HTMLDivElement>(null)
+  const notifMenuRef    = useRef<HTMLDivElement>(null)
+  const userMenuRef     = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const token = getStoredToken()
@@ -44,14 +82,39 @@ export default function Topbar() {
         }
       })
       .catch(() => {})
+
+    fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then((d: { user?: { name?: string } }) => { if (d.user?.name) setUserName(d.user.name) })
+      .catch(() => {})
   }, [setBoutique])
+
+  // ── Notifications: fetch now + poll every 30s ──────────────────────────────
+  const fetchNotifs = useCallback(() => {
+    const token = getStoredToken()
+    if (!token) return
+    fetch('/api/notifications', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then((d: { items?: Notification[]; unread?: number }) => {
+        setNotifications(d.items ?? [])
+        setUnread(d.unread ?? 0)
+      })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    fetchNotifs()
+    const id = setInterval(fetchNotifs, 30_000)
+    return () => clearInterval(id)
+  }, [fetchNotifs])
 
   useEffect(() => {
     function onOutside(e: MouseEvent) {
-      if (boutiqueMenuRef.current && !boutiqueMenuRef.current.contains(e.target as Node))
-        setShowBoutiqueMenu(false)
-      if (navMenuRef.current && !navMenuRef.current.contains(e.target as Node))
-        setShowNavMenu(false)
+      const t = e.target as Node
+      if (boutiqueMenuRef.current && !boutiqueMenuRef.current.contains(t)) setShowBoutiqueMenu(false)
+      if (navMenuRef.current      && !navMenuRef.current.contains(t))      setShowNavMenu(false)
+      if (notifMenuRef.current    && !notifMenuRef.current.contains(t))    setShowNotifMenu(false)
+      if (userMenuRef.current     && !userMenuRef.current.contains(t))     setShowUserMenu(false)
     }
     document.addEventListener('mousedown', onOutside)
     return () => document.removeEventListener('mousedown', onOutside)
@@ -60,6 +123,30 @@ export default function Topbar() {
   function handleLogout() {
     clearAuth()
     router.push('/login')
+  }
+
+  function markRead(id: string) {
+    const token = getStoredToken()
+    if (!token) return
+    setNotifications(prev => prev.filter(n => n.id !== id))
+    setUnread(prev => Math.max(0, prev - 1))
+    fetch(`/api/notifications/${id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_read: true }),
+    }).catch(() => {})
+  }
+
+  function markAllRead() {
+    const token = getStoredToken()
+    if (!token) return
+    setNotifications([])
+    setUnread(0)
+    fetch('/api/notifications/bulk', {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_read: true }),
+    }).catch(() => {})
   }
 
   const displayName = boutiqueName || boutiques[0]?.name || '…'
@@ -229,7 +316,6 @@ export default function Topbar() {
         {([
           { icon: Globe,         label: 'Langue' },
           { icon: MessageSquare, label: 'Feedback' },
-          { icon: Bell,          label: 'Mises à jour' },
           { icon: BookOpen,      label: 'Tutoriels' },
         ] as const).map(({ icon: Icon, label }) => (
           <button
@@ -251,33 +337,169 @@ export default function Topbar() {
           </button>
         ))}
 
-        {/* User chip / logout */}
-        <button
-          onClick={handleLogout}
-          title="Se déconnecter"
-          style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            background: 'rgba(255,255,255,0.18)',
-            border: '1px solid rgba(255,255,255,0.25)',
-            borderRadius: 20, padding: '4px 12px 4px 6px',
-            cursor: 'pointer', fontFamily: fonts.sans,
-            transition: 'background .15s', marginLeft: 4,
-          }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.26)')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.18)')}
-        >
-          <div style={{
-            width: 22, height: 22,
-            background: 'rgba(255,255,255,0.9)',
-            borderRadius: '50%',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 10, fontWeight: 700, color: colors.primary,
-          }}>
-            A
-          </div>
-          <span style={{ fontSize: 12, color: '#fff', fontWeight: 500 }}>Admin</span>
-          <LogOut size={11} style={{ color: 'rgba(255,255,255,0.7)' }} strokeWidth={2} />
-        </button>
+        {/* Notifications bell */}
+        <div ref={notifMenuRef} style={{ position: 'relative' }}>
+          <button
+            title="Notifications"
+            onClick={() => { setShowNotifMenu(v => !v); if (!showNotifMenu) fetchNotifs() }}
+            style={{
+              display: 'flex', alignItems: 'center', position: 'relative',
+              background: showNotifMenu ? 'rgba(255,255,255,0.22)' : 'transparent',
+              border: 'none', borderRadius: 6,
+              padding: '5px 8px', cursor: 'pointer',
+              color: 'rgba(255,255,255,0.88)', transition: 'background .15s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.15)')}
+            onMouseLeave={e => (e.currentTarget.style.background = showNotifMenu ? 'rgba(255,255,255,0.22)' : 'transparent')}
+          >
+            <Bell size={15} strokeWidth={1.8} />
+            {unread > 0 && (
+              <span style={{
+                position: 'absolute', top: 1, right: 1,
+                minWidth: 15, height: 15, padding: '0 3px',
+                background: '#E84B6A', color: '#fff',
+                borderRadius: 8, fontSize: 9.5, fontWeight: 700,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                border: '1.5px solid #B0407A', lineHeight: 1,
+              }}>
+                {unread > 9 ? '9+' : unread}
+              </span>
+            )}
+          </button>
+
+          {showNotifMenu && (
+            <div style={{
+              position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 300,
+              background: '#fff', borderRadius: 10,
+              boxShadow: '0 10px 30px rgba(0,0,0,0.18)',
+              border: '1px solid #E2D8E2', width: 340, overflow: 'hidden',
+            }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '11px 14px', borderBottom: '1px solid #f0e8f0',
+              }}>
+                <span style={{ fontSize: 13.5, fontWeight: 700, color: colors.text }}>
+                  Notifications
+                </span>
+                {notifications.length > 0 && (
+                  <button
+                    onClick={markAllRead}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 4,
+                      background: 'transparent', border: 'none', cursor: 'pointer',
+                      fontSize: 11.5, color: colors.primary, fontWeight: 600,
+                      fontFamily: fonts.sans, padding: 0,
+                    }}
+                  >
+                    <CheckCheck size={13} strokeWidth={2} />
+                    Tout marquer comme lu
+                  </button>
+                )}
+              </div>
+
+              <div style={{ maxHeight: 360, overflowY: 'auto' }}>
+                {notifications.length === 0 ? (
+                  <div style={{ padding: '28px 14px', textAlign: 'center', color: colors.textLt, fontSize: 12.5 }}>
+                    Aucune notification non lue
+                  </div>
+                ) : notifications.map(n => (
+                  <button
+                    key={n.id}
+                    onClick={() => markRead(n.id)}
+                    title="Marquer comme lu"
+                    style={{
+                      display: 'flex', gap: 10, width: '100%', textAlign: 'left',
+                      padding: '11px 14px', border: 'none',
+                      borderBottom: '1px solid #f5eef5',
+                      background: '#FCF7FB', cursor: 'pointer', fontFamily: fonts.sans,
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = colors.primaryLt)}
+                    onMouseLeave={e => (e.currentTarget.style.background = '#FCF7FB')}
+                  >
+                    <span style={{ flexShrink: 0, marginTop: 1 }}>{notifIcon(n.type)}</span>
+                    <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, flex: 1 }}>
+                      <span style={{ fontSize: 12.5, fontWeight: 600, color: colors.text }}>{n.title}</span>
+                      {n.body && <span style={{ fontSize: 12, color: colors.textMd, lineHeight: 1.35 }}>{n.body}</span>}
+                      <span style={{ fontSize: 10.5, color: colors.textLt }}>{timeAgo(n.created_at)}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* User chip + menu */}
+        <div ref={userMenuRef} style={{ position: 'relative', marginLeft: 4 }}>
+          <button
+            onClick={() => setShowUserMenu(v => !v)}
+            title="Mon compte"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: 'rgba(255,255,255,0.18)',
+              border: '1px solid rgba(255,255,255,0.25)',
+              borderRadius: 20, padding: '4px 10px 4px 6px',
+              cursor: 'pointer', fontFamily: fonts.sans,
+              transition: 'background .15s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.26)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.18)')}
+          >
+            <div style={{
+              width: 22, height: 22,
+              background: 'rgba(255,255,255,0.9)',
+              borderRadius: '50%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 10, fontWeight: 700, color: colors.primary,
+            }}>
+              {userName.charAt(0).toUpperCase()}
+            </div>
+            <span style={{ fontSize: 12, color: '#fff', fontWeight: 500, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {userName}
+            </span>
+            <ChevronDown size={11} style={{ color: 'rgba(255,255,255,0.75)' }} />
+          </button>
+
+          {showUserMenu && (
+            <div style={{
+              position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 300,
+              background: '#fff', borderRadius: 8,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+              border: '1px solid #E2D8E2', minWidth: 180, overflow: 'hidden',
+            }}>
+              <button
+                onClick={() => { router.push('/dashboard/profile'); setShowUserMenu(false) }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 9,
+                  width: '100%', textAlign: 'left',
+                  padding: '10px 14px', fontSize: 13, fontFamily: fonts.sans,
+                  border: 'none', background: 'transparent', cursor: 'pointer',
+                  color: colors.text, borderBottom: '1px solid #f0e8f0',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#fafafa')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <UserIcon size={14} strokeWidth={1.9} style={{ color: colors.primary }} />
+                Mon profil
+              </button>
+              <button
+                onClick={handleLogout}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 9,
+                  width: '100%', textAlign: 'left',
+                  padding: '10px 14px', fontSize: 13, fontFamily: fonts.sans,
+                  border: 'none', background: 'transparent', cursor: 'pointer',
+                  color: colors.red,
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#fdf0f2')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <LogOut size={14} strokeWidth={1.9} />
+                Se déconnecter
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
