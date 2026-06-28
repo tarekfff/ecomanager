@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/sync-sheets",
-      "schedule": "* * * * *"
+      "schedule": "0 2 * * *"
     }
   ]
 }

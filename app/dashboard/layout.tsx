@@ -2,6 +2,7 @@
 import { useEffect, useState, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { BoutiqueProvider } from '@/contexts/BoutiqueContext'
+import { PermissionsProvider } from '@/contexts/PermissionsContext'
 import Topbar from '@/components/layout/Topbar'
 import Sidebar from '@/components/layout/Sidebar'
 import StatusBar from '@/components/layout/StatusBar'
@@ -41,7 +42,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   return (
     <BoutiqueProvider>
-      <Shell>{children}</Shell>
+      <PermissionsProvider>
+        <Shell>{children}</Shell>
+      </PermissionsProvider>
     </BoutiqueProvider>
   )
 }

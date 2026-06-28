@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireAuth, getUserPermissions } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 export async function GET(req: NextRequest) {
@@ -25,5 +25,8 @@ export async function GET(req: NextRequest) {
     .eq('user_boutiques.user_id', auth.sub)
     .order('name')
 
-  return NextResponse.json({ user, boutiques: boutiques ?? [] })
+  // Merge all role permissions for this user so the client can gate UI elements
+  const permissions = await getUserPermissions(auth.sub)
+
+  return NextResponse.json({ user, boutiques: boutiques ?? [], permissions })
 }

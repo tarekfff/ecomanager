@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requirePermission } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { v4 as uuid } from 'uuid'
 
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(req: NextRequest, { params }: Ctx) {
-  const user   = requireAuth(req)
+  const user   = await requirePermission(req, 'products.view')
   const { id } = await params
 
   const { data, error } = await db
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
 }
 
 export async function PUT(req: NextRequest, { params }: Ctx) {
-  const user   = requireAuth(req)
+  const user   = await requirePermission(req, 'products.edit')
   const { id } = await params
   const body   = await req.json() as Record<string, unknown>
 
