@@ -4,6 +4,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { useBoutique } from '@/contexts/BoutiqueContext'
 import { colors, fonts } from '@/lib/tokens'
 import { getStoredToken } from '@/lib/client-auth'
+import { Skeleton } from '@/components/ui'
 
 export interface OrderCounts {
   en_confirmation: number
@@ -36,19 +37,22 @@ export default function StatusBar({ orderCounts }: StatusBarProps) {
   const router           = useRouter()
   const pathname         = usePathname()
   const { boutiqueId }   = useBoutique()
-  const [counts, setCounts] = useState<OrderCounts>(orderCounts ?? ZERO)
+  const [counts,  setCounts]  = useState<OrderCounts>(orderCounts ?? ZERO)
+  const [loading, setLoading] = useState(!orderCounts)
 
   useEffect(() => {
-    if (orderCounts) { setCounts(orderCounts); return }
+    if (orderCounts) { setCounts(orderCounts); setLoading(false); return }
     if (!boutiqueId) return
     const token = getStoredToken()
     if (!token) return
+    setLoading(true)
     fetch(`/api/dashboard/stats?boutiqueId=${boutiqueId}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.json())
       .then(data => { if (data.counts) setCounts(data.counts) })
       .catch(() => {})
+      .finally(() => setLoading(false))
   }, [boutiqueId, orderCounts])
 
   return (
@@ -95,7 +99,9 @@ export default function StatusBar({ orderCounts }: StatusBarProps) {
               opacity: isActive ? 1 : 0.6,
             }} />
             {label}
-            {count > 0 && (
+            {loading ? (
+              <Skeleton width={20} height={16} radius={10} />
+            ) : count > 0 && (
               <span style={{
                 background: isActive ? colors.primary : '#eee',
                 color: isActive ? '#fff' : colors.textMd,

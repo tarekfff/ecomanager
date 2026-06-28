@@ -54,9 +54,11 @@ export function eventForAction(action: string): string | null {
 }
 
 // Lifecycle actions that drive the order's delivery-société integration.
+// `go_back_to_preparation` pulls an order back out of dispatch — the shipment
+// created on the société at dispatch must be removed there too.
 const DELIVERY_ACTIONS = new Set([
   'dispatch', 'ship', 'deliver', 'cancel', 'request_return', 'validate_return',
-  'updated', 'set_delivery_status',
+  'updated', 'set_delivery_status', 'go_back_to_preparation',
 ])
 
 /** Whether an action should trigger any webhook work (notification or delivery). */
@@ -353,11 +355,21 @@ async function dispatchNoest(
         return
       }
 
-      // ── Cancel → delete on NOEST (only succeeds while unvalidated) ────────────
-      case 'cancel': {
+      // ── Cancel / return-from-dispatch → delete on NOEST (only while unvalidated) ─
+      case 'cancel':
+      case 'go_back_to_preparation': {
         const tracking = await getNoestTracking(orderId)
         if (!tracking) return
         const result = await noestDeleteOrder(tracking)
+        // Going back to preparation, the order may be re-dispatched later. Drop the
+        // stored tracking so a fresh NOEST order is created next time instead of
+        // reusing the one we just deleted.
+        if (result.success && action === 'go_back_to_preparation') {
+          await db.from('order_logs').insert({
+            id: uuid(), order_id: orderId, user_id: userId,
+            action: 'noest_push', new_values: { noest_tracking: null },
+          })
+        }
         await writeLog({
           webhookId: wh.id, orderId, event,
           httpStatus: result.success ? 200 : 422,

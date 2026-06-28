@@ -1,12 +1,14 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Trash2, Users } from 'lucide-react'
 import {
   PageHeader, Table, Pagination, Modal, Button,
-  Input, Select, Badge, SearchInput, ConfirmDialog,
+  Input, Select, Badge, SearchInput, ConfirmDialog, EmptyState,
 } from '@/components/ui'
 import type { Column } from '@/components/ui'
 import { colors, fonts } from '@/lib/tokens'
+import { useToast } from '@/contexts/ToastContext'
+import { apiGet, apiPost, apiPut, apiDelete, errorMessage } from '@/lib/api-client'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -48,12 +50,6 @@ const EMPTY_FORM: ClientForm = {
   address: '', wilaya_id: '', commune_id: '',
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-function authHeader() {
-  return { Authorization: `Bearer ${localStorage.getItem('token') ?? ''}` }
-}
-
 // ── Sub-components ─────────────────────────────────────────────────────────
 
 function ActionBtns({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
@@ -93,6 +89,8 @@ function ActionBtns({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => 
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function ClientsPage() {
+  const toast = useToast()
+
   // List state
   const [clients,      setClients]      = useState<Client[]>([])
   const [total,        setTotal]        = useState(0)
@@ -155,15 +153,14 @@ export default function ClientsPage() {
   const fetchClients = useCallback(() => {
     setLoading(true)
     const qs = new URLSearchParams({ page: String(page), limit: String(LIMIT), search: dbSearch })
-    fetch(`/api/clients?${qs}`, { headers: authHeader() })
-      .then(r => r.json())
+    apiGet<{ clients: Client[]; total: number }>(`/api/clients?${qs}`)
       .then(data => {
         if (Array.isArray(data.clients)) setClients(data.clients)
         if (typeof data.total === 'number') setTotal(data.total)
       })
-      .catch(() => {})
+      .catch(e => toast.error(errorMessage(e, 'Impossible de charger les clients.')))
       .finally(() => setLoading(false))
-  }, [page, dbSearch])
+  }, [page, dbSearch, toast])
 
   useEffect(() => { fetchClients() }, [fetchClients])
 
@@ -223,21 +220,16 @@ export default function ClientsPage() {
         wilaya_id:  form.wilaya_id  || null,
         commune_id: form.commune_id || null,
       }
-      const url    = editClient ? `/api/clients/${editClient.id}` : '/api/clients'
-      const method = editClient ? 'PUT' : 'POST'
+      if (editClient) await apiPut(`/api/clients/${editClient.id}`, body)
+      else            await apiPost('/api/clients', body)
 
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json', ...authHeader() },
-        body: JSON.stringify(body),
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        setFormError((err as { error?: string }).error ?? 'Erreur lors de la sauvegarde.')
-        return
-      }
+      toast.success(editClient ? 'Client mis à jour.' : 'Client ajouté.')
       setModalOpen(false)
       fetchClients()
+    } catch (e) {
+      const msg = errorMessage(e, 'Erreur lors de la sauvegarde.')
+      setFormError(msg)
+      toast.error(msg)
     } finally {
       setSaving(false)
     }
@@ -249,10 +241,12 @@ export default function ClientsPage() {
     if (!deleteTarget) return
     setDeleting(true)
     try {
-      const res = await fetch(`/api/clients/${deleteTarget.id}`, {
-        method: 'DELETE', headers: authHeader(),
-      })
-      if (res.ok) { setDeleteTarget(null); fetchClients() }
+      await apiDelete(`/api/clients/${deleteTarget.id}`)
+      toast.success('Client supprimé.')
+      setDeleteTarget(null)
+      fetchClients()
+    } catch (e) {
+      toast.error(errorMessage(e, 'Impossible de supprimer ce client.'))
     } finally {
       setDeleting(false)
     }
@@ -347,7 +341,23 @@ export default function ClientsPage() {
           columns={columns}
           data={clients}
           loading={loading}
-          emptyText="Aucun client trouvé"
+          empty={
+            dbSearch ? (
+              <EmptyState
+                icon={Users}
+                title="Aucun client trouvé"
+                message={`Aucun résultat pour « ${dbSearch} ».`}
+              />
+            ) : (
+              <EmptyState
+                icon={Users}
+                title="Aucun client trouvé"
+                message="Commencez par ajouter votre premier client à la base."
+                actionLabel="Ajouter le premier client"
+                onAction={openAdd}
+              />
+            )
+          }
         />
 
         {/* Pagination */}

@@ -224,6 +224,50 @@ body, #root {
   100% { background-position: -200% 0; }
 }
 
+/* Used by Skeleton, Table skeleton rows */
+@keyframes pulse {
+  0%, 100% { opacity: 1;   }
+  50%      { opacity: 0.45; }
+}
+
+/* Used by Button loader, any spinner */
+@keyframes spin {
+  from { transform: rotate(0deg);   }
+  to   { transform: rotate(360deg); }
+}
+
+/* Toast enter/exit */
+@keyframes toast-in {
+  from { transform: translateX(120%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes toast-out {
+  from { transform: translateX(0);    opacity: 1; }
+  to   { transform: translateX(120%); opacity: 0; }
+}
+
+/* ── Responsive: collapse sidebar to an off-canvas drawer ───── */
+/* The sidebar and topbar are inline-styled (design-system rule), so the
+   actual show/hide is driven by JS (matchMedia in UIContext). These rules
+   cover the bits that are class-based: the hamburger button and the drawer
+   backdrop, which only exist on smaller screens. */
+.hamburger-btn { display: none; }
+
+@media (max-width: 1199px) {
+  .hamburger-btn { display: inline-flex; }
+  .main-content  { padding: 12px; }
+  .charts-grid   { grid-template-columns: 1fr; }
+}
+
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 900;
+  animation: fade-in 0.15s ease-out;
+}
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
 /* ── Sidebar scrollbar (dark, thin) ────────────────────────── */
 .chic-sidebar {
   scrollbar-width: thin;

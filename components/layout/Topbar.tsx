@@ -4,9 +4,10 @@ import { useRouter, usePathname } from 'next/navigation'
 import {
   Globe, MessageSquare, Bell, BookOpen, LogOut,
   ChevronDown, ShoppingBag, Store, ShoppingCart,
-  User as UserIcon, CheckCheck, Package, Truck, RotateCcw,
+  User as UserIcon, CheckCheck, Package, Truck, RotateCcw, Menu,
 } from 'lucide-react'
 import { useBoutique } from '@/contexts/BoutiqueContext'
+import { useUI } from '@/contexts/UIContext'
 import { colors, fonts } from '@/lib/tokens'
 import { getStoredToken, clearAuth } from '@/lib/client-auth'
 
@@ -53,6 +54,7 @@ export default function Topbar() {
   const router   = useRouter()
   const pathname = usePathname()
   const { boutiqueId, boutiqueName, setBoutique } = useBoutique()
+  const { toggleSidebar } = useUI()
 
   const [boutiques,        setBoutiques]        = useState<BoutiqueOption[]>([])
   const [showBoutiqueMenu, setShowBoutiqueMenu] = useState(false)
@@ -163,6 +165,25 @@ export default function Topbar() {
       boxShadow: '0 2px 10px rgba(191,76,152,0.35)',
       fontFamily: fonts.sans,
     }}>
+
+      {/* Hamburger — only visible < 1200px (via .hamburger-btn CSS) */}
+      <button
+        className="hamburger-btn"
+        onClick={toggleSidebar}
+        title="Menu"
+        aria-label="Ouvrir le menu"
+        style={{
+          alignItems: 'center', justifyContent: 'center',
+          width: 32, height: 32, marginRight: 8, flexShrink: 0,
+          background: 'rgba(255,255,255,0.14)',
+          border: '1px solid rgba(255,255,255,0.2)',
+          borderRadius: 6, color: '#fff', cursor: 'pointer',
+        }}
+        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.24)')}
+        onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.14)')}
+      >
+        <Menu size={17} strokeWidth={2} />
+      </button>
 
       {/* Brand logo */}
       <div

@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useBoutique } from '@/contexts/BoutiqueContext'
 import { usePermissions } from '@/contexts/PermissionsContext'
+import { useUI } from '@/contexts/UIContext'
 import {
   ChevronDown, ChevronRight,
   ShoppingCart, Users, Package, Boxes, Tag, Building2,
@@ -248,6 +249,7 @@ export default function Sidebar({ activeItem, boutiqueName, onItemClick }: Sideb
   const pathname = usePathname()
   const { boutiqueName: ctxBoutiqueName } = useBoutique()
   const { canAny, ready: permsReady } = usePermissions()
+  const { isMobile, sidebarOpen, closeSidebar } = useUI()
   const displayBoutiqueName = boutiqueName ?? ctxBoutiqueName
   const [open, setOpen] = useState<Record<string, boolean>>({ Commandes: true })
 
@@ -300,7 +302,19 @@ export default function Sidebar({ activeItem, boutiqueName, onItemClick }: Sideb
   function handleChildClick(label: string, href?: string) {
     if (href) router.push(href)
     else onItemClick?.(label)
+    if (isMobile) closeSidebar() // collapse the drawer after navigating
   }
+
+  // On medium/small screens the sidebar is an off-canvas drawer; on desktop it
+  // stays a normal static flex child.
+  const mobileStyle: React.CSSProperties = isMobile
+    ? {
+        position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 1000,
+        transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
+        transition: 'transform 0.25s ease',
+        boxShadow: sidebarOpen ? '4px 0 24px rgba(0,0,0,0.3)' : 'none',
+      }
+    : {}
 
   return (
     <nav
@@ -310,6 +324,7 @@ export default function Sidebar({ activeItem, boutiqueName, onItemClick }: Sideb
         display: 'flex', flexDirection: 'column',
         overflowY: 'auto', fontFamily: "'Inter', sans-serif",
         borderRight: `1px solid ${S.divider}`,
+        ...mobileStyle,
       }}
     >
       {/* ── Brand header ── */}

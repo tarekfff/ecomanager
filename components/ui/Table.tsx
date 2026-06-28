@@ -15,6 +15,8 @@ interface TableProps<T = Record<string, unknown>> {
   data: T[]
   loading?: boolean
   emptyText?: string
+  /** Custom empty-state node (e.g. <EmptyState …/>). Overrides emptyText. */
+  empty?: ReactNode
 }
 
 function SkeletonRow({ cols }: { cols: number }) {
@@ -40,6 +42,7 @@ export default function Table<T = Record<string, unknown>>({
   data,
   loading = false,
   emptyText = 'Aucune donnée',
+  empty,
 }: TableProps<T>) {
   return (
     <div style={{
@@ -82,12 +85,12 @@ export default function Table<T = Record<string, unknown>>({
                 colSpan={columns.length}
                 style={{
                   textAlign: 'center',
-                  padding: '32px 12px',
+                  padding: empty ? 0 : '32px 12px',
                   color: colors.textLt,
                   fontSize: 13,
                 }}
               >
-                {emptyText}
+                {empty ?? emptyText}
               </td>
             </tr>
           ) : (
