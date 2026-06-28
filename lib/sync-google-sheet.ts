@@ -23,26 +23,38 @@ export interface SheetMapping {
 }
 
 export interface SyncResult {
-  imported:       number
-  skipped:        number
-  failed:         number
-  errors:         { row: number; reason: string }[]
-  last_row:       number   // updated total row count (including header)
-  last_sheet_ref: string   // order_ref of the newest imported row (prepend dedup anchor)
+  imported:  number
+  skipped:   number
+  failed:    number
+  errors:    { row: number; reason: string }[]
+  last_row:  number    // sheet length (header + data) — informational, for the UI
+  keyed:     boolean   // true once dedup-key tracking has been bootstrapped
 }
 
 interface SyncParams {
-  accessToken:    string
-  sheetId:        string
-  sheetName:      string
-  separator:      string
-  boutiqueId:     string
-  mapping:        SheetMapping
-  startRow:       number    // 1 = start fresh (row 2 = first data); N = resume from row N+1
-  tenantId:       string
-  userId:         string
-  prependMode?:   boolean   // sheet inserts new rows at top instead of bottom
-  lastSheetRef?:  string    // order_ref of the last imported row (prepend stop-anchor)
+  accessToken:   string
+  sheetId:       string
+  sheetName:     string
+  separator:     string
+  boutiqueId:    string
+  mapping:       SheetMapping
+  tenantId:      string
+  userId:        string
+  keyedAlready?: boolean   // true if this source already records dedup keys
+}
+
+// ── Small utilities ────────────────────────────────────────────────────────────
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+/** order_logs.user_id is a UUID FK — coerce non-UUID actors (cron/webhook) to null */
+function asUserId(v: string): string | null {
+  return UUID_RE.test(v) ? v : null
+}
+
+function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = []
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size))
+  return out
 }
 
 function cell(row: string[], headers: string[], col: string): string {
@@ -51,404 +63,327 @@ function cell(row: string[], headers: string[], col: string): string {
   return idx >= 0 ? String(row[idx] ?? '').trim() : ''
 }
 
+// ── Core sync ───────────────────────────────────────────────────────────────────
+//
+// Idempotent + batched. Reads the whole sheet window (one API call), then resolves
+// products / clients / existing-orders in BULK (a handful of queries total instead
+// of ~6 per row). Each imported row records a stable `sheet_key` in its creation
+// log; the next run skips any row whose key already exists, so re-running, crashes,
+// reordering (new rows added at top OR bottom) and Google's duplicate webhooks can
+// never double-import — and repeat orders from the same customer still import
+// because the key is the sheet's order number, not phone+amount.
+
 export async function syncGoogleSheet(params: SyncParams): Promise<SyncResult> {
   const {
-    accessToken, sheetId, sheetName, separator, boutiqueId,
-    mapping, startRow, tenantId, userId, prependMode,
+    accessToken, sheetId, sheetName, separator, boutiqueId, mapping, tenantId, userId,
   } = params
+  const keyedAlready = !!params.keyedAlready
+  const logUserId    = asUserId(userId)
 
-  // ── Read sheet rows ──────────────────────────────────────────────────────────
-
+  // ── 1. Read sheet (header + data in one round-trip) ───────────────────────────
   const auth = new google.auth.OAuth2()
   auth.setCredentials({ access_token: accessToken })
   const sheets = google.sheets({ version: 'v4', auth })
   const rawTab = sheetName || 'Sheet1'
-  // Quote tab name if it contains spaces or apostrophes
   const tab    = rawTab.includes(' ') || rawTab.includes("'")
     ? `'${rawTab.replace(/'/g, "\\'")}'`
     : rawTab
 
-  // Read header + ALL data rows. Row-only ranges so column count doesn't matter
-  // (ZZ6 fails on narrow sheets). Reading everything lets us detect truncation:
-  // the row counter assumes append-only, so if rows are deleted from the sheet
-  // it gets stuck ahead of reality and skips every future append.
   const [headerRes, allRes] = await Promise.all([
     sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: `${tab}!1:1` }),
     sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: `${tab}!2:${MAX_ROWS + 1}` }),
   ])
 
-  const headerRow = ((headerRes.data.values ?? [])[0] ?? []) as string[]
-  const headers   = headerRow.map((h: string) => String(h ?? '').trim())
-  if (headers.length === 0) {
-    return { imported: 0, skipped: 0, failed: 0, errors: [], last_row: startRow, last_sheet_ref: params.lastSheetRef ?? '' }
-  }
-
+  const headers     = (((headerRes.data.values ?? [])[0] ?? []) as string[]).map(h => String(h ?? '').trim())
   const allDataRows = (allRes.data.values ?? []) as string[][]
-  const currentCount = allDataRows.length
+  const newLastRow  = 1 + allDataRows.length
 
-  // last_row always reflects the sheet's true length (header + current data).
-  const newLastRow = 1 + currentCount
+  const empty = (extra?: Partial<SyncResult>): SyncResult => ({
+    imported: 0, skipped: 0, failed: 0, errors: [], last_row: newLastRow, keyed: keyedAlready, ...extra,
+  })
+  if (headers.length === 0) return empty({ last_row: 1 })
 
-  // ── Prepend mode: read from top, stop at the last-imported order_ref ─────────
-  // Rows are inserted at row 2 (newest at top). We read down until we hit the
-  // anchor ref we stored on the previous sync — everything above it is new.
-  // This replaces phone+subtotal dedup which wrongly skips repeat orders.
-  if (prependMode) {
-    const lastSheetRef = params.lastSheetRef ?? ''
-    const orderRefCol  = mapping.order_ref
+  const dataRows = allDataRows.filter(r => r.some(c => String(c ?? '').trim()))
+  if (dataRows.length === 0) return empty()
 
-    const dataRows = allDataRows.filter(r => r.some(c => String(c ?? '').trim()))
-    if (dataRows.length === 0) {
-      return { imported: 0, skipped: 0, failed: 0, errors: [], last_row: newLastRow, last_sheet_ref: lastSheetRef }
-    }
-
-    const skuCache    = new Map<string, { product_id: string; product_name: string } | null>()
-    const clientCache = new Map<string, string>()
-    const { data: wilayaData } = await db.from('wilayas').select('id, name')
-    const wilayaMap = new Map<string, number>()
-    for (const w of (wilayaData ?? []) as { id: number; name: string }[]) {
-      wilayaMap.set(w.name.toLowerCase().trim(), w.id)
-    }
-    const { data: communeData } = await db.from('communes').select('id, name, wilaya_id')
-    const communeMap = new Map<string, number>()
-    for (const c of (communeData ?? []) as { id: number; name: string; wilaya_id: number }[]) {
-      communeMap.set(`${c.wilaya_id}:${c.name.toLowerCase().trim()}`, c.id)
-    }
-
-    const sep    = separator || '|'
-    let imported = 0
-    let skipped  = 0
-    const errors: { row: number; reason: string }[] = []
-    let newTopRef = lastSheetRef   // will be updated to the newest imported ref
-
-    for (let ri = 0; ri < dataRows.length; ri++) {
-      const rowNum   = ri + 2
-      const row      = dataRows[ri]
-      const orderRef = cell(row, headers, orderRefCol)
-
-      // Stop when we reach the row we anchored on last sync
-      if (lastSheetRef && orderRef && orderRef === lastSheetRef) break
-
-      const clientName   = cell(row, headers, mapping.client_name)
-      const phone        = cell(row, headers, mapping.phone)
-      const wilayaRaw    = cell(row, headers, mapping.wilaya)
-      const communeRaw   = cell(row, headers, mapping.commune)
-      const address      = cell(row, headers, mapping.address)
-      const email        = cell(row, headers, mapping.email)
-      const phone2       = cell(row, headers, mapping.phone2)
-      const remark       = cell(row, headers, mapping.remark)
-      const delivMethod  = cell(row, headers, mapping.delivery_method)
-      const productSkus  = cell(row, headers, mapping.product_sku)
-      const quantityRaw  = cell(row, headers, mapping.quantity)
-      const unitPriceRaw = cell(row, headers, mapping.unit_price)
-      const referrer     = cell(row, headers, mapping.referrer)
-
-      if (!clientName) { errors.push({ row: rowNum, reason: 'Nom client manquant' }); continue }
-      if (!phone)      { errors.push({ row: rowNum, reason: 'Téléphone manquant' }); continue }
-      if (!wilayaRaw)  { errors.push({ row: rowNum, reason: 'Wilaya manquante' }); continue }
-      if (!productSkus){ errors.push({ row: rowNum, reason: 'SKU produit manquant' }); continue }
-
-      let wilayaId: number | null = wilayaMap.get(wilayaRaw.toLowerCase().trim()) ?? null
-      if (!wilayaId) {
-        const numId = parseInt(wilayaRaw.trim())
-        if (!isNaN(numId) && numId >= 1 && numId <= 58) wilayaId = numId
-      }
-      if (!wilayaId) { errors.push({ row: rowNum, reason: `Wilaya introuvable: "${wilayaRaw}"` }); continue }
-
-      let communeId: number | null = null
-      if (communeRaw) {
-        communeId = communeMap.get(`${wilayaId}:${communeRaw.toLowerCase().trim()}`) ?? null
-        if (!communeId) { errors.push({ row: rowNum, reason: `Commune introuvable: "${communeRaw}" (${wilayaRaw})` }); continue }
-      }
-
-      const skuList   = productSkus.split(sep).map(s => s.trim()).filter(Boolean)
-      const qtyList   = quantityRaw.split(sep).map(s => parseInt(s.trim()) || 1)
-      const priceList = unitPriceRaw.split(sep).map(s => parseFloat(s.trim()) || 0)
-      type ItemRow = { product_id: string; variant_id: null; product_name: string; sku: string; quantity: number; unit_price: number; unit_cost: number }
-      const orderItems: ItemRow[] = []
-      let rowFailed = false
-
-      for (let si = 0; si < skuList.length; si++) {
-        const sku = skuList[si]
-        if (!skuCache.has(sku)) {
-          let prod: { id: string; name: string } | null = null
-          const { data: byCode } = await db.from('products').select('id, name').eq('tenant_id', tenantId).or(`sku.eq.${sku},barcode.eq.${sku}`).is('deleted_at', null).maybeSingle()
-          if (byCode) { prod = byCode as { id: string; name: string } }
-          else {
-            const { data: byName } = await db.from('products').select('id, name').eq('tenant_id', tenantId).ilike('name', sku).is('deleted_at', null).maybeSingle()
-            if (byName) prod = byName as { id: string; name: string }
-          }
-          skuCache.set(sku, prod ? { product_id: prod.id, product_name: prod.name } : null)
-        }
-        const prod = skuCache.get(sku)
-        if (!prod) { errors.push({ row: rowNum, reason: `SKU introuvable: "${sku}"` }); rowFailed = true; break }
-        orderItems.push({ product_id: prod.product_id, variant_id: null, product_name: prod.product_name, sku, quantity: qtyList[si] ?? 1, unit_price: priceList[si] || 0, unit_cost: 0 })
-      }
-      if (rowFailed) continue
-
-      let clientId: string
-      if (clientCache.has(phone)) {
-        clientId = clientCache.get(phone)!
-      } else {
-        const { data: existing } = await db.from('clients').select('id').eq('tenant_id', tenantId).eq('phone', phone).maybeSingle()
-        if (existing) {
-          clientId = (existing as { id: string }).id
-          await db.from('clients').update({ full_name: clientName, phone2: phone2 || null, email: email || null, wilaya_id: wilayaId, commune_id: communeId || null, address: address || null }).eq('id', clientId)
-        } else {
-          clientId = uuid()
-          const { error: cErr } = await db.from('clients').insert({ id: clientId, tenant_id: tenantId, full_name: clientName, phone, phone2: phone2 || null, email: email || null, wilaya_id: wilayaId, commune_id: communeId, address: address || null })
-          if (cErr) { errors.push({ row: rowNum, reason: `Erreur client: ${cErr.message}` }); continue }
-        }
-        clientCache.set(phone, clientId)
-      }
-
-      try {
-        const subtotal  = orderItems.reduce((s, it) => s + it.unit_price * it.quantity, 0)
-        const reference = await rpc<string>('generate_order_reference', { p_boutique_id: boutiqueId })
-        const delivMode = delivMethod.toLowerCase().includes('stop') ? 'stopdesk' : 'domicile'
-        const orderId   = uuid()
-        const { error: oErr } = await db.from('orders').insert({ id: orderId, boutique_id: boutiqueId, client_id: clientId, reference, tracking_status: 'en_confirmation', subtotal, delivery_fee: 0, discount: 0, delivery_method: delivMode as 'domicile' | 'stopdesk', wilaya_id: wilayaId, commune_id: communeId ?? null, address: address || null, phone, phone2: phone2 || null, referrer: referrer || null, remark: remark || null, source_type: 'google_sheet', sync_enabled: true })
-        if (oErr) { errors.push({ row: rowNum, reason: `Erreur commande: ${oErr.message}` }); continue }
-        await db.from('order_items').insert(orderItems.map(it => ({ id: uuid(), order_id: orderId, ...it })))
-        await db.from('order_logs').insert({ id: uuid(), order_id: orderId, user_id: userId, action: 'created', new_values: { source: 'google_sheet_sync' } })
-        if (ri === 0) newTopRef = orderRef || lastSheetRef  // anchor = newest imported
-        imported++
-      } catch (err: unknown) {
-        errors.push({ row: rowNum, reason: err instanceof Error ? err.message : String(err) })
-      }
-    }
-
-    return { imported, skipped, failed: errors.length, errors, last_row: newLastRow, last_sheet_ref: newTopRef }
-  }
-
-  // ── Append mode (default) ─────────────────────────────────────────────────────
-  let processed = Math.max(0, startRow - 1)
-  let recovery  = false
-  if (processed > currentCount) {
-    processed = 0
-    recovery  = true
-  }
-
-  const dataRows = allDataRows.slice(processed).filter(r => r.some(c => String(c ?? '').trim()))
-  if (dataRows.length === 0) {
-    return { imported: 0, skipped: 0, failed: 0, errors: [], last_row: newLastRow, last_sheet_ref: '' }
-  }
-
-  // In recovery, preload existing order signatures to avoid duplicates / resurrections.
-  const existingSig = new Set<string>()
-  if (recovery) {
-    const { data: ex } = await db
-      .from('orders')
-      .select('phone, subtotal')
-      .eq('boutique_id', boutiqueId)
-    for (const o of (ex ?? []) as { phone: string; subtotal: number }[]) {
-      existingSig.add(`${String(o.phone ?? '').trim()}|${Number(o.subtotal)}`)
-    }
-  }
-
-  // ── Pre-load lookup caches ──────────────────────────────────────────────────
-
-  const { data: wilayaData } = await db.from('wilayas').select('id, name')
+  // ── 2. Reference lookups (wilayas + communes) ────────────────────────────────
+  const [{ data: wilayaData }, { data: communeData }] = await Promise.all([
+    db.from('wilayas').select('id, name'),
+    db.from('communes').select('id, name, wilaya_id'),
+  ])
   const wilayaMap = new Map<string, number>()
   for (const w of (wilayaData ?? []) as { id: number; name: string }[]) {
     wilayaMap.set(w.name.toLowerCase().trim(), w.id)
   }
-
-  const { data: communeData } = await db.from('communes').select('id, name, wilaya_id')
   const communeMap = new Map<string, number>()
   for (const c of (communeData ?? []) as { id: number; name: string; wilaya_id: number }[]) {
     communeMap.set(`${c.wilaya_id}:${c.name.toLowerCase().trim()}`, c.id)
   }
 
-  const skuCache    = new Map<string, { product_id: string; product_name: string } | null>()
-  const clientCache = new Map<string, string>()
-
-  // ── Process rows ────────────────────────────────────────────────────────────
-
+  // ── 3. Parse + validate every row into a candidate ───────────────────────────
   const sep    = separator || '|'
-  let imported = 0
-  let skipped  = 0
   const errors: { row: number; reason: string }[] = []
 
+  type Item = { sku: string; quantity: number; unit_price: number }
+  interface Candidate {
+    rowNum: number; dedupKey: string; orderRef: string
+    clientName: string; phone: string; phone2: string; email: string
+    wilayaId: number; communeId: number | null; address: string
+    remark: string; referrer: string; delivMode: 'domicile' | 'stopdesk'
+    items: Item[]; subtotal: number
+  }
+  const candidates: Candidate[] = []
+  const allSkus = new Set<string>()
+
   for (let ri = 0; ri < dataRows.length; ri++) {
-    const rowNum = processed + ri + 2  // absolute sheet row number (1=header)
+    const rowNum = ri + 2
     const row    = dataRows[ri]
 
-    const clientName   = cell(row, headers, mapping.client_name)
-    const phone        = cell(row, headers, mapping.phone)
-    const wilayaRaw    = cell(row, headers, mapping.wilaya)
-    const communeRaw   = cell(row, headers, mapping.commune)
-    const address      = cell(row, headers, mapping.address)
-    const email        = cell(row, headers, mapping.email)
-    const phone2       = cell(row, headers, mapping.phone2)
-    const remark       = cell(row, headers, mapping.remark)
-    const delivMethod  = cell(row, headers, mapping.delivery_method)
-    const productSkus  = cell(row, headers, mapping.product_sku)
-    const quantityRaw  = cell(row, headers, mapping.quantity)
-    const unitPriceRaw = cell(row, headers, mapping.unit_price)
-    const referrer     = cell(row, headers, mapping.referrer)
+    const clientName  = cell(row, headers, mapping.client_name)
+    const phone       = cell(row, headers, mapping.phone)
+    const wilayaRaw   = cell(row, headers, mapping.wilaya)
+    const productSkus = cell(row, headers, mapping.product_sku)
 
-    if (!clientName) { errors.push({ row: rowNum, reason: 'Nom client manquant' }); continue }
-    if (!phone)      { errors.push({ row: rowNum, reason: 'Téléphone manquant' }); continue }
-    if (!wilayaRaw)  { errors.push({ row: rowNum, reason: 'Wilaya manquante' }); continue }
-    if (!productSkus){ errors.push({ row: rowNum, reason: 'SKU produit manquant' }); continue }
+    if (!clientName)  { errors.push({ row: rowNum, reason: 'Nom client manquant' });   continue }
+    if (!phone)       { errors.push({ row: rowNum, reason: 'Téléphone manquant' });     continue }
+    if (!wilayaRaw)   { errors.push({ row: rowNum, reason: 'Wilaya manquante' });       continue }
+    if (!productSkus) { errors.push({ row: rowNum, reason: 'SKU produit manquant' });   continue }
 
-    // ── Wilaya / commune lookup ────────────────────────────────────────────────
-
-    // Try by name first, then by numeric ID (province code)
     let wilayaId: number | null = wilayaMap.get(wilayaRaw.toLowerCase().trim()) ?? null
     if (!wilayaId) {
-      const numId = parseInt(wilayaRaw.trim())
-      if (!isNaN(numId) && numId >= 1 && numId <= 58) wilayaId = numId
+      const n = parseInt(wilayaRaw.trim())
+      if (!isNaN(n) && n >= 1 && n <= 58) wilayaId = n
     }
-    if (!wilayaId) {
-      errors.push({ row: rowNum, reason: `Wilaya introuvable: "${wilayaRaw}"` })
-      continue
-    }
+    if (!wilayaId) { errors.push({ row: rowNum, reason: `Wilaya introuvable: "${wilayaRaw}"` }); continue }
 
+    const communeRaw = cell(row, headers, mapping.commune)
     let communeId: number | null = null
     if (communeRaw) {
       communeId = communeMap.get(`${wilayaId}:${communeRaw.toLowerCase().trim()}`) ?? null
-      if (!communeId) {
-        errors.push({ row: rowNum, reason: `Commune introuvable: "${communeRaw}" (${wilayaRaw})` })
-        continue
-      }
+      if (!communeId) { errors.push({ row: rowNum, reason: `Commune introuvable: "${communeRaw}" (${wilayaRaw})` }); continue }
     }
-
-    // ── Products ───────────────────────────────────────────────────────────────
 
     const skuList   = productSkus.split(sep).map(s => s.trim()).filter(Boolean)
-    const qtyList   = quantityRaw.split(sep).map(s => parseInt(s.trim()) || 1)
-    const priceList = unitPriceRaw.split(sep).map(s => parseFloat(s.trim()) || 0)
+    const qtyList   = cell(row, headers, mapping.quantity).split(sep).map(s => parseInt(s.trim()) || 1)
+    const priceList = cell(row, headers, mapping.unit_price).split(sep).map(s => parseFloat(s.trim()) || 0)
+    const items: Item[] = skuList.map((sku, i) => ({ sku, quantity: qtyList[i] ?? 1, unit_price: priceList[i] || 0 }))
+    for (const it of items) allSkus.add(it.sku)
+    const subtotal = items.reduce((s, it) => s + it.unit_price * it.quantity, 0)
 
-    type ItemRow = { id: string; product_id: string; variant_id: null; product_name: string; sku: string; quantity: number; unit_price: number; unit_cost: number }
-    const orderItems: Omit<ItemRow, 'id'>[] = []
-    let rowFailed = false
+    const orderRef  = cell(row, headers, mapping.order_ref)
+    const delivMode = cell(row, headers, mapping.delivery_method).toLowerCase().includes('stop') ? 'stopdesk' : 'domicile'
+    // Stable identity for dedup: prefer the sheet's order number, else a content signature
+    const dedupKey  = orderRef ? `ref:${orderRef}` : `sig:${phone}|${subtotal}|${skuList.join('+')}`
 
-    for (let si = 0; si < skuList.length; si++) {
-      const sku = skuList[si]
-      if (!skuCache.has(sku)) {
-        // Try SKU / barcode first, then fall back to product name
-        let prod: { id: string; name: string } | null = null
-        const { data: byCode } = await db
-          .from('products')
-          .select('id, name')
-          .eq('tenant_id', tenantId)
-          .or(`sku.eq.${sku},barcode.eq.${sku}`)
-          .is('deleted_at', null)
-          .maybeSingle()
-        if (byCode) {
-          prod = byCode as { id: string; name: string }
-        } else {
-          const { data: byName } = await db
-            .from('products')
-            .select('id, name')
-            .eq('tenant_id', tenantId)
-            .ilike('name', sku)
-            .is('deleted_at', null)
-            .maybeSingle()
-          if (byName) prod = byName as { id: string; name: string }
-        }
-        skuCache.set(sku, prod ? { product_id: prod.id, product_name: prod.name } : null)
-      }
+    candidates.push({
+      rowNum, dedupKey, orderRef,
+      clientName, phone,
+      phone2:  cell(row, headers, mapping.phone2),
+      email:   cell(row, headers, mapping.email),
+      wilayaId, communeId,
+      address: cell(row, headers, mapping.address),
+      remark:  cell(row, headers, mapping.remark),
+      referrer: cell(row, headers, mapping.referrer),
+      delivMode, items, subtotal,
+    })
+  }
+  if (candidates.length === 0) return empty({ failed: errors.length, errors })
 
-      const prod = skuCache.get(sku)
-      if (!prod) {
-        errors.push({ row: rowNum, reason: `SKU introuvable: "${sku}"` })
-        rowFailed = true
-        break
-      }
+  // ── 4. Bulk-resolve products (sku → barcode → exact name → ilike name) ────────
+  const skuToProduct = new Map<string, { product_id: string; product_name: string }>()
+  const skuArr = [...allSkus]
 
-      orderItems.push({
-        product_id:   prod.product_id,
-        variant_id:   null,
-        product_name: prod.product_name,
-        sku,
-        quantity:  qtyList[si]   ?? 1,
-        unit_price: priceList[si] || 0,
-        unit_cost:  0,
-      })
+  for (const part of chunk(skuArr, 150)) {
+    const { data } = await db.from('products').select('id, name, sku')
+      .eq('tenant_id', tenantId).is('deleted_at', null).in('sku', part)
+    for (const p of (data ?? []) as { id: string; name: string; sku: string | null }[]) {
+      if (p.sku) skuToProduct.set(p.sku, { product_id: p.id, product_name: p.name })
     }
-    if (rowFailed) continue
-
-    // ── Upsert client ──────────────────────────────────────────────────────────
-
-    let clientId: string
-    if (clientCache.has(phone)) {
-      clientId = clientCache.get(phone)!
-    } else {
-      const { data: existing } = await db
-        .from('clients')
-        .select('id')
-        .eq('tenant_id', tenantId)
-        .eq('phone', phone)
-        .maybeSingle()
-
-      if (existing) {
-        clientId = (existing as { id: string }).id
-        // Always update with the latest data from the sheet row
-        await db.from('clients').update({
-          full_name:  clientName,
-          phone2:     phone2    || null,
-          email:      email     || null,
-          wilaya_id:  wilayaId,
-          commune_id: communeId || null,
-          address:    address   || null,
-        }).eq('id', clientId)
-      } else {
-        clientId = uuid()
-        const { error: cErr } = await db.from('clients').insert({
-          id: clientId, tenant_id: tenantId,
-          full_name: clientName, phone,
-          phone2: phone2 || null, email: email || null,
-          wilaya_id: wilayaId, commune_id: communeId, address: address || null,
-        })
-        if (cErr) { errors.push({ row: rowNum, reason: `Erreur client: ${cErr.message}` }); continue }
-      }
-      clientCache.set(phone, clientId)
+  }
+  let pending = skuArr.filter(s => !skuToProduct.has(s))
+  for (const part of chunk(pending, 150)) {
+    const { data } = await db.from('products').select('id, name, barcode')
+      .eq('tenant_id', tenantId).is('deleted_at', null).in('barcode', part)
+    for (const p of (data ?? []) as { id: string; name: string; barcode: string | null }[]) {
+      if (p.barcode) skuToProduct.set(p.barcode, { product_id: p.id, product_name: p.name })
     }
+  }
+  pending = skuArr.filter(s => !skuToProduct.has(s))
+  for (const part of chunk(pending, 150)) {
+    const { data } = await db.from('products').select('id, name')
+      .eq('tenant_id', tenantId).is('deleted_at', null).in('name', part)
+    for (const p of (data ?? []) as { id: string; name: string }[]) {
+      if (allSkus.has(p.name)) skuToProduct.set(p.name, { product_id: p.id, product_name: p.name })
+    }
+  }
+  // case-insensitive name fallback for the few still unresolved
+  for (const s of skuArr.filter(x => !skuToProduct.has(x))) {
+    const { data } = await db.from('products').select('id, name')
+      .eq('tenant_id', tenantId).is('deleted_at', null).ilike('name', s).maybeSingle()
+    if (data) skuToProduct.set(s, { product_id: (data as { id: string }).id, product_name: (data as { name: string }).name })
+  }
 
-    // ── Insert order ───────────────────────────────────────────────────────────
+  type Resolved = { product_id: string; variant_id: null; product_name: string; sku: string; quantity: number; unit_price: number; unit_cost: number }
+  const ready: (Candidate & { resolvedItems: Resolved[] })[] = []
+  for (const c of candidates) {
+    const resolvedItems: Resolved[] = []
+    let ok = true
+    for (const it of c.items) {
+      const p = skuToProduct.get(it.sku)
+      if (!p) { errors.push({ row: c.rowNum, reason: `SKU introuvable: "${it.sku}"` }); ok = false; break }
+      resolvedItems.push({ product_id: p.product_id, variant_id: null, product_name: p.product_name, sku: it.sku, quantity: it.quantity, unit_price: it.unit_price, unit_cost: 0 })
+    }
+    if (ok) ready.push({ ...c, resolvedItems })
+  }
+  if (ready.length === 0) return empty({ failed: errors.length, errors })
 
-    try {
-      const subtotal  = orderItems.reduce((s, it) => s + it.unit_price * it.quantity, 0)
-
-      // Recovery mode: skip rows that already produced an order (live or deleted)
-      if (recovery && existingSig.has(`${phone}|${subtotal}`)) { skipped++; continue }
-
-      const reference = await rpc<string>('generate_order_reference', { p_boutique_id: boutiqueId })
-      const delivMode = delivMethod.toLowerCase().includes('stop') ? 'stopdesk' : 'domicile'
-      const orderId   = uuid()
-
-      const { error: oErr } = await db.from('orders').insert({
-        id: orderId, boutique_id: boutiqueId, client_id: clientId,
-        reference, tracking_status: 'en_confirmation',
-        subtotal, delivery_fee: 0, discount: 0,
-        delivery_method: delivMode as 'domicile' | 'stopdesk',
-        wilaya_id: wilayaId, commune_id: communeId ?? null,
-        address: address || null, phone, phone2: phone2 || null,
-        referrer: referrer || null, remark: remark || null,
-        source_type: 'google_sheet', sync_enabled: true,
-      })
-
-      if (oErr) { errors.push({ row: rowNum, reason: `Erreur commande: ${oErr.message}` }); continue }
-
-      await db.from('order_items').insert(
-        orderItems.map(it => ({ id: uuid(), order_id: orderId, ...it }))
-      )
-
-      await db.from('order_logs').insert({
-        id: uuid(), order_id: orderId, user_id: userId,
-        action: 'created', new_values: { source: 'google_sheet_sync' },
-      })
-
-      imported++
-    } catch (err: unknown) {
-      errors.push({ row: rowNum, reason: err instanceof Error ? err.message : String(err) })
+  // ── 5. Dedup against already-imported rows ───────────────────────────────────
+  // Primary: sheet_key recorded on each order's creation log. Bounded by the keys
+  // present in the sheet (≤ MAX_ROWS), so it stays cheap as the table grows.
+  const allKeys = [...new Set(ready.map(r => r.dedupKey))]
+  const existingKeys = new Set<string>()
+  let keyLookupOk = true
+  for (const part of chunk(allKeys, 150)) {
+    const { data, error } = await db
+      .from('order_logs')
+      .select('new_values, orders!inner(boutique_id)')
+      .eq('orders.boutique_id', boutiqueId)
+      .eq('action', 'created')
+      .in('new_values->>sheet_key', part)
+    if (error) { keyLookupOk = false; continue }
+    for (const r of (data ?? []) as { new_values: { sheet_key?: string } | null }[]) {
+      const k = r?.new_values?.sheet_key
+      if (k) existingKeys.add(k)
     }
   }
 
-  return { imported, skipped, failed: errors.length, errors, last_row: newLastRow, last_sheet_ref: '' }
+  // Signature guard (phone+subtotal). Used as a safety net so we can never
+  // mass-duplicate when (a) bootstrapping a source whose legacy orders have no
+  // dedup key yet, or (b) the key lookup itself failed. Skipped once keys are
+  // tracked AND the lookup succeeded, so repeat orders import normally.
+  const useSigGuard = !keyedAlready || !keyLookupOk
+  const existingSig = new Set<string>()
+  if (useSigGuard) {
+    const { data } = await db.from('orders').select('phone, subtotal').eq('boutique_id', boutiqueId)
+    for (const o of (data ?? []) as { phone: string; subtotal: number }[]) {
+      existingSig.add(`${String(o.phone ?? '').trim()}|${Number(o.subtotal)}`)
+    }
+  }
+
+  const seen = new Set<string>()
+  const toImport: typeof ready = []
+  let skipped = 0
+  for (const r of ready) {
+    if (existingKeys.has(r.dedupKey)) { skipped++; continue }
+    if (seen.has(r.dedupKey))         { skipped++; continue }   // duplicate ref within the same sheet
+    if (useSigGuard && existingSig.has(`${r.phone}|${r.subtotal}`)) { skipped++; continue }
+    seen.add(r.dedupKey)
+    toImport.push(r)
+  }
+  if (toImport.length === 0) return empty({ skipped, failed: errors.length, errors, keyed: keyLookupOk })
+
+  // ── 6. Bulk-resolve / create clients (one lookup, one insert) ────────────────
+  const phones = [...new Set(toImport.map(r => r.phone))]
+  const phoneToClient = new Map<string, string>()
+  for (const part of chunk(phones, 150)) {
+    const { data } = await db.from('clients').select('id, phone').eq('tenant_id', tenantId).in('phone', part)
+    for (const c of (data ?? []) as { id: string; phone: string }[]) phoneToClient.set(c.phone, c.id)
+  }
+  // Most-recent sheet data per phone wins (first occurrence — sheet is newest-first)
+  const phoneData = new Map<string, Candidate>()
+  for (const r of toImport) if (!phoneData.has(r.phone)) phoneData.set(r.phone, r)
+
+  const newClientRows: Record<string, unknown>[] = []
+  const existingPhones: string[] = []
+  for (const phone of phones) {
+    const d = phoneData.get(phone)!
+    if (phoneToClient.has(phone)) {
+      existingPhones.push(phone)
+    } else {
+      const id = uuid()
+      phoneToClient.set(phone, id)
+      newClientRows.push({
+        id, tenant_id: tenantId, full_name: d.clientName, phone,
+        phone2: d.phone2 || null, email: d.email || null,
+        wilaya_id: d.wilayaId, commune_id: d.communeId, address: d.address || null,
+      })
+    }
+  }
+  if (newClientRows.length) {
+    const { error } = await db.from('clients').insert(newClientRows)
+    if (error) for (const c of newClientRows) await db.from('clients').insert(c)  // isolate bad row
+  }
+  // Refresh existing clients with latest sheet data (bounded by distinct phones)
+  for (const phone of existingPhones) {
+    const d = phoneData.get(phone)!
+    await db.from('clients').update({
+      full_name: d.clientName, phone2: d.phone2 || null, email: d.email || null,
+      wilaya_id: d.wilayaId, commune_id: d.communeId || null, address: d.address || null,
+    }).eq('id', phoneToClient.get(phone)!)
+  }
+
+  // ── 7. Build + bulk-insert orders, items, logs ───────────────────────────────
+  // References must come from the DB sequence function (atomic per call).
+  interface OrderRow { id: string; ref: string; cand: typeof toImport[number] }
+  const built: OrderRow[] = []
+  for (const cand of toImport) {
+    const ref = await rpc<string>('generate_order_reference', { p_boutique_id: boutiqueId })
+    built.push({ id: uuid(), ref, cand })
+  }
+
+  const orderRows = built.map(({ id, ref, cand }) => ({
+    id, boutique_id: boutiqueId, client_id: phoneToClient.get(cand.phone)!,
+    reference: ref, tracking_status: 'en_confirmation',
+    subtotal: cand.subtotal, delivery_fee: 0, discount: 0,
+    delivery_method: cand.delivMode,
+    wilaya_id: cand.wilayaId, commune_id: cand.communeId ?? null,
+    address: cand.address || null, phone: cand.phone, phone2: cand.phone2 || null,
+    referrer: cand.referrer || null, remark: cand.remark || null,
+    source_type: 'google_sheet', sync_enabled: true,
+  }))
+
+  // Insert orders — bulk first, fall back to per-row to isolate a single failure
+  const insertedIds = new Set<string>()
+  const bulk = await db.from('orders').insert(orderRows).select('id')
+  if (!bulk.error) {
+    for (const o of (bulk.data ?? []) as { id: string }[]) insertedIds.add(o.id)
+  } else {
+    for (const row of orderRows) {
+      const { error } = await db.from('orders').insert(row)
+      if (error) {
+        const b = built.find(x => x.id === row.id)!
+        errors.push({ row: b.cand.rowNum, reason: `Erreur commande: ${error.message}` })
+      } else {
+        insertedIds.add(row.id as string)
+      }
+    }
+  }
+
+  const okBuilt = built.filter(b => insertedIds.has(b.id))
+
+  const itemRows = okBuilt.flatMap(b => b.cand.resolvedItems.map(it => ({ id: uuid(), order_id: b.id, ...it })))
+  if (itemRows.length) {
+    const r = await db.from('order_items').insert(itemRows)
+    if (r.error) for (const it of itemRows) await db.from('order_items').insert(it)
+  }
+
+  const logRows = okBuilt.map(b => ({
+    id: uuid(), order_id: b.id, user_id: logUserId, action: 'created',
+    new_values: { source: 'google_sheet_sync', sheet_key: b.cand.dedupKey, sheet_ref: b.cand.orderRef || null },
+  }))
+  if (logRows.length) {
+    const r = await db.from('order_logs').insert(logRows)
+    if (r.error) for (const l of logRows) await db.from('order_logs').insert(l)  // logs carry the dedup key — must persist
+  }
+
+  return {
+    imported: okBuilt.length,
+    skipped,
+    failed: errors.length,
+    errors,
+    last_row: newLastRow,
+    keyed: keyLookupOk,
+  }
 }
 
 // ── Drive push-notification helpers ───────────────────────────────────────────
@@ -544,7 +479,7 @@ export async function syncSourceWithLock(
 ): Promise<SyncResult | null> {
   let creds: {
     refresh_token?: string; last_row?: number; prepend_mode?: boolean
-    access_token?: string; access_token_expiry?: number; last_sheet_ref?: string
+    access_token?: string; access_token_expiry?: number; keyed?: boolean
   } = {}
   try { creds = JSON.parse(source.credentials_ref ?? '{}') } catch { /* ignore */ }
 
@@ -589,8 +524,6 @@ export async function syncSourceWithLock(
       rows_total: 0, rows_imported: 0, rows_failed: 0, status: 'running', errors: [],
     })
 
-    const prependMode = !!creds.prepend_mode
-
     // Reuse cached access token if still valid (>60s remaining), otherwise refresh.
     // Google tokens last ~1h; refreshing every sync would exhaust the rate limit.
     let accessToken: string
@@ -600,25 +533,20 @@ export async function syncSourceWithLock(
       accessToken = await getAccessToken(creds.refresh_token)
       creds = { ...creds, access_token: accessToken, access_token_expiry: Date.now() + 55 * 60 * 1000 }
     }
+
     const result = await syncGoogleSheet({
       accessToken,
-      sheetId:       source.sheet_id,
-      sheetName:     source.sheet_name ?? 'Sheet1',
-      separator:     source.separator  ?? '|',
-      boutiqueId:    source.boutique_id,
-      mapping:       source.column_mapping ?? {},
-      startRow:      prependMode ? 1 : (creds.last_row ?? 1),
+      sheetId:      source.sheet_id,
+      sheetName:    source.sheet_name ?? 'Sheet1',
+      separator:    source.separator  ?? '|',
+      boutiqueId:   source.boutique_id,
+      mapping:      source.column_mapping ?? {},
       tenantId,
       userId,
-      prependMode,
-      lastSheetRef:  creds.last_sheet_ref ?? '',
+      keyedAlready: !!creds.keyed,
     })
 
-    const next = {
-      ...creds,
-      last_row: result.last_row,
-      ...(prependMode && result.last_sheet_ref ? { last_sheet_ref: result.last_sheet_ref } : {}),
-    }
+    const next = { ...creds, last_row: result.last_row, keyed: result.keyed || creds.keyed }
     await db.from('import_sources').update({
       credentials_ref: JSON.stringify(next),
       last_synced_at:  new Date().toISOString(),
@@ -638,7 +566,7 @@ export async function syncSourceWithLock(
     await db.from('import_runs').update({ status: 'failed', errors: [{ reason: msg }] }).eq('id', runId)
     return null
   } finally {
-    // Release immediately so an on-open sync isn't blocked by the minute-cron.
+    // Release immediately so an on-open sync isn't blocked by the cron.
     // (Fallback path has no held lock — its 45s window self-expires.)
     if (heldLock) {
       await db.from('import_sources').update({ sync_locked_at: null }).eq('id', source.id)

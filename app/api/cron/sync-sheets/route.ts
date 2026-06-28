@@ -35,7 +35,10 @@ async function handle(req: NextRequest) {
   let imported = 0
   let synced   = 0
 
-  for (const source of sources ?? []) {
+  // Sync sources in parallel with a concurrency cap so one pass stays fast
+  // even with many stores/accounts, without hammering Supabase or Google.
+  const CONCURRENCY = 6
+  await mapLimit(sources ?? [], CONCURRENCY, async (source) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const anyS      = source as any
     const boutiques = anyS.boutiques
@@ -45,13 +48,25 @@ async function handle(req: NextRequest) {
     if (result) { imported += result.imported; synced++ }
 
     await renewWatchIfNeeded(anyS.id, anyS.sheet_id)
-  }
+  })
 
   return NextResponse.json({ sources: (sources ?? []).length, synced, imported })
 }
 
 export async function GET(req: NextRequest)  { return handle(req) }
 export async function POST(req: NextRequest) { return handle(req) }
+
+// Run an async fn over items with a bounded number of concurrent workers.
+async function mapLimit<T>(items: T[], limit: number, fn: (item: T) => Promise<void>): Promise<void> {
+  let i = 0
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (i < items.length) {
+      const idx = i++
+      await fn(items[idx])
+    }
+  })
+  await Promise.all(workers)
+}
 
 // Renew a Drive push channel before it expires (max 7 days for Sheets).
 // Reads fresh creds so it never clobbers last_row updated by the sync above.

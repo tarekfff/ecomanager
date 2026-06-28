@@ -164,9 +164,10 @@ export default function EnConfirmationPage() {
   // Drawer — stores order ID only; OrderDetailPanel fetches its own data
   const [drawerOrderId, setDrawerOrderId] = useState<string | null>(null)
 
-  // Live refresh — banner when new orders arrive
+  // Live refresh — stream new orders in (prepend) when idle, or banner when busy
   const [newCount,     setNewCount]     = useState(0)
-  const knownTotalRef  = useRef<number | null>(null)
+  const [newOrderIds,  setNewOrderIds]  = useState<Set<string>>(new Set())
+  const cursorRef      = useRef<string | null>(null)   // newest created_at currently shown
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -213,10 +214,13 @@ export default function EnConfirmationPage() {
     fetch(`/api/orders?${qs}`, { headers: authHeader() })
       .then(r => r.json())
       .then(d => {
-        setOrders(d.items ?? [])
+        const items: Order[] = d.items ?? []
+        setOrders(items)
         setTotal(d.total ?? 0)
-        knownTotalRef.current = d.total ?? 0
+        // Anchor the live cursor to the newest row we now show (page 1 only)
+        if (page === 1) cursorRef.current = items[0]?.created_at ?? new Date().toISOString()
         setNewCount(0)
+        setNewOrderIds(new Set())
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -241,43 +245,59 @@ export default function EnConfirmationPage() {
 
   useEffect(() => { triggerSync() }, [triggerSync])  // on open
 
-  // ── Background poll — sheet sync every 30s + DB count check every 10s ───────
+  // ── Live stream — sheet sync every 30s + pull new orders every 8s ───────────
+  // When the user is idle on page 1, new orders are prepended into the table and
+  // briefly highlighted (true "live" feel). When they're busy (selecting, search,
+  // filtered, other page) we don't yank the table — we surface a banner instead.
   useEffect(() => {
     if (!boutiqueId) return
     let lastPeriodicSync = 0
 
-    const check = () => {
+    const tick = () => {
       if (document.hidden) return
 
-      // Sheet sync every 30s — picks up new rows without waiting for focus
+      // 1) Sheet sync every 30s — lands new Google Sheet rows in the DB
       if (Date.now() - lastPeriodicSync > 30_000) {
         lastPeriodicSync = Date.now()
         lastSyncRef.current = lastPeriodicSync  // share cooldown with triggerSync
         fetch(`/api/import-sources/poll?boutique_id=${boutiqueId}`, { method: 'POST', headers: authHeader() })
-          .then(r => r.json())
-          .then(d => { if ((d.imported ?? 0) > 0) fetchOrders() })
           .catch(() => {})
       }
 
-      // DB count check every 10s
-      const qs = new URLSearchParams({ status: 'en_confirmation', boutique_id: boutiqueId, page: '1', limit: '1' })
+      // 2) Live cursor — fetch only orders newer than what we already show
+      if (!cursorRef.current) return
+      const qs = new URLSearchParams({
+        status: 'en_confirmation', boutique_id: boutiqueId,
+        created_after: cursorRef.current, limit: '50', page: '1',
+      })
+      if (filterUser) qs.set('assigned_to', filterUser)
+
       fetch(`/api/orders?${qs}`, { headers: authHeader() })
         .then(r => r.json())
         .then(d => {
-          const t = d.total ?? 0
-          if (knownTotalRef.current === null) { knownTotalRef.current = t; return }
-          if (t > knownTotalRef.current) {
-            const idle = page === 1 && selectedIds.size === 0 && !dbSearch
-            if (idle) fetchOrders()
-            else setNewCount(t - knownTotalRef.current)
+          const fresh: Order[] = d.items ?? []
+          if (!fresh.length) return
+          cursorRef.current = fresh[0].created_at  // advance so we never recount
+
+          const idle = page === 1 && selectedIds.size === 0
+            && !dbSearch && !filterUser && !dateFrom && !dateTo
+
+          if (idle) {
+            // Prepend (created_after is strict, so these are never already in the list)
+            setOrders(prev => [...fresh, ...prev])
+            setTotal(t => t + fresh.length)
+            setNewOrderIds(new Set(fresh.map(o => o.id)))
+            setTimeout(() => setNewOrderIds(new Set()), 4000)  // fade highlight
+          } else {
+            setNewCount(c => c + fresh.length)
           }
         })
         .catch(() => {})
     }
-    const id = setInterval(check, 10_000)
+    const id = setInterval(tick, 8_000)
 
-    // On returning to this tab: immediately pull fresh sheet rows + check count
-    const onVisible = () => { if (!document.hidden) { triggerSync(); check() } }
+    // On returning to this tab: pull fresh sheet rows + check for new orders now
+    const onVisible = () => { if (!document.hidden) { triggerSync(); tick() } }
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('focus', onVisible)
 
@@ -286,7 +306,7 @@ export default function EnConfirmationPage() {
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('focus', onVisible)
     }
-  }, [boutiqueId, page, selectedIds, dbSearch, fetchOrders, triggerSync])
+  }, [boutiqueId, page, selectedIds, dbSearch, filterUser, dateFrom, dateTo, triggerSync])
 
   // ── Search debounce ───────────────────────────────────────────────────────
 
@@ -412,7 +432,7 @@ export default function EnConfirmationPage() {
             borderRadius: 6, padding: '10px 14px', fontSize: 13, color: '#166534',
             cursor: 'pointer',
           }}
-            onClick={() => { setNewCount(0); knownTotalRef.current = null; fetchOrders() }}
+            onClick={() => { setNewCount(0); if (page !== 1) setPage(1); else fetchOrders() }}
           >
             <span style={{
               background: '#22C55E', color: '#fff', borderRadius: '50%',
@@ -689,13 +709,16 @@ export default function EnConfirmationPage() {
               ) : (
                 orders.map(order => {
                   const isSelected = selectedIds.has(order.id)
+                  const isNew      = newOrderIds.has(order.id)
+                  const baseBg     = isSelected ? colors.primaryLt : isNew ? '#ECFDF3' : ''
                   return (
                     <tr
                       key={order.id}
                       onClick={() => setDrawerOrderId(order.id)}
                       style={{
-                        background: isSelected ? colors.primaryLt : undefined,
-                        cursor: 'pointer', transition: 'background .1s',
+                        background: baseBg || undefined,
+                        boxShadow: isNew ? `inset 3px 0 0 ${colors.green}` : undefined,
+                        cursor: 'pointer', transition: 'background .6s ease',
                       }}
                       onMouseEnter={e => {
                         if (!isSelected)
@@ -703,7 +726,7 @@ export default function EnConfirmationPage() {
                       }}
                       onMouseLeave={e => {
                         if (!isSelected)
-                          (e.currentTarget as HTMLTableRowElement).style.background = ''
+                          (e.currentTarget as HTMLTableRowElement).style.background = baseBg
                       }}
                     >
                       {/* Checkbox */}

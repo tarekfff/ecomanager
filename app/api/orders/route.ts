@@ -16,6 +16,9 @@ export async function GET(req: NextRequest) {
   const carrierId  = (sp.get('carrier_id')  ?? '').trim()
   const dateFrom   = (sp.get('date_from')   ?? '').trim()
   const dateTo     = (sp.get('date_to')     ?? '').trim()
+  // Live cursor — when set, return only orders created strictly after this
+  // timestamp (newest first). Used by list pages to stream in new rows.
+  const createdAfter = (sp.get('created_after') ?? '').trim()
   const offset     = (page - 1) * limit
 
   if (!boutiqueId) return NextResponse.json({ items: [], total: 0 })
@@ -72,9 +75,10 @@ export async function GET(req: NextRequest) {
     if (clientIds.length > 0) orParts.push(`client_id.in.(${clientIds.join(',')})`)
     query = query.or(orParts.join(','))
   }
-  if (assignedTo) query = query.eq('assigned_confirmer_id', assignedTo)
-  if (carrierId)  query = query.eq('assigned_carrier_id', carrierId)
-  if (dateFrom)   query = query.gte('created_at', dateFrom)
+  if (assignedTo)    query = query.eq('assigned_confirmer_id', assignedTo)
+  if (carrierId)     query = query.eq('assigned_carrier_id', carrierId)
+  if (createdAfter)  query = query.gt('created_at', createdAfter)
+  if (dateFrom)      query = query.gte('created_at', dateFrom)
   if (dateTo) {
     const end = new Date(dateTo)
     end.setDate(end.getDate() + 1)
