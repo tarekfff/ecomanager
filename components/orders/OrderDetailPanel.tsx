@@ -887,7 +887,8 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
       {/* Panel */}
       <div style={{
         position: 'fixed', top: 0, right: 0, bottom: 0,
-        width: 420, background: '#fff', zIndex: 200,
+        height: '100vh', maxHeight: '100vh',
+        width: 420, maxWidth: '100vw', background: '#fff', zIndex: 200,
         boxShadow: '-4px 0 20px rgba(0,0,0,0.12)',
         display: 'flex', flexDirection: 'column',
         fontFamily: fonts.sans,
@@ -929,7 +930,11 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
         </div>
 
         {/* ── Scrollable body ─────────────────────────────────────────────── */}
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{
+          flex: '1 1 auto', minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch',
+          overscrollBehavior: 'contain', padding: '14px',
+          display: 'flex', flexDirection: 'column', gap: 10,
+        }}>
 
           {loading && !o ? (
             <>
@@ -1025,7 +1030,7 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
                     value={o.delivery_method === 'stopdesk' ? 'Stop Desk' : 'À domicile'}
                   />
                   {o.carrier_name && (
-                    <InfoRow icon={<Truck size={12} />} label="Livreur" value={o.carrier_name} />
+                    <InfoRow icon={<Truck size={12} />} label="Société de livraison" value={o.carrier_name} />
                   )}
                   {o.confirmer_name && (
                     <InfoRow icon={<UserCheck size={12} />} label="Confirmateur" value={o.confirmer_name} />
@@ -1039,7 +1044,7 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
                   <TotalRow label="Sous-total"         value={fmtAmt(o.subtotal)} />
                   <TotalRow label="Frais de livraison" value={fmtAmt(o.delivery_fee)} />
                   {(o.carrier_fee ?? 0) > 0 && (
-                    <TotalRow label="Frais livreur" value={fmtAmt(o.carrier_fee)} />
+                    <TotalRow label="Frais société" value={fmtAmt(o.carrier_fee)} />
                   )}
                   {(o.discount ?? 0) > 0 && (
                     <TotalRow label="Remise" value={`– ${fmtAmt(o.discount)}`} />

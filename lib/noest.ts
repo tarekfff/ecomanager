@@ -126,3 +126,26 @@ export async function noestGetLabelResponse(tracking: string): Promise<Response>
     headers: { Authorization: `Bearer ${API_TOKEN}` },
   })
 }
+
+// ── Connectivity test (read-only, non-destructive) ───────────────────────────────
+// Calls a read-only NOEST endpoint to verify the API token + user_guid work
+// without creating or mutating anything on NOEST's side.
+export interface NoestPingResult {
+  ok:       boolean
+  status:   number
+  wilayas?: number      // count returned on success
+  body?:    string      // raw body on failure (truncated)
+}
+
+export async function noestPing(): Promise<NoestPingResult> {
+  try {
+    const res = await call('/api/public/get/wilayas', { method: 'GET' })
+    const text = await res.text()
+    if (!res.ok) return { ok: false, status: res.status, body: text.slice(0, 500) }
+    let count: number | undefined
+    try { const j = JSON.parse(text); if (Array.isArray(j)) count = j.length } catch { /* ignore */ }
+    return { ok: true, status: res.status, wilayas: count }
+  } catch (e) {
+    return { ok: false, status: 0, body: String(e).slice(0, 500) }
+  }
+}

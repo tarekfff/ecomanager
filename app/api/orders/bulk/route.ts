@@ -9,6 +9,7 @@ import {
   STOCK_DEDUCTED_STATUSES,
 } from '@/lib/stock-order'
 import { bulkActionPerm } from '@/lib/permission-maps'
+import { fireOrderWebhooks, eventForAction } from '@/lib/webhooks'
 
 type BulkAction =
   | 'confirm' | 'cancel' | 'delete' | 'assign' | 'set_confirmation_status'
@@ -260,6 +261,20 @@ export async function POST(req: NextRequest) {
 
     default:
       return NextResponse.json({ error: `Action inconnue: ${action}` }, { status: 400 })
+  }
+
+  // ── Webhooks (generic + NOEST livraison société) ────────────────────────────
+  // Fire saved webhooks for each affected order. Best-effort; never blocks.
+  if (action !== 'hard_delete' && eventForAction(action)) {
+    await Promise.all(verifiedOrders.map(o =>
+      fireOrderWebhooks({
+        tenantId:   user.tenantId,
+        boutiqueId: o.boutique_id,
+        orderId:    o.id,
+        action,
+        userId:     user.sub,
+      }),
+    ))
   }
 
   return NextResponse.json({ updated: verifiedIds.length })

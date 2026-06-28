@@ -326,7 +326,7 @@ export default function EnDispatchPage() {
   const nSelected    = selectedIds.size
 
   const carrierOptions = [
-    { value: '', label: 'Tous les livreurs' },
+    { value: '', label: 'Toutes les sociétés' },
     ...carriers.map(c => ({ value: c.id, label: c.name })),
   ]
 
@@ -364,7 +364,7 @@ export default function EnDispatchPage() {
         title="En dispatch"
         subtitle={
           total > 0
-            ? `${total} commande${total > 1 ? 's' : ''} dispatchées chez le livreur`
+            ? `${total} commande${total > 1 ? 's' : ''} dispatchées chez la société de livraison`
             : 'Commandes en cours de dispatch'
         }
         actions={
@@ -405,7 +405,7 @@ export default function EnDispatchPage() {
               value={filterCarrier}
               onChange={v => { setFilterCarrier(v); setPage(1) }}
               options={carrierOptions}
-              placeholder="Tous les livreurs"
+              placeholder="Toutes les sociétés"
             />
           </div>
 
@@ -547,7 +547,7 @@ export default function EnDispatchPage() {
                 <TH width={150}>Client</TH>
                 <TH width={115}>Téléphone</TH>
                 <TH width={95}>Wilaya</TH>
-                <TH width={130}>Livreur</TH>
+                <TH width={130}>Société de livraison</TH>
                 <TH width={100}>Dispatchée le</TH>
                 <TH width={56} center>Sync</TH>
                 <TH width={60} center>Articles</TH>

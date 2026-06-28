@@ -232,7 +232,7 @@ export default function EnPreparationPage() {
   const nSelected    = selectedIds.size
 
   const carrierOptions = [
-    { value: '', label: 'Tous les livreurs' },
+    { value: '', label: 'Toutes les sociétés' },
     ...carriers.map(c => ({ value: c.id, label: c.name })),
   ]
 
@@ -311,7 +311,7 @@ export default function EnPreparationPage() {
               value={filterCarrier}
               onChange={handleFilterChange(setFilterCarrier)}
               options={carrierOptions}
-              placeholder="Tous les livreurs"
+              placeholder="Toutes les sociétés"
             />
           </div>
 
@@ -393,7 +393,7 @@ export default function EnPreparationPage() {
                 }}>
                   {carriers.length === 0 ? (
                     <div style={{ padding: '10px 14px', fontSize: 12.5, color: colors.textLt }}>
-                      Aucun livreur disponible
+                      Aucune société disponible
                     </div>
                   ) : carriers.map(c => (
                     <button
@@ -415,11 +415,11 @@ export default function EnPreparationPage() {
               )}
             </div>
 
-            {/* Changer livreur */}
+            {/* Société de livraison */}
             <div ref={carrierChangeMenuRef} style={{ position: 'relative' }}>
               <BulkBtn
                 icon={<RefreshCw size={13} />}
-                label="Changer livreur"
+                label="Société de livraison"
                 suffix={<ChevronDown size={11} />}
                 onClick={() => { setShowCarrierChangeMenu(v => !v); setShowDispatchMenu(false) }}
                 loading={bulkLoading}
@@ -432,7 +432,7 @@ export default function EnPreparationPage() {
                 }}>
                   {carriers.length === 0 ? (
                     <div style={{ padding: '10px 14px', fontSize: 12.5, color: colors.textLt }}>
-                      Aucun livreur disponible
+                      Aucune société disponible
                     </div>
                   ) : carriers.map(c => (
                     <button
@@ -511,7 +511,7 @@ export default function EnPreparationPage() {
                 <TH width={60} center>Articles</TH>
                 <TH width={105}>Total</TH>
                 <TH width={100}>Confirmée le</TH>
-                <TH width={140}>Livreur affecté</TH>
+                <TH width={140}>Société de livraison</TH>
                 <TH width={72}>Actions</TH>
               </tr>
             </thead>
@@ -596,7 +596,7 @@ export default function EnPreparationPage() {
                         </span>
                       </TD>
 
-                      {/* Livreur affecté */}
+                      {/* Société de livraison */}
                       <TD>
                         {order.carrier_name
                           ? <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>

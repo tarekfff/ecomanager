@@ -3,6 +3,7 @@ import { authWithPermissions, assertPermission, requirePermissionPrefix } from '
 import { db, rpc } from '@/lib/db'
 import { v4 as uuid } from 'uuid'
 import { listViewPermForStatus } from '@/lib/permission-maps'
+import { fireOrderWebhooks } from '@/lib/webhooks'
 
 export async function GET(req: NextRequest) {
   const { user, perms } = await authWithPermissions(req)
@@ -288,6 +289,15 @@ export async function POST(req: NextRequest) {
     user_id:    user.sub,
     action:     'created',
     new_values: order,
+  })
+
+  // 8. Fire OrderCreated webhooks (best-effort)
+  await fireOrderWebhooks({
+    tenantId:   user.tenantId,
+    boutiqueId: boutiqueId,
+    orderId,
+    action:     'created',
+    userId:     user.sub,
   })
 
   return NextResponse.json(order, { status: 201 })
