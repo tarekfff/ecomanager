@@ -5,21 +5,29 @@ import {
   noestCreateOrder,
   noestValidateOrder,
   noestRequestReturn,
+  noestDeleteOrder,
+  noestUpdateOrder,
+  noestUpdateOrderBeforeExpedition,
   normalizePhone,
   NoestCreatePayload,
+  NoestUpdatePayload,
 } from '@/lib/noest'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Webhook dispatcher
+// Webhook dispatcher — DYNAMIC per livraison société
 //
-// Fires saved webhooks on order lifecycle events and records every attempt in
-// `webhook_logs`. Two kinds of webhook are handled:
-//   • Generic   → signed HTTP POST of the order payload to the configured URL.
-//   • NOEST     → routed through lib/noest.ts (create / validate / return) so the
-//                 saved webhook IS the integration with the livraison société.
-//                 Only acts on orders whose assigned société has platform='noest'.
+// A webhook = a livraison société the user added. An order is dispatched to ONE
+// société (the chosen webhook), which is then remembered for that order. Every
+// later lifecycle event drives THAT société's integration:
+//   • NOEST webhook (url = noest-dz.com) → routed through the NOEST API
+//       (create / validate / update / delete / return) per the NOEST PDF.
+//   • Any other webhook → signed HTTP POST of { event, action, order } to its URL,
+//       so the société's own endpoint receives the whole flow and can react.
 //
-// Dispatch is best-effort: failures are logged but never thrown, so an order
+// Separately, plain notification webhooks (subscribed to a single event) still
+// fire for every order matching that event.
+//
+// Best-effort: failures are logged to webhook_logs, never thrown — an order
 // transition is never blocked by a webhook problem.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -33,6 +41,7 @@ const ACTION_EVENT: Record<string, string> = {
   cancel:                  'OrderCanceled',
   request_return:          'OrderReturned',
   validate_return:         'OrderReturned',
+  updated:                 'OrderAddressChanged',
   set_confirmation_status: 'OrderConfirmationStatusChanged',
   set_delivery_status:     'OrderShippingStatusChanged',
   assign_carrier:          'OrderCarrierChanged',
@@ -42,6 +51,17 @@ const ACTION_EVENT: Record<string, string> = {
 
 export function eventForAction(action: string): string | null {
   return ACTION_EVENT[action] ?? null
+}
+
+// Lifecycle actions that drive the order's delivery-société integration.
+const DELIVERY_ACTIONS = new Set([
+  'dispatch', 'ship', 'deliver', 'cancel', 'request_return', 'validate_return',
+  'updated', 'set_delivery_status',
+])
+
+/** Whether an action should trigger any webhook work (notification or delivery). */
+export function shouldFireWebhooks(action: string): boolean {
+  return !!eventForAction(action) || DELIVERY_ACTIONS.has(action)
 }
 
 function isNoestUrl(url: string): boolean {
@@ -142,9 +162,10 @@ async function buildOrderPayload(orderId: string, event: string) {
 
 // ── Generic webhook: signed HTTP POST ───────────────────────────────────────────
 
-async function dispatchGeneric(wh: WebhookRow, orderId: string, event: string) {
+async function dispatchGeneric(wh: WebhookRow, orderId: string, event: string, action?: string) {
   const payload = await buildOrderPayload(orderId, event)
   if (!payload) return
+  if (action) (payload as Record<string, unknown>).action = action
 
   const bodyStr = JSON.stringify(payload)
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
@@ -221,6 +242,40 @@ async function noestCreateFromOrder(orderId: string): Promise<{ payload: NoestCr
   return { payload, result, tracking }
 }
 
+// Build the NOEST update payload (§5 / §5.1) from the current order row.
+async function noestUpdateFromOrder(orderId: string, tracking: string): Promise<NoestUpdatePayload> {
+  const { data } = await db
+    .from('orders')
+    .select(`
+      reference, phone, phone2, address, wilaya_id, total, remark, delivery_method,
+      clients!client_id(full_name),
+      communes!commune_id(name),
+      order_items(product_name, quantity)
+    `)
+    .eq('id', orderId)
+    .single()
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fo = data as any
+  const produit = (fo.order_items as { product_name: string; quantity: number }[] ?? [])
+    .map(i => (i.quantity > 1 ? `${i.product_name} x${i.quantity}` : i.product_name))
+    .join(', ') || undefined
+
+  return {
+    tracking,
+    client:    fo.clients?.full_name ?? undefined,
+    reference: fo.reference,
+    tel:       fo.phone ? normalizePhone(fo.phone) : undefined,
+    tel2:      fo.phone2 ? normalizePhone(fo.phone2) : undefined,
+    adresse:   fo.address?.trim() || fo.communes?.name || undefined,
+    commune:   fo.communes?.name ?? undefined,
+    montant:   fo.total ?? undefined,
+    remarque:  fo.remark ?? undefined,
+    product:   produit,
+    stop_desk: fo.delivery_method === 'stopdesk' ? 1 : 0,
+  }
+}
+
 async function dispatchNoest(
   wh: WebhookRow,
   orderId: string,
@@ -228,83 +283,216 @@ async function dispatchNoest(
   action: string,
   userId: string | null,
 ) {
-  // Only act on orders assigned to a société whose platform is NOEST.
   const { data: order } = await db
     .from('orders')
-    .select('assigned_carrier_id, carriers!assigned_carrier_id(platform)')
+    .select('tracking_status')
     .eq('id', orderId)
     .single()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const platform = (order as any)?.carriers?.platform as string | null | undefined
-  if (!platform || platform.toLowerCase() !== 'noest') return
+  const status = (order as { tracking_status: string } | null)?.tracking_status ?? ''
 
   const started = Date.now()
 
   try {
-    // On ship/dispatch make sure the order exists on NOEST, then validate on ship.
-    if (action === 'dispatch' || action === 'ship') {
-      let tracking = await getNoestTracking(orderId)
+    switch (action) {
+      // ── Create on dispatch; create + validate on ship ────────────────────────
+      case 'dispatch':
+      case 'ship': {
+        let tracking = await getNoestTracking(orderId)
 
-      if (!tracking) {
-        const { payload, result, tracking: newTracking } = await noestCreateFromOrder(orderId)
-        tracking = newTracking
-        if (tracking) {
-          await db.from('order_logs').insert({
-            id: uuid(), order_id: orderId, user_id: userId,
-            action: 'noest_push', new_values: { noest_tracking: tracking },
+        if (!tracking) {
+          const { payload, result, tracking: newTracking } = await noestCreateFromOrder(orderId)
+          tracking = newTracking
+          if (tracking) {
+            await db.from('order_logs').insert({
+              id: uuid(), order_id: orderId, user_id: userId,
+              action: 'noest_push', new_values: { noest_tracking: tracking },
+            })
+          }
+          await writeLog({
+            webhookId: wh.id, orderId, event,
+            httpStatus: tracking ? 200 : 422,
+            payload: { noest_action: 'create', ...payload },
+            response: JSON.stringify(result), durationMs: Date.now() - started,
           })
         }
+
+        if (action === 'ship' && tracking) {
+          const vStarted = Date.now()
+          const vResult  = await noestValidateOrder(tracking)
+          if (vResult.success) {
+            await db.from('order_logs').insert({
+              id: uuid(), order_id: orderId, user_id: userId,
+              action: 'noest_validate', new_values: { noest_tracking: tracking },
+            })
+          }
+          await writeLog({
+            webhookId: wh.id, orderId, event,
+            httpStatus: vResult.success ? 200 : 422,
+            payload: { noest_action: 'validate', tracking },
+            response: JSON.stringify(vResult), durationMs: Date.now() - vStarted,
+          })
+        }
+        return
+      }
+
+      // ── Edit → push changes to NOEST (§5.1 before expedition, §5 after) ───────
+      case 'updated': {
+        const tracking = await getNoestTracking(orderId)
+        if (!tracking) return   // not on NOEST yet — nothing to update
+        const payload = await noestUpdateFromOrder(orderId, tracking)
+        const beforeExpedition = status === 'en_preparation' || status === 'en_dispatch'
+        const result = beforeExpedition
+          ? await noestUpdateOrderBeforeExpedition(payload)
+          : await noestUpdateOrder(payload)
         await writeLog({
           webhookId: wh.id, orderId, event,
-          httpStatus: tracking ? 200 : 422,
-          payload: { action: 'create', ...payload },
+          httpStatus: result.success ? 200 : 422,
+          payload: { noest_action: beforeExpedition ? 'update_before_expedition' : 'update', ...payload },
           response: JSON.stringify(result), durationMs: Date.now() - started,
         })
+        return
       }
 
-      if (action === 'ship' && tracking) {
-        const vStarted = Date.now()
-        const vResult  = await noestValidateOrder(tracking)
-        if (vResult.success) {
+      // ── Cancel → delete on NOEST (only succeeds while unvalidated) ────────────
+      case 'cancel': {
+        const tracking = await getNoestTracking(orderId)
+        if (!tracking) return
+        const result = await noestDeleteOrder(tracking)
+        await writeLog({
+          webhookId: wh.id, orderId, event,
+          httpStatus: result.success ? 200 : 422,
+          payload: { noest_action: 'delete', tracking },
+          response: JSON.stringify(result), durationMs: Date.now() - started,
+        })
+        return
+      }
+
+      // ── Return request ───────────────────────────────────────────────────────
+      case 'request_return': {
+        const tracking = await getNoestTracking(orderId)
+        if (!tracking) return
+        const result = await noestRequestReturn(tracking)
+        if (result.success) {
           await db.from('order_logs').insert({
             id: uuid(), order_id: orderId, user_id: userId,
-            action: 'noest_validate', new_values: { noest_tracking: tracking },
+            action: 'noest_return_requested', new_values: { noest_tracking: tracking },
           })
         }
         await writeLog({
           webhookId: wh.id, orderId, event,
-          httpStatus: vResult.success ? 200 : 422,
-          payload: { action: 'validate', tracking },
-          response: JSON.stringify(vResult), durationMs: Date.now() - vStarted,
+          httpStatus: result.success ? 200 : 422,
+          payload: { noest_action: 'return', tracking },
+          response: JSON.stringify(result), durationMs: Date.now() - started,
         })
+        return
       }
-      return
-    }
 
-    if (action === 'request_return') {
-      const tracking = await getNoestTracking(orderId)
-      if (!tracking) return
-      const result = await noestRequestReturn(tracking)
-      if (result.success) {
-        await db.from('order_logs').insert({
-          id: uuid(), order_id: orderId, user_id: userId,
-          action: 'noest_return_requested', new_values: { noest_tracking: tracking },
-        })
-      }
-      await writeLog({
-        webhookId: wh.id, orderId, event,
-        httpStatus: result.success ? 200 : 422,
-        payload: { action: 'return', tracking },
-        response: JSON.stringify(result), durationMs: Date.now() - started,
-      })
+      // NOEST drives delivery itself — deliver / set_delivery_status / validate_return
+      // need no outbound call.
+      default:
+        return
     }
   } catch (e) {
     await writeLog({
       webhookId: wh.id, orderId, event,
-      httpStatus: null, payload: { action, error: true },
+      httpStatus: null, payload: { noest_action: action, error: true },
       response: String(e), durationMs: Date.now() - started,
     })
   }
+}
+
+// ── Resolve a saved webhook → a carrier row (for assigned_carrier_id) ────────────
+// The dispatch dropdown lists the saved livraison-société webhooks. An order still
+// needs a carrier (FK + receipts + stats), so we map the chosen webhook to a
+// carrier for the boutique, creating one on first use. NOEST webhooks map to a
+// carrier with platform='noest' so the existing NOEST gating keeps working.
+
+const WEBHOOK_COLS = 'id, name, event, url, secret, boutique_ids, is_active'
+
+export async function resolveCarrierForWebhook(
+  tenantId: string,
+  boutiqueId: string,
+  webhookId: string,
+): Promise<{ carrierId: string; webhook: WebhookRow } | null> {
+  const { data } = await db
+    .from('webhooks')
+    .select(WEBHOOK_COLS)
+    .eq('tenant_id', tenantId)
+    .eq('id', webhookId)
+    .eq('is_active', true)
+    .maybeSingle()
+
+  const webhook = data as WebhookRow | null
+  if (!webhook) return null
+
+  const platform = isNoestUrl(webhook.url) ? 'noest' : 'api'
+
+  // Find an existing carrier for this boutique with the matching platform.
+  const { data: existing } = await db
+    .from('carriers')
+    .select('id, carrier_boutiques!inner(boutique_id)')
+    .eq('tenant_id', tenantId)
+    .eq('platform', platform)
+    .eq('carrier_boutiques.boutique_id', boutiqueId)
+    .limit(1)
+    .maybeSingle()
+
+  if (existing) return { carrierId: (existing as { id: string }).id, webhook }
+
+  // None yet — create a carrier for this société and link it to the boutique.
+  const carrierId = uuid()
+  await db.from('carriers').insert({
+    id: carrierId, tenant_id: tenantId, name: webhook.name,
+    platform, is_active: true,
+  })
+  await db.from('carrier_boutiques').insert({ carrier_id: carrierId, boutique_id: boutiqueId })
+
+  return { carrierId, webhook }
+}
+
+// ── Per-order delivery société tracking ──────────────────────────────────────────
+
+function matchesBoutique(wh: WebhookRow, boutiqueId: string): boolean {
+  return !wh.boutique_ids?.length || wh.boutique_ids.includes(boutiqueId)
+}
+
+/** Remember which société (webhook) an order was dispatched to. */
+async function recordOrderWebhook(orderId: string, webhookId: string, userId: string | null) {
+  await db.from('order_logs').insert({
+    id: uuid(), order_id: orderId, user_id: userId,
+    action: 'delivery_webhook', new_values: { webhook_id: webhookId },
+  })
+}
+
+/** Load the active webhook an order was dispatched to (its livraison société). */
+async function getOrderDeliveryWebhook(tenantId: string, orderId: string): Promise<WebhookRow | null> {
+  const { data: log } = await db
+    .from('order_logs')
+    .select('new_values')
+    .eq('order_id', orderId)
+    .eq('action', 'delivery_webhook')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const webhookId = (log?.new_values as { webhook_id?: string } | null)?.webhook_id
+  if (!webhookId) return null
+
+  const { data } = await db
+    .from('webhooks')
+    .select(WEBHOOK_COLS)
+    .eq('tenant_id', tenantId)
+    .eq('id', webhookId)
+    .eq('is_active', true)
+    .maybeSingle()
+  return data as WebhookRow | null
+}
+
+async function fireDeliveryWebhook(
+  wh: WebhookRow, orderId: string, event: string, action: string, userId: string | null,
+) {
+  if (isNoestUrl(wh.url)) await dispatchNoest(wh, orderId, event, action, userId)
+  else await dispatchGeneric(wh, orderId, event, action)
 }
 
 // ── Public entry point ──────────────────────────────────────────────────────────
@@ -315,32 +503,64 @@ interface FireOpts {
   orderId:    string
   action:     string
   userId?:    string | null
+  webhookId?: string | null   // société chosen at dispatch
 }
 
-/** Fire all webhooks subscribed to the event emitted by `action`, for one order.
- *  Best-effort: never throws. Call after the order row has been updated. */
+/** Fire webhooks for an order transition. Best-effort: never throws.
+ *  Drives the order's delivery société (dynamic — whichever webhook it was
+ *  dispatched to) across the whole lifecycle, plus any notification webhooks
+ *  subscribed to the event. */
 export async function fireOrderWebhooks(opts: FireOpts): Promise<void> {
   const event = eventForAction(opts.action)
-  if (!event) return
 
   try {
-    const { data } = await db
-      .from('webhooks')
-      .select('id, name, event, url, secret, boutique_ids, is_active')
-      .eq('tenant_id', opts.tenantId)
-      .eq('event', event)
-      .eq('is_active', true)
+    const tasks: Promise<void>[] = []
+    let deliveryWh: WebhookRow | null = null
 
-    const hooks = ((data ?? []) as WebhookRow[]).filter(
-      wh => !wh.boutique_ids?.length || wh.boutique_ids.includes(opts.boutiqueId),
-    )
-    if (hooks.length === 0) return
+    // 1. Determine this order's delivery société (chosen now at dispatch, or remembered)
+    if (opts.webhookId) {
+      const { data } = await db
+        .from('webhooks')
+        .select(WEBHOOK_COLS)
+        .eq('tenant_id', opts.tenantId)
+        .eq('id', opts.webhookId)
+        .eq('is_active', true)
+        .maybeSingle()
+      deliveryWh = data as WebhookRow | null
+      if (deliveryWh && opts.action === 'dispatch') {
+        await recordOrderWebhook(opts.orderId, deliveryWh.id, opts.userId ?? null)
+      }
+    } else if (DELIVERY_ACTIONS.has(opts.action)) {
+      deliveryWh = await getOrderDeliveryWebhook(opts.tenantId, opts.orderId)
+    }
 
-    await Promise.all(hooks.map(wh =>
-      isNoestUrl(wh.url)
-        ? dispatchNoest(wh, opts.orderId, event, opts.action, opts.userId ?? null)
-        : dispatchGeneric(wh, opts.orderId, event),
-    ))
+    // 2. Drive the delivery société integration for this order
+    if (deliveryWh && matchesBoutique(deliveryWh, opts.boutiqueId)) {
+      tasks.push(fireDeliveryWebhook(
+        deliveryWh, opts.orderId, event ?? opts.action, opts.action, opts.userId ?? null,
+      ))
+    }
+
+    // 3. Notification webhooks subscribed to this event (excluding the delivery
+    //    société itself and NOEST URLs, which are delivery-only)
+    if (event) {
+      const { data } = await db
+        .from('webhooks')
+        .select(WEBHOOK_COLS)
+        .eq('tenant_id', opts.tenantId)
+        .eq('event', event)
+        .eq('is_active', true)
+
+      for (const wh of (data ?? []) as WebhookRow[]) {
+        if (wh.id === deliveryWh?.id) continue
+        if (isNoestUrl(wh.url)) continue
+        if (matchesBoutique(wh, opts.boutiqueId)) {
+          tasks.push(dispatchGeneric(wh, opts.orderId, event, opts.action))
+        }
+      }
+    }
+
+    if (tasks.length) await Promise.all(tasks)
   } catch {
     // Dispatching must never break the order transition.
   }

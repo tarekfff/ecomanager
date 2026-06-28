@@ -29,6 +29,9 @@ interface Order {
 
 interface Carrier { id: string; name: string }
 
+// A saved livraison-société webhook usable for dispatch
+interface DispatchOption { id: string; name: string; kind: 'noest' | 'api' }
+
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const LIMIT = 25
@@ -104,8 +107,10 @@ export default function EnPreparationPage() {
   const [dateFrom,     setDateFrom]     = useState('')
   const [dateTo,       setDateTo]       = useState('')
 
-  // Carriers for filter + bulk actions
+  // Carriers for filter + carrier-change action
   const [carriers, setCarriers] = useState<Carrier[]>([])
+  // Saved livraison-société webhooks for the Dispatcher dropdown
+  const [dispatchOptions, setDispatchOptions] = useState<DispatchOption[]>([])
 
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -141,10 +146,14 @@ export default function EnPreparationPage() {
   // ── Load carriers when boutique changes ───────────────────────────────────
 
   useEffect(() => {
-    if (!boutiqueId) { setCarriers([]); return }
+    if (!boutiqueId) { setCarriers([]); setDispatchOptions([]); return }
     fetch(`/api/carriers?boutique_id=${boutiqueId}`, { headers: authHeader() })
       .then(r => r.json())
       .then((d: Carrier[]) => { if (Array.isArray(d)) setCarriers(d) })
+      .catch(() => {})
+    fetch(`/api/orders/dispatch-options?boutique_id=${boutiqueId}`, { headers: authHeader() })
+      .then(r => r.json())
+      .then((d: DispatchOption[]) => { if (Array.isArray(d)) setDispatchOptions(d) })
       .catch(() => {})
   }, [boutiqueId])
 
@@ -204,7 +213,7 @@ export default function EnPreparationPage() {
 
   // ── Bulk actions ──────────────────────────────────────────────────────────
 
-  async function bulkAction(action: string, value?: string) {
+  async function bulkAction(action: string, value?: string, webhookId?: string) {
     if (selectedIds.size === 0) return
     setBulkLoading(true)
     setBulkError('')
@@ -212,7 +221,7 @@ export default function EnPreparationPage() {
       const res = await fetch('/api/orders/bulk', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', ...authHeader() },
-        body:    JSON.stringify({ ids: Array.from(selectedIds), action, value }),
+        body:    JSON.stringify({ ids: Array.from(selectedIds), action, value, webhook_id: webhookId }),
       })
       const data = await res.json() as { error?: string }
       if (!res.ok) { setBulkError(data.error ?? 'Erreur'); return }
@@ -391,16 +400,17 @@ export default function EnPreparationPage() {
                   background: '#fff', border: `1px solid ${colors.border}`, borderRadius: 6,
                   boxShadow: '0 4px 16px rgba(0,0,0,0.1)', minWidth: 180, maxHeight: 220, overflowY: 'auto',
                 }}>
-                  {carriers.length === 0 ? (
-                    <div style={{ padding: '10px 14px', fontSize: 12.5, color: colors.textLt }}>
-                      Aucune société disponible
+                  {dispatchOptions.length === 0 ? (
+                    <div style={{ padding: '10px 14px', fontSize: 12.5, color: colors.textLt, maxWidth: 220 }}>
+                      Aucune société de livraison configurée. Ajoutez-en une dans Webhooks.
                     </div>
-                  ) : carriers.map(c => (
+                  ) : dispatchOptions.map(opt => (
                     <button
-                      key={c.id}
-                      onClick={() => bulkAction('dispatch', c.id)}
+                      key={opt.id}
+                      onClick={() => bulkAction('dispatch', undefined, opt.id)}
                       style={{
-                        display: 'block', width: '100%', textAlign: 'left',
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                        width: '100%', textAlign: 'left',
                         padding: '8px 14px', fontSize: 12.5, fontFamily: fonts.sans,
                         border: 'none', background: 'transparent', cursor: 'pointer',
                         color: colors.text,
@@ -408,7 +418,15 @@ export default function EnPreparationPage() {
                       onMouseEnter={e => (e.currentTarget.style.background = colors.primaryLt)}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                     >
-                      {c.name}
+                      <span>{opt.name}</span>
+                      {opt.kind === 'noest' && (
+                        <span style={{
+                          fontSize: 9.5, fontWeight: 700, color: '#0D47A1',
+                          background: '#E3F2FD', borderRadius: 3, padding: '1px 5px',
+                        }}>
+                          NOEST
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>

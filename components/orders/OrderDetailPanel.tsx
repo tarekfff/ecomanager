@@ -117,7 +117,7 @@ const LOG_LABELS: Record<string, string> = {
   set_confirmation_status:  'Statut confirmation modifié',
   delete:                   'Supprimée',
   dispatch:               'Dispatché → En dispatch',
-  assign_carrier:          'Livreur affecté',
+  assign_carrier:          'Société de livraison affectée',
   go_back_to_confirmation: 'Retour en confirmation',
   ship:                    'Expédié → En livraison',
   toggle_sync:             'Synchronisation modifiée',
@@ -126,7 +126,7 @@ const LOG_LABELS: Record<string, string> = {
   deliver:                 'Livrée',
   request_return:          'Retour demandé → En retour',
   set_delivery_status:     'Statut livraison modifié',
-  set_carrier_fee:         'Frais livreur modifiés',
+  set_carrier_fee:         'Frais société modifiés',
   go_back_to_livraison:    'Retour en livraison',
   validate_return:         'Retour validé → Retournée',
   restore:                 'Restaurée → En confirmation',
@@ -312,6 +312,7 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
   const [logs,            setLogs]            = useState<OrderLog[]>([])
   const [users,           setUsers]           = useState<AppUser[]>([])
   const [carriers,        setCarriers]        = useState<Carrier[]>([])
+  const [dispatchOptions, setDispatchOptions] = useState<{ id: string; name: string; kind: 'noest' | 'api' }[]>([])
   const [deliveryStatuses, setDeliveryStatuses] = useState<DeliveryStatus[]>([])
   const [loading,         setLoading]         = useState(false)
   const [logsLoading,     setLogsLoading]     = useState(false)
@@ -377,6 +378,13 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
         ))
       })
       .catch(() => {})
+    // Saved livraison-société webhooks → Dispatcher dropdown
+    fetch(`/api/orders/dispatch-options?boutique_id=${order.boutique_id}`, { headers: authHeader() })
+      .then(r => r.json())
+      .then((d: { id: string; name: string; kind: 'noest' | 'api' }[]) => {
+        if (Array.isArray(d)) setDispatchOptions(d)
+      })
+      .catch(() => {})
   }, [order?.boutique_id])
 
   // Load delivery statuses when order is en_livraison
@@ -425,7 +433,7 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
 
   // ── Actions ─────────────────────────────────────────────────────────────────
 
-  async function doAction(action: string, value?: string) {
+  async function doAction(action: string, value?: string, webhookId?: string) {
     if (!orderId) return
     setActionLoading(true)
     setActionError('')
@@ -438,7 +446,7 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
       const res = await fetch(`/api/orders/${orderId}`, {
         method:  'PATCH',
         headers: { 'Content-Type': 'application/json', ...authHeader() },
-        body:    JSON.stringify({ action, value }),
+        body:    JSON.stringify({ action, value, webhook_id: webhookId }),
       })
       const d = await res.json() as { error?: string }
       if (!res.ok) { setActionError(d.error ?? 'Erreur'); return }
@@ -592,28 +600,30 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
             </Button>
             {showDispatch && (
               <FloatingMenu>
-                {carriers.length === 0
-                  ? <div style={{ padding: '10px 14px', fontSize: 12.5, color: colors.textLt }}>Aucun livreur disponible</div>
-                  : carriers.map(c => (
-                    <MenuBtn key={c.id} onClick={() => doAction('dispatch', c.id)}>{c.name}</MenuBtn>
+                {dispatchOptions.length === 0
+                  ? <div style={{ padding: '10px 14px', fontSize: 12, color: colors.textLt, maxWidth: 220 }}>Aucune société de livraison configurée. Ajoutez-en une dans Webhooks.</div>
+                  : dispatchOptions.map(opt => (
+                    <MenuBtn key={opt.id} onClick={() => doAction('dispatch', undefined, opt.id)}>
+                      {opt.name}{opt.kind === 'noest' ? '  ·  NOEST' : ''}
+                    </MenuBtn>
                   ))
                 }
               </FloatingMenu>
             )}
           </div>
 
-          {/* Changer livreur */}
+          {/* Changer société */}
           <div ref={carrierMenuRef} style={{ position: 'relative' }}>
             <Button
               variant="secondary" size="sm" loading={actionLoading}
               onClick={() => { setShowCarrierMenu(v => !v); setShowDispatch(false) }}
             >
-              <RefreshCw size={13} /> Changer livreur <ChevronDown size={11} />
+              <RefreshCw size={13} /> Changer société <ChevronDown size={11} />
             </Button>
             {showCarrierMenu && (
               <FloatingMenu>
                 {carriers.length === 0
-                  ? <div style={{ padding: '10px 14px', fontSize: 12.5, color: colors.textLt }}>Aucun livreur disponible</div>
+                  ? <div style={{ padding: '10px 14px', fontSize: 12.5, color: colors.textLt }}>Aucune société disponible</div>
                   : carriers.map(c => (
                     <MenuBtn key={c.id} onClick={() => doAction('assign_carrier', c.id)}>{c.name}</MenuBtn>
                   ))
@@ -720,7 +730,7 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
 
           {/* Carrier fee inline edit */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 12, color: colors.textMd, fontFamily: fonts.sans }}>Frais livreur :</span>
+            <span style={{ fontSize: 12, color: colors.textMd, fontFamily: fonts.sans }}>Frais société :</span>
             {carrierFeeEditing ? (
               <>
                 <input

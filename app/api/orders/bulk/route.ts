@@ -9,7 +9,7 @@ import {
   STOCK_DEDUCTED_STATUSES,
 } from '@/lib/stock-order'
 import { bulkActionPerm } from '@/lib/permission-maps'
-import { fireOrderWebhooks, eventForAction } from '@/lib/webhooks'
+import { fireOrderWebhooks, shouldFireWebhooks, resolveCarrierForWebhook } from '@/lib/webhooks'
 
 type BulkAction =
   | 'confirm' | 'cancel' | 'delete' | 'assign' | 'set_confirmation_status'
@@ -20,9 +20,10 @@ type BulkAction =
   | 'restore' | 'undo_delete' | 'hard_delete'
 
 interface BulkBody {
-  ids:    string[]
-  action: BulkAction
-  value?: string
+  ids:        string[]
+  action:     BulkAction
+  value?:     string
+  webhook_id?: string   // dispatch via a saved livraison-société webhook
 }
 
 export async function POST(req: NextRequest) {
@@ -67,6 +68,9 @@ export async function POST(req: NextRequest) {
   }
 
   const now = new Date().toISOString()
+  const webhookId = body.webhook_id?.trim() || undefined
+  // Set when dispatching via a saved webhook → used to fire that exact webhook.
+  let dispatchWebhookId: string | undefined
 
   switch (action) {
     case 'confirm': {
@@ -132,7 +136,28 @@ export async function POST(req: NextRequest) {
       break
 
     case 'dispatch': {
-      if (!value) return NextResponse.json({ error: 'Transporteur requis' }, { status: 400 })
+      // New flow: dispatch via a saved livraison-société webhook.
+      if (webhookId) {
+        const boutiqueIds = Array.from(new Set(verifiedOrders.map(o => o.boutique_id)))
+        const carrierByBoutique = new Map<string, string>()
+        for (const bId of boutiqueIds) {
+          const resolved = await resolveCarrierForWebhook(user.tenantId, bId, webhookId)
+          if (!resolved) return NextResponse.json({ error: 'Société de livraison introuvable' }, { status: 404 })
+          carrierByBoutique.set(bId, resolved.carrierId)
+        }
+        // Assign each order its boutique's carrier
+        for (const [bId, carrierId] of carrierByBoutique) {
+          const idsForBoutique = verifiedOrders.filter(o => o.boutique_id === bId).map(o => o.id)
+          await db.from('orders')
+            .update({ tracking_status: 'en_dispatch', assigned_carrier_id: carrierId, dispatched_at: now })
+            .in('id', idsForBoutique)
+        }
+        dispatchWebhookId = webhookId
+        break
+      }
+
+      // Legacy flow: dispatch via a carrier id.
+      if (!value) return NextResponse.json({ error: 'Société de livraison requise' }, { status: 400 })
       const { data: carrier } = await db
         .from('carriers')
         .select('id')
@@ -140,7 +165,7 @@ export async function POST(req: NextRequest) {
         .eq('tenant_id', user.tenantId)
         .eq('is_active', true)
         .single()
-      if (!carrier) return NextResponse.json({ error: 'Transporteur introuvable' }, { status: 404 })
+      if (!carrier) return NextResponse.json({ error: 'Société de livraison introuvable' }, { status: 404 })
       await db.from('orders')
         .update({ tracking_status: 'en_dispatch', assigned_carrier_id: value, dispatched_at: now })
         .in('id', verifiedIds)
@@ -265,7 +290,7 @@ export async function POST(req: NextRequest) {
 
   // ── Webhooks (generic + NOEST livraison société) ────────────────────────────
   // Fire saved webhooks for each affected order. Best-effort; never blocks.
-  if (action !== 'hard_delete' && eventForAction(action)) {
+  if (action !== 'hard_delete' && shouldFireWebhooks(action)) {
     await Promise.all(verifiedOrders.map(o =>
       fireOrderWebhooks({
         tenantId:   user.tenantId,
@@ -273,6 +298,7 @@ export async function POST(req: NextRequest) {
         orderId:    o.id,
         action,
         userId:     user.sub,
+        webhookId:  action === 'dispatch' ? dispatchWebhookId : undefined,
       }),
     ))
   }

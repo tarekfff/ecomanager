@@ -14,7 +14,7 @@ import {
   restoreStockForOrder,
   STOCK_DEDUCTED_STATUSES,
 } from '@/lib/stock-order'
-import { fireOrderWebhooks } from '@/lib/webhooks'
+import { fireOrderWebhooks, resolveCarrierForWebhook } from '@/lib/webhooks'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -248,6 +248,15 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     new_values: { delivery_method: body.delivery_method, subtotal, delivery_fee: deliveryFee, discount },
   })
 
+  // Push the edit to the order's delivery société (e.g. NOEST update) + notify webhooks
+  await fireOrderWebhooks({
+    tenantId:   user.tenantId,
+    boutiqueId: (existingOrder as { boutique_id: string }).boutique_id,
+    orderId:    id,
+    action:     'updated',
+    userId:     user.sub,
+  })
+
   return NextResponse.json(updated)
 }
 
@@ -256,7 +265,8 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   const { user, perms } = await authWithPermissions(req)
   const { id } = await params
-  const body   = await req.json() as { action: string; value?: string }
+  const body   = await req.json() as { action: string; value?: string; webhook_id?: string }
+  const dispatchWebhookId = body.webhook_id?.trim() || undefined
 
   if (!body.action) return NextResponse.json({ error: 'Action requise' }, { status: 400 })
 
@@ -314,14 +324,25 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       break
 
     case 'dispatch': {
-      if (!body.value) return NextResponse.json({ error: 'Transporteur requis' }, { status: 400 })
+      const boutiqueId = (order as { boutique_id: string }).boutique_id
+
+      // New flow: dispatch via a saved livraison-société webhook.
+      if (dispatchWebhookId) {
+        const resolved = await resolveCarrierForWebhook(user.tenantId, boutiqueId, dispatchWebhookId)
+        if (!resolved) return NextResponse.json({ error: 'Société de livraison introuvable' }, { status: 404 })
+        update = { tracking_status: 'en_dispatch', assigned_carrier_id: resolved.carrierId, dispatched_at: now }
+        break
+      }
+
+      // Legacy flow: dispatch via a carrier id.
+      if (!body.value) return NextResponse.json({ error: 'Société de livraison requise' }, { status: 400 })
       const { data: cbRow } = await db
         .from('carrier_boutiques')
         .select('carrier_id')
         .eq('carrier_id', body.value)
-        .eq('boutique_id', (order as { boutique_id: string }).boutique_id)
+        .eq('boutique_id', boutiqueId)
         .single()
-      if (!cbRow) return NextResponse.json({ error: 'Transporteur non associé à cette boutique' }, { status: 404 })
+      if (!cbRow) return NextResponse.json({ error: 'Société non associée à cette boutique' }, { status: 404 })
       update = { tracking_status: 'en_dispatch', assigned_carrier_id: body.value, dispatched_at: now }
       break
     }
@@ -450,6 +471,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     orderId:    id,
     action:     body.action,
     userId:     user.sub,
+    webhookId:  body.action === 'dispatch' ? dispatchWebhookId : undefined,
   })
 
   return NextResponse.json(updated)

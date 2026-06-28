@@ -127,6 +127,95 @@ export async function noestGetLabelResponse(tracking: string): Promise<Response>
   })
 }
 
+// ── Bulk create / validate (PDF §2, §4) ──────────────────────────────────────────
+
+export async function noestCreateOrders(orders: NoestCreatePayload[]): Promise<unknown> {
+  const res = await call('/api/public/create/orders', {
+    method: 'POST',
+    body:   JSON.stringify({ user_guid: USER_GUID, orders }),
+  })
+  return res.json()
+}
+
+export async function noestValidateOrders(trackings: string[]): Promise<unknown> {
+  const res = await call('/api/public/valid/orders', {
+    method: 'POST',
+    body:   JSON.stringify({ user_guid: USER_GUID, trackings }),
+  })
+  return res.json()
+}
+
+// ── Update an order (PDF §5 and §5.1) ────────────────────────────────────────────
+
+export interface NoestUpdatePayload {
+  tracking:     string
+  tel?:         string
+  tel2?:        string
+  client?:      string
+  reference?:   string
+  adresse?:     string
+  wilaya?:      number
+  commune?:     string
+  montant?:     number
+  remarque?:    string
+  product?:     string
+  type?:        1 | 2 | 3
+  poids?:       number
+  stop_desk?:   0 | 1
+  code_station?: string
+}
+
+/** §5 — modification request (allowed once shipped: only type & montant). */
+export async function noestUpdateOrder(payload: NoestUpdatePayload): Promise<{ success: boolean; message?: string }> {
+  const res = await call('/api/public/update/order', {
+    method: 'POST',
+    body:   JSON.stringify(payload),
+  })
+  return res.json()
+}
+
+/** §5.1 — direct edit before expedition (applies immediately). */
+export async function noestUpdateOrderBeforeExpedition(payload: NoestUpdatePayload): Promise<{ success: boolean; message?: string }> {
+  const res = await call('/api/public/update/order/before/expedition', {
+    method: 'POST',
+    body:   JSON.stringify(payload),
+  })
+  return res.json()
+}
+
+// ── Add a remark (PDF §7) ────────────────────────────────────────────────────────
+
+export async function noestAddRemark(tracking: string, content: string): Promise<{ success: boolean; message?: string }> {
+  const res = await call('/api/public/add/maj', {
+    method: 'POST',
+    body:   JSON.stringify({ tracking, content }),
+  })
+  return res.json()
+}
+
+// ── Reference data (PDF §12–15) ──────────────────────────────────────────────────
+
+export async function noestGetDesks(): Promise<unknown> {
+  const res = await call('/api/public/desks', { method: 'GET' })
+  return res.json()
+}
+
+export async function noestGetFees(): Promise<unknown> {
+  const res = await call('/api/public/fees', { method: 'GET' })
+  return res.json()
+}
+
+export async function noestGetCommunes(wilayaId?: number): Promise<unknown> {
+  const path = wilayaId ? `/api/public/get/communes/${wilayaId}` : '/api/public/get/communes'
+  const res  = await call(path, { method: 'GET' })
+  return res.json()
+}
+
+export async function noestGetWilayas(): Promise<unknown> {
+  const res = await call('/api/public/get/wilayas', { method: 'GET' })
+  return res.json()
+}
+
 // ── Connectivity test (read-only, non-destructive) ───────────────────────────────
 // Calls a read-only NOEST endpoint to verify the API token + user_guid work
 // without creating or mutating anything on NOEST's side.
