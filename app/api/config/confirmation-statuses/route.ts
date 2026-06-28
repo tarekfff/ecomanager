@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireAuth, requirePermission } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 function slugify(s: string): string {
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const user = requireAuth(req)
+  const user = await requirePermission(req, 'config.statuses')
   const body = await req.json() as Record<string, unknown>
 
   const name = (body.name as string | undefined)?.trim()

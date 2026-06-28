@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requirePermission } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 export async function GET(req: NextRequest) {
-  const user        = requireAuth(req)
+  const user        = await requirePermission(req, 'stock.batches')
   const sp          = req.nextUrl.searchParams
   const productId   = sp.get('product_id')   ?? ''
   const warehouseId = sp.get('warehouse_id') ?? ''

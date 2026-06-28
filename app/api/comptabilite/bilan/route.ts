@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requirePermission } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 type FactRow = {
@@ -17,7 +17,7 @@ type FactRow = {
 type AmountRow = { amount: number | null }
 
 export async function GET(req: NextRequest) {
-  const user = requireAuth(req)
+  const user = await requirePermission(req, 'accounting.bilan')
   const sp   = req.nextUrl.searchParams
 
   const boutiqueId = (sp.get('boutique_id') ?? '').trim()

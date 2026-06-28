@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireAnyPermission } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 const DATE_FIELD_MAP: Record<string, string> = {
@@ -34,7 +34,7 @@ type FactRow = {
 }
 
 export async function GET(req: NextRequest) {
-  const user = requireAuth(req)
+  const user = await requireAnyPermission(req, ['stats.boutique','stats.product','stats.delivery','stats.confirmation','stats.order'])
   const sp   = req.nextUrl.searchParams
 
   const dimension   = (sp.get('dimension')    ?? 'wilaya').trim()

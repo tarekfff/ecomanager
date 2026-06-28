@@ -264,7 +264,7 @@ export async function syncGoogleSheet(params: SyncParams): Promise<SyncResult> {
   const useSigGuard = !keyedAlready || !keyLookupOk
   const existingSig = new Set<string>()
   if (useSigGuard) {
-    const { data } = await db.from('orders').select('phone, subtotal').eq('boutique_id', boutiqueId)
+    const { data } = await db.from('orders').select('phone, subtotal').eq('boutique_id', boutiqueId).limit(5000)
     for (const o of (data ?? []) as { phone: string; subtotal: number }[]) {
       existingSig.add(`${String(o.phone ?? '').trim()}|${Number(o.subtotal)}`)
     }

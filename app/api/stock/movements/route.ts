@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requirePermission } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 export async function GET(req: NextRequest) {
-  const user = requireAuth(req)
+  const user = await requirePermission(req, 'stock.movements')
   const sp   = req.nextUrl.searchParams
 
   const page          = Math.max(1, parseInt(sp.get('page')            ?? '1'))

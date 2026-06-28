@@ -128,6 +128,34 @@ function SkeletonRow({ cols }: { cols: number }) {
   )
 }
 
+// ── Table cells ───────────────────────────────────────────────────────────────
+
+function TH({ children, width, center }: { children: React.ReactNode; width?: number; center?: boolean }) {
+  return (
+    <th style={{
+      fontSize: 11.5, fontWeight: 600, color: colors.textMd,
+      padding: '8px 10px', textAlign: center ? 'center' : 'left',
+      whiteSpace: 'nowrap', width, background: '#f5f5f5',
+    }}>
+      {children}
+    </th>
+  )
+}
+
+function TD({ children, center, muted }: { children: React.ReactNode; center?: boolean; muted?: boolean }) {
+  return (
+    <td style={{
+      fontSize: 12.5, padding: '8px 10px',
+      color: muted ? colors.textMd : colors.text,
+      borderBottom: `1px solid ${colors.border}`,
+      textAlign: center ? 'center' : 'left',
+      verticalAlign: 'middle',
+    }}>
+      {children}
+    </td>
+  )
+}
+
 // ── Main Page ──────────────────────────────────────────────────────────────────
 
 export default function EnConfirmationPage() {
@@ -168,6 +196,8 @@ export default function EnConfirmationPage() {
   const [newCount,     setNewCount]     = useState(0)
   const [newOrderIds,  setNewOrderIds]  = useState<Set<string>>(new Set())
   const cursorRef      = useRef<string | null>(null)   // newest created_at currently shown
+  // Mirror of filter/selection state for use inside the interval without re-registering it
+  const liveStateRef   = useRef({ page, selectedIds, dbSearch, filterUser, dateFrom, dateTo })
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -228,6 +258,9 @@ export default function EnConfirmationPage() {
 
   useEffect(() => { fetchOrders() }, [fetchOrders])
 
+  // Keep the live-state ref in sync on every render (no extra effect needed)
+  liveStateRef.current = { page, selectedIds, dbSearch, filterUser, dateFrom, dateTo }
+
   // ── Sheet sync — on open, on focus, and every 30s while page is visible ─────
   // Access tokens are cached in credentials_ref for 55 min, so frequent calls
   // don't refresh the OAuth token — they reuse the cached one and just read
@@ -266,11 +299,12 @@ export default function EnConfirmationPage() {
 
       // 2) Live cursor — fetch only orders newer than what we already show
       if (!cursorRef.current) return
+      const ls = liveStateRef.current
       const qs = new URLSearchParams({
         status: 'en_confirmation', boutique_id: boutiqueId,
         created_after: cursorRef.current, limit: '50', page: '1',
       })
-      if (filterUser) qs.set('assigned_to', filterUser)
+      if (ls.filterUser) qs.set('assigned_to', ls.filterUser)
 
       fetch(`/api/orders?${qs}`, { headers: authHeader() })
         .then(r => r.json())
@@ -279,8 +313,8 @@ export default function EnConfirmationPage() {
           if (!fresh.length) return
           cursorRef.current = fresh[0].created_at  // advance so we never recount
 
-          const idle = page === 1 && selectedIds.size === 0
-            && !dbSearch && !filterUser && !dateFrom && !dateTo
+          const idle = ls.page === 1 && ls.selectedIds.size === 0
+            && !ls.dbSearch && !ls.filterUser && !ls.dateFrom && !ls.dateTo
 
           if (idle) {
             // Prepend (created_after is strict, so these are never already in the list)
@@ -306,7 +340,7 @@ export default function EnConfirmationPage() {
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('focus', onVisible)
     }
-  }, [boutiqueId, page, selectedIds, dbSearch, filterUser, dateFrom, dateTo, triggerSync])
+  }, [boutiqueId, triggerSync])
 
   // ── Search debounce ───────────────────────────────────────────────────────
 
@@ -374,32 +408,6 @@ export default function EnConfirmationPage() {
     { value: '', label: 'Tous les confirmateurs' },
     ...users.map(u => ({ value: u.id, label: u.name })),
   ]
-
-  // ── Table header cell ─────────────────────────────────────────────────────
-
-  const TH = ({ children, width, center }: { children: React.ReactNode; width?: number; center?: boolean }) => (
-    <th style={{
-      fontSize: 11.5, fontWeight: 600, color: colors.textMd,
-      padding: '8px 10px', textAlign: center ? 'center' : 'left',
-      whiteSpace: 'nowrap', width, background: '#f5f5f5',
-    }}>
-      {children}
-    </th>
-  )
-
-  // ── Table data cell ───────────────────────────────────────────────────────
-
-  const TD = ({ children, center, muted }: { children: React.ReactNode; center?: boolean; muted?: boolean }) => (
-    <td style={{
-      fontSize: 12.5, padding: '8px 10px',
-      color: muted ? colors.textMd : colors.text,
-      borderBottom: `1px solid ${colors.border}`,
-      textAlign: center ? 'center' : 'left',
-      verticalAlign: 'middle',
-    }}>
-      {children}
-    </td>
-  )
 
   // ── Render ────────────────────────────────────────────────────────────────
 

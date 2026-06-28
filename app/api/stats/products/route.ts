@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requirePermission } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 // Returns all active tenant products — no boutique_id required
 // Used by stats filter dropdowns
 export async function GET(req: NextRequest) {
-  const user   = requireAuth(req)
+  const user   = await requirePermission(req, 'stats.product')
   const search = (req.nextUrl.searchParams.get('search') ?? '').trim()
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

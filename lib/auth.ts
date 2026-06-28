@@ -37,7 +37,7 @@ export async function getUserPermissions(
     .eq('user_id', userId)
 
   type Row = { roles: { permissions: Record<string, boolean> } }
-  const rows = (data ?? []) as Row[]
+  const rows = (data ?? []) as unknown as Row[]
 
   // Super Admin check first (short-circuit)
   for (const row of rows) {
@@ -70,6 +70,21 @@ export async function requirePermission(
     )
   }
   return user
+}
+
+/** Like requirePermission but passes if the user has ANY of the provided keys. */
+export async function requireAnyPermission(
+  req: NextRequest,
+  keys: string[],
+): Promise<AuthUser> {
+  const user  = requireAuth(req)
+  const perms = await getUserPermissions(user.sub)
+  if (perms['*'] === true) return user
+  if (keys.some(k => perms[k] === true)) return user
+  throw new Response(
+    JSON.stringify({ error: 'Permission refusée' }),
+    { status: 403, headers: { 'Content-Type': 'application/json' } },
+  )
 }
 
 /** Pure helper — same logic used client-side from PermissionsContext.can(). */

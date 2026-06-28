@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requirePermission } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { getAccessToken, stopDriveWatch } from '@/lib/sync-google-sheet'
 
@@ -22,7 +22,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const user = requireAuth(req)
+  const user = await requirePermission(req, 'config.sources')
   const { id } = await params
 
   const source = await getOwnedSource(id, user.tenantId)
@@ -52,7 +52,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const user = requireAuth(req)
+  const user = await requirePermission(req, 'config.sources')
   const { id } = await params
 
   const source = await getOwnedSource(id, user.tenantId)

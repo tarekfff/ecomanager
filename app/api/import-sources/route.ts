@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requirePermission } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { v4 as uuid } from 'uuid'
 import { getAccessToken, registerDriveWatch } from '@/lib/sync-google-sheet'
 
 export async function GET(req: NextRequest) {
-  const user       = requireAuth(req)
+  const user       = await requirePermission(req, 'config.sources')
   const boutiqueId = req.nextUrl.searchParams.get('boutique_id') ?? ''
 
   if (!boutiqueId) return NextResponse.json({ error: 'boutique_id requis' }, { status: 400 })
@@ -67,7 +67,7 @@ function getOrigin(req: NextRequest): string {
 }
 
 export async function POST(req: NextRequest) {
-  const user = requireAuth(req)
+  const user = await requirePermission(req, 'config.sources')
   const body = await req.json() as CreateBody
   const { name, boutique_id, sheet_id, sheet_name, separator, mapping, refresh_token, google_email } = body
 
