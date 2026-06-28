@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requirePermission } from '@/lib/auth'
 import { google } from 'googleapis'
 
 export async function GET(req: NextRequest) {
-  requireAuth(req)
+  await requirePermission(req, 'config.sources')
 
   const token = req.nextUrl.searchParams.get('google_token')
   if (!token) return NextResponse.json({ error: 'google_token requis' }, { status: 400 })

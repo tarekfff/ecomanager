@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requirePermission } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { v4 as uuid } from 'uuid'
 
 export async function GET(req: NextRequest) {
-  const user = requireAuth(req)
+  const user = await requirePermission(req, 'config.clients')
   const sp   = req.nextUrl.searchParams
 
   const page     = Math.max(1, parseInt(sp.get('page')     ?? '1'))
@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const user = requireAuth(req)
+  const user = await requirePermission(req, 'config.clients')
   const body = await req.json() as Record<string, unknown>
 
   const full_name  = (body.full_name  as string | undefined)?.trim()

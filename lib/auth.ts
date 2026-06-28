@@ -36,17 +36,24 @@ export async function getUserPermissions(
     .select('roles!inner(permissions)')
     .eq('user_id', userId)
 
-  type Row = { roles: { permissions: Record<string, boolean> } }
+  type Row = { roles: { permissions: unknown } }
   const rows = (data ?? []) as unknown as Row[]
+
+  function parsePerms(raw: unknown): Record<string, boolean> {
+    if (!raw) return {}
+    if (typeof raw === 'string') { try { return JSON.parse(raw) } catch { return {} } }
+    return raw as Record<string, boolean>
+  }
 
   // Super Admin check first (short-circuit)
   for (const row of rows) {
-    if (row.roles?.permissions?.['*'] === true) return { '*': true }
+    const p = parsePerms(row.roles?.permissions)
+    if (p['*'] === true) return { '*': true }
   }
 
   const merged: Record<string, boolean> = {}
   for (const row of rows) {
-    const perms = row.roles?.permissions ?? {}
+    const perms = parsePerms(row.roles?.permissions)
     for (const [k, v] of Object.entries(perms)) {
       if (v === true) merged[k] = true
     }
@@ -82,6 +89,45 @@ export async function requireAnyPermission(
   if (perms['*'] === true) return user
   if (keys.some(k => perms[k] === true)) return user
   throw new Response(
+    JSON.stringify({ error: 'Permission refusée' }),
+    { status: 403, headers: { 'Content-Type': 'application/json' } },
+  )
+}
+
+/** Passes if the user has ANY permission whose key starts with `prefix`
+ *  (e.g. prefix 'orders' → any 'orders.*'). Throws 401/403 otherwise. */
+export async function requirePermissionPrefix(
+  req: NextRequest,
+  prefix: string,
+): Promise<AuthUser> {
+  const user  = requireAuth(req)
+  const perms = await getUserPermissions(user.sub)
+  if (perms['*'] === true) return user
+  const ok = Object.entries(perms).some(
+    ([k, v]) => v === true && (k === prefix || k.startsWith(prefix + '.')),
+  )
+  if (ok) return user
+  throw permissionDenied()
+}
+
+/** Throws 401 if no JWT, else returns the user + their merged permissions.
+ *  Use when the required key is computed dynamically (per order status/action)
+ *  — call `assertPermission(perms, key)` afterwards. */
+export async function authWithPermissions(
+  req: NextRequest,
+): Promise<{ user: AuthUser; perms: Record<string, boolean> }> {
+  const user  = requireAuth(req)
+  const perms = await getUserPermissions(user.sub)
+  return { user, perms }
+}
+
+/** Throws 403 unless the merged permissions satisfy `key` (or Super Admin). */
+export function assertPermission(perms: Record<string, boolean>, key: string): void {
+  if (perms['*'] !== true && perms[key] !== true) throw permissionDenied()
+}
+
+function permissionDenied(): Response {
+  return new Response(
     JSON.stringify({ error: 'Permission refusée' }),
     { status: 403, headers: { 'Content-Type': 'application/json' } },
   )

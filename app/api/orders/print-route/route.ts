@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requirePermission } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 interface PrintBody {
@@ -7,7 +7,7 @@ interface PrintBody {
 }
 
 export async function POST(req: NextRequest) {
-  const user = requireAuth(req)
+  const user = await requirePermission(req, 'orders.en_dispatch.print_route')
   const body = await req.json() as PrintBody
 
   if (!body.order_ids?.length) {

@@ -6,6 +6,7 @@ import { PermissionsProvider } from '@/contexts/PermissionsContext'
 import Topbar from '@/components/layout/Topbar'
 import Sidebar from '@/components/layout/Sidebar'
 import StatusBar from '@/components/layout/StatusBar'
+import RouteGuard from '@/components/RouteGuard'
 import { getStoredToken, isTokenValid, clearAuth } from '@/lib/client-auth'
 import { colors } from '@/lib/tokens'
 
@@ -17,7 +18,7 @@ function Shell({ children }: { children: ReactNode }) {
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden', minHeight: 0 }}>
         <Sidebar />
         <main style={{ flex: 1, overflowY: 'auto', background: colors.bg }}>
-          {children}
+          <RouteGuard>{children}</RouteGuard>
         </main>
       </div>
     </div>

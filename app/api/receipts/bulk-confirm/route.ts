@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { authWithPermissions, assertPermission } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 interface BulkConfirmBody {
@@ -9,13 +9,16 @@ interface BulkConfirmBody {
 }
 
 export async function POST(req: NextRequest) {
-  const user = requireAuth(req)
+  const { user, perms } = await authWithPermissions(req)
   const body = await req.json() as BulkConfirmBody
   const { type, order_ids } = body
 
   if (!type || (type !== 'encaissement' && type !== 'retour')) {
     return NextResponse.json({ error: 'type invalide' }, { status: 400 })
   }
+
+  // Confirming a bon requires the matching bon confirm permission
+  assertPermission(perms, type === 'retour' ? 'orders.bon_retour.confirm' : 'orders.bon_encaissement.confirm')
   if (!Array.isArray(order_ids) || order_ids.length === 0) {
     return NextResponse.json({ error: 'order_ids requis' }, { status: 400 })
   }

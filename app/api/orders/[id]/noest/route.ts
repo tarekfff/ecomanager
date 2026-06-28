@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireAuth, requirePermission } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { v4 as uuid } from 'uuid'
 import {
@@ -94,7 +94,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
 interface PostBody { action: 'push' | 'validate' | 'return' | 'new_attempt' }
 
 export async function POST(req: NextRequest, { params }: Ctx) {
-  const user   = requireAuth(req)
+  const user   = await requirePermission(req, 'orders.en_dispatch.ship')
   const { id } = await params
   const body   = await req.json() as PostBody
 

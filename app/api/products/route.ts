@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth, requirePermission } from '@/lib/auth'
+import { requirePermission } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { v4 as uuid } from 'uuid'
 

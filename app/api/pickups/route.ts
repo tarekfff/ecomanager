@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { authWithPermissions, assertPermission } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { pickupViewPermForStatus } from '@/lib/permission-maps'
 
 export async function GET(req: NextRequest) {
-  const user = requireAuth(req)
+  const { user, perms } = await authWithPermissions(req)
   const sp         = req.nextUrl.searchParams
   const status     = sp.get('status') ?? ''
   const boutiqueId = sp.get('boutique_id') ?? ''
@@ -15,6 +16,9 @@ export async function GET(req: NextRequest) {
   if (!status || !boutiqueId) {
     return NextResponse.json({ error: 'status et boutique_id requis' }, { status: 400 })
   }
+
+  // Gate the pickups list by the view permission for the requested status
+  assertPermission(perms, pickupViewPermForStatus(status))
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query: any = db

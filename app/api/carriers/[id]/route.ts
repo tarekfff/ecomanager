@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireAuth, requirePermission } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
 }
 
 export async function PUT(req: NextRequest, { params }: Ctx) {
-  const user = requireAuth(req)
+  const user = await requirePermission(req, 'config.delivery')
   const { id } = await params
   const body = await req.json() as Record<string, unknown>
 
@@ -74,7 +74,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
 }
 
 export async function DELETE(req: NextRequest, { params }: Ctx) {
-  const user = requireAuth(req)
+  const user = await requirePermission(req, 'config.delivery')
   const { id } = await params
 
   // Verify ownership

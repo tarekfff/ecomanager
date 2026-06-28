@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { authWithPermissions, assertPermission } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { v4 as uuid } from 'uuid'
+import {
+  detailViewPermForStatus,
+  editPermForStatus,
+  deletePermForStatus,
+  actionPerm,
+} from '@/lib/permission-maps'
 import {
   getOrderItems,
   deductStockForOrder,
@@ -21,7 +27,7 @@ type Ctx = { params: Promise<{ id: string }> }
 // ── GET — full order detail ────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest, { params }: Ctx) {
-  const user   = requireAuth(req)
+  const { user, perms } = await authWithPermissions(req)
   const { id } = await params
 
   const { data, error } = await db
@@ -54,6 +60,9 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     .single()
 
   if (!boutique) return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
+
+  // Gate detail view by the order's pipeline stage
+  assertPermission(perms, detailViewPermForStatus((data as { tracking_status: string }).tracking_status))
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const o = data as any
@@ -125,7 +134,7 @@ interface PutBody {
 }
 
 export async function PUT(req: NextRequest, { params }: Ctx) {
-  const user   = requireAuth(req)
+  const { user, perms } = await authWithPermissions(req)
   const { id } = await params
   const body   = await req.json() as PutBody
 
@@ -136,7 +145,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   // Verify order + tenant ownership
   const { data: existingOrder } = await db
     .from('orders')
-    .select('boutique_id')
+    .select('boutique_id, tracking_status')
     .eq('id', id)
     .is('deleted_at', null)
     .single()
@@ -151,6 +160,9 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     .single()
 
   if (!boutique) return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
+
+  // Gate full edit by the order's pipeline stage
+  assertPermission(perms, editPermForStatus((existingOrder as { tracking_status: string }).tracking_status))
 
   // Upsert client
   const phone = body.phone.trim()
@@ -248,7 +260,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
 // ── PATCH — status transitions ─────────────────────────────────────────────────
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
-  const user   = requireAuth(req)
+  const { user, perms } = await authWithPermissions(req)
   const { id } = await params
   const body   = await req.json() as { action: string; value?: string }
 
@@ -271,6 +283,11 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     .single()
 
   if (!boutique) return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
+
+  // Gate the transition by the (action, current-stage) permission
+  const requiredPerm = actionPerm(body.action, (order as { tracking_status: string }).tracking_status)
+  if (!requiredPerm) return NextResponse.json({ error: `Action inconnue: ${body.action}` }, { status: 400 })
+  assertPermission(perms, requiredPerm)
 
   const now = new Date().toISOString()
   let update: Record<string, unknown>
@@ -547,12 +564,12 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 // ── DELETE — hard delete ───────────────────────────────────────────────────────
 
 export async function DELETE(req: NextRequest, { params }: Ctx) {
-  const user   = requireAuth(req)
+  const { user, perms } = await authWithPermissions(req)
   const { id } = await params
 
   const { data: order } = await db
     .from('orders')
-    .select('boutique_id')
+    .select('boutique_id, tracking_status')
     .eq('id', id)
     .single()
 
@@ -566,6 +583,9 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
     .single()
 
   if (!boutique) return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
+
+  // Hard delete requires the delete permission for the order's current stage
+  assertPermission(perms, deletePermForStatus((order as { tracking_status: string }).tracking_status))
 
   await db.from('order_items').delete().eq('order_id', id)
   await db.from('order_logs').delete().eq('order_id', id)

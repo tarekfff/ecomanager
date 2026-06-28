@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requirePermission } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -9,7 +9,7 @@ const SELECT_FIELDS =
   'orders_delivered, orders_returned, orders_cancelled, created_at'
 
 export async function GET(req: NextRequest, { params }: Ctx) {
-  const user = requireAuth(req)
+  const user = await requirePermission(req, 'config.clients')
   const { id } = await params
 
   const { data, error } = await db
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
 }
 
 export async function PUT(req: NextRequest, { params }: Ctx) {
-  const user = requireAuth(req)
+  const user = await requirePermission(req, 'config.clients')
   const { id } = await params
   const body = await req.json() as Record<string, unknown>
 
@@ -62,7 +62,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
 }
 
 export async function DELETE(req: NextRequest, { params }: Ctx) {
-  const user = requireAuth(req)
+  const user = await requirePermission(req, 'config.clients')
   const { id } = await params
 
   const { error } = await db

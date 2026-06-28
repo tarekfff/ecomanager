@@ -90,7 +90,7 @@ const SECTIONS: SidebarSection[] = [
       },
       {
         icon: Users, label: 'Clients',
-        // No permission guard — anyone managing orders needs client access
+        perm: 'config.clients',
         children: [
           it(List,       'Liste des clients',    '/dashboard/clients'),
           it(PlusCircle, 'Ajouter un client',    '/dashboard/clients'),
@@ -148,7 +148,7 @@ const SECTIONS: SidebarSection[] = [
     groups: [
       {
         icon: Truck, label: 'Livraison',
-        // No permission guard — livreurs are a shared reference
+        perm: 'config.delivery',
         children: [
           it(List,       'Liste des livreurs',  '/dashboard/livraison/livreurs'),
           it(PlusCircle, 'Ajouter un livreur',  '/dashboard/livraison/livreurs'),

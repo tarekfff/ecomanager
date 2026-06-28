@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requirePermission } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const user = requireAuth(req)
+  const user = await requirePermission(req, 'products.edit')
   const { id } = await params
   const body = await req.json() as Record<string, unknown>
   const name = (body.name as string | undefined)?.trim()
@@ -32,7 +32,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const user = requireAuth(req)
+  const user = await requirePermission(req, 'products.edit')
   const { id } = await params
 
   // Verify ownership

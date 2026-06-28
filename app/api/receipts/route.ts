@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { authWithPermissions, assertPermission } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { v4 as uuid } from 'uuid'
+import { receiptViewPermForType } from '@/lib/permission-maps'
 
 interface ReceiptBody {
   order_id: string
@@ -9,7 +10,7 @@ interface ReceiptBody {
 }
 
 export async function GET(req: NextRequest) {
-  const user = requireAuth(req)
+  const { user, perms } = await authWithPermissions(req)
   const sp         = req.nextUrl.searchParams
   const type       = sp.get('type') as 'encaissement' | 'retour' | null
   const boutiqueId = sp.get('boutique_id') ?? ''
@@ -21,6 +22,9 @@ export async function GET(req: NextRequest) {
   if (!boutiqueId) {
     return NextResponse.json({ error: 'boutique_id requis' }, { status: 400 })
   }
+
+  // Gate the bons list by the matching bon view permission
+  assertPermission(perms, receiptViewPermForType(type))
 
   const { data, error } = await db
     .from('receipts')
@@ -63,7 +67,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const user = requireAuth(req)
+  const { user, perms } = await authWithPermissions(req)
   const body = await req.json() as ReceiptBody
 
   const { order_id, type } = body
@@ -71,6 +75,9 @@ export async function POST(req: NextRequest) {
   if (type !== 'encaissement' && type !== 'retour') {
     return NextResponse.json({ error: 'Type invalide' }, { status: 400 })
   }
+
+  // Preparing a bon requires the prepare_bon permission for the source stage
+  assertPermission(perms, type === 'retour' ? 'orders.en_retour.prepare_bon' : 'orders.livrees.prepare_bon')
 
   // Fetch order — verify it belongs to this tenant via boutiques
   const { data: order } = await db

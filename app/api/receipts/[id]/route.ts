@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { authWithPermissions, assertPermission } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const user = requireAuth(req)
+  const { user, perms } = await authWithPermissions(req)
   const { id } = await params
 
   // Verify the receipt belongs to this tenant via orders → boutiques
   const { data: receipt } = await db
     .from('receipts')
-    .select('id, status, orders!inner(boutiques!inner(tenant_id))')
+    .select('id, status, type, orders!inner(boutiques!inner(tenant_id))')
     .eq('id', id)
     .single()
 
@@ -25,6 +25,9 @@ export async function DELETE(
   if (tid !== user.tenantId) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
   }
+
+  // Removing a prepared bon = go_back on the matching bon section
+  assertPermission(perms, anyR.type === 'retour' ? 'orders.bon_retour.go_back' : 'orders.bon_encaissement.go_back')
 
   if (anyR.status === 'confirmed') {
     return NextResponse.json({ error: 'Un bon confirmé ne peut pas être supprimé' }, { status: 409 })

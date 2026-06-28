@@ -929,7 +929,7 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
         </div>
 
         {/* ── Scrollable body ─────────────────────────────────────────────── */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
 
           {loading && !o ? (
             <>

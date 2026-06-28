@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { authWithPermissions, assertPermission, requirePermissionPrefix } from '@/lib/auth'
 import { db, rpc } from '@/lib/db'
 import { v4 as uuid } from 'uuid'
+import { listViewPermForStatus } from '@/lib/permission-maps'
 
 export async function GET(req: NextRequest) {
-  const user = requireAuth(req)
+  const { user, perms } = await authWithPermissions(req)
   const sp   = req.nextUrl.searchParams
 
   const status     = (sp.get('status')      ?? 'en_confirmation').trim()
+  // Gate the list by the view permission for the requested pipeline stage
+  assertPermission(perms, listViewPermForStatus(status))
   const boutiqueId = (sp.get('boutique_id') ?? '').trim()
   const page       = Math.max(1, parseInt(sp.get('page')  ?? '1'))
   const limit      = Math.min(100, parseInt(sp.get('limit') ?? '25'))
@@ -166,7 +169,8 @@ interface OrderBody {
 }
 
 export async function POST(req: NextRequest) {
-  const user = requireAuth(req)
+  // Creating an order requires at least one orders.* permission
+  const user = await requirePermissionPrefix(req, 'orders')
   const body = await req.json() as OrderBody
 
   const boutiqueId = body.boutique_id?.trim()

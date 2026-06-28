@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requirePermission } from '@/lib/auth'
 import { db, rpc } from '@/lib/db'
 import { google } from 'googleapis'
 import { v4 as uuid } from 'uuid'
@@ -40,7 +40,7 @@ function cell(row: string[], headers: string[], col: string): string {
 }
 
 export async function POST(req: NextRequest) {
-  const user = requireAuth(req)
+  const user = await requirePermission(req, 'config.sources')
   const body = await req.json() as ImportBody
   const { sheet_id, sheet_name, separator, boutique_id, google_token, mapping } = body
 

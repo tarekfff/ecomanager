@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { authWithPermissions, assertPermission } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { v4 as uuid } from 'uuid'
 import {
@@ -8,6 +8,7 @@ import {
   restoreStockForOrder,
   STOCK_DEDUCTED_STATUSES,
 } from '@/lib/stock-order'
+import { bulkActionPerm } from '@/lib/permission-maps'
 
 type BulkAction =
   | 'confirm' | 'cancel' | 'delete' | 'assign' | 'set_confirmation_status'
@@ -24,7 +25,7 @@ interface BulkBody {
 }
 
 export async function POST(req: NextRequest) {
-  const user = requireAuth(req)
+  const { user, perms } = await authWithPermissions(req)
   const body = await req.json() as BulkBody
 
   const { ids, action, value } = body
@@ -43,15 +44,25 @@ export async function POST(req: NextRequest) {
 
   const { data: orderData } = await db
     .from('orders')
-    .select('id, boutique_id')
+    .select('id, boutique_id, tracking_status')
     .in('id', ids)
 
-  const verifiedIds = ((orderData ?? []) as { id: string; boutique_id: string }[])
+  const verifiedOrders = ((orderData ?? []) as { id: string; boutique_id: string; tracking_status: string }[])
     .filter(o => tenantBoutiqueIds.has(o.boutique_id))
-    .map(o => o.id)
+  const verifiedIds = verifiedOrders.map(o => o.id)
 
   if (verifiedIds.length === 0) {
     return NextResponse.json({ error: 'Commandes introuvables ou non autorisées' }, { status: 403 })
+  }
+
+  // Gate the bulk action by the (action, stage) permission. For stage-dependent
+  // actions we require the permission for EVERY distinct stage in the selection,
+  // so a user can never bulk-affect an order in a stage they can't act on.
+  const stages = Array.from(new Set(verifiedOrders.map(o => o.tracking_status)))
+  for (const stage of stages) {
+    const requiredPerm = bulkActionPerm(action, stage)
+    if (!requiredPerm) return NextResponse.json({ error: `Action inconnue: ${action}` }, { status: 400 })
+    assertPermission(perms, requiredPerm)
   }
 
   const now = new Date().toISOString()

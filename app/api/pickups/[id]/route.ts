@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { authWithPermissions, assertPermission } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { pickupActionPerm } from '@/lib/permission-maps'
 
 const TRANSITIONS: Record<string, { next: string; col: string }> = {
   validate_collect:    { next: 'collecte', col: 'collected_at' },
@@ -21,7 +22,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const user = requireAuth(req)
+  const { user, perms } = await authWithPermissions(req)
   const { id } = await params
   const body = await req.json() as { action: string }
   const { action } = body
@@ -47,6 +48,11 @@ export async function PATCH(
 
   const now = new Date().toISOString()
   const currentStatus = anyP.status as string
+
+  // Gate the pickup transition by the (action, status) permission
+  const requiredPerm = pickupActionPerm(action, currentStatus)
+  if (!requiredPerm) return NextResponse.json({ error: 'Action invalide' }, { status: 400 })
+  assertPermission(perms, requiredPerm)
 
   if (action === 'go_back') {
     const prev = GO_BACK[currentStatus]

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requirePermission } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(req: NextRequest, { params }: Ctx) {
-  const user   = requireAuth(req)
+  const user   = await requirePermission(req, 'other.view_order_logs')
   const { id } = await params
 
   // Verify ownership via boutique

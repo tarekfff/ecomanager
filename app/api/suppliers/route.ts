@@ -7,34 +7,30 @@ export async function GET(req: NextRequest) {
   const user = requireAuth(req)
 
   const { data, error } = await db
-    .from('brands')
-    .select('id, name, products(count)')
+    .from('suppliers')
+    .select('id, name, phone, email, address')
     .eq('tenant_id', user.tenantId)
     .order('name')
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const brands = (data ?? []).map((b: any) => ({
-    id:            b.id,
-    name:          b.name,
-    product_count: b.products?.[0]?.count ?? 0,
-  }))
-
-  return NextResponse.json(brands)
+  return NextResponse.json(data ?? [])
 }
 
 export async function POST(req: NextRequest) {
-  const user = await requirePermission(req, 'brands.create')
+  const user = await requirePermission(req, 'suppliers.create')
   const body = await req.json() as Record<string, unknown>
-  const name = (body.name as string | undefined)?.trim()
+
+  const name    = (body.name    as string | undefined)?.trim()
+  const phone   = (body.phone   as string | undefined)?.trim() || null
+  const email   = (body.email   as string | undefined)?.trim() || null
+  const address = (body.address as string | undefined)?.trim() || null
 
   if (!name) return NextResponse.json({ error: 'Le nom est requis' }, { status: 400 })
 
   const { data, error } = await db
-    .from('brands')
-    .insert({ id: uuid(), tenant_id: user.tenantId, name })
-    .select('id, name')
+    .from('suppliers')
+    .insert({ id: uuid(), tenant_id: user.tenantId, name, phone, email, address })
+    .select('id, name, phone, email, address')
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

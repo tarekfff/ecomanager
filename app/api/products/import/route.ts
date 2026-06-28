@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requirePermission } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { v4 as uuid } from 'uuid'
 
@@ -26,7 +26,7 @@ function parseBoolean(val: string | null | undefined): boolean {
 }
 
 export async function POST(req: NextRequest) {
-  const user = requireAuth(req)
+  const user = await requirePermission(req, 'products.create')
   const body = await req.json() as { rows: ImportRow[]; boutique_id?: string }
 
   if (!Array.isArray(body.rows) || body.rows.length === 0) {
