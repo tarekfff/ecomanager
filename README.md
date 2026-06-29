@@ -33,7 +33,7 @@ orders pipeline, stock, carriers/delivery, accounting, stats, webhooks.
 | Field | Value |
 |-------|-------|
 | URL   | http://localhost:3000/login |
-| Email | admin@ecomanager.dz |
+| Email | admin@chekn.dz |
 | Password | Admin123! |
 
 ## Deploying to Vercel

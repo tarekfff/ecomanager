@@ -145,7 +145,7 @@ export async function POST(req: NextRequest) {
     compare_price:         comparePrice,
     out_of_stock_behavior: body.out_of_stock_behavior ?? 'allow',
     stock_alert_enabled:   body.stock_alert_enabled ?? false,
-    stock_alert_min:       body.stock_alert_min ? Number(body.stock_alert_min) : null,
+    stock_alert_min:       body.stock_alert_min ? Number(body.stock_alert_min) : 0,
     stock_strategy:        body.stock_strategy ?? 'fifo',
     external_link:         (body.external_link as string | undefined)?.trim() || null,
     confirmer_notes:       (body.confirmer_notes as string | undefined)?.trim() || null,
