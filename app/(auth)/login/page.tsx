@@ -167,7 +167,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.4)', position: 'relative' }}>
-          © 2026 chicN · V2.41 · Développé par Tarek Benziada
+          © 2026 chicN · V1
         </div>
       </div>
 

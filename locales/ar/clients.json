@@ -1,0 +1,67 @@
+{
+  "title": "العملاء",
+  "subtitle": "إدارة قاعدة العملاء",
+  "addClient": "+ إضافة عميل",
+  "searchPlaceholder": "البحث بالاسم أو الهاتف…",
+  "count_zero": "{{count}} عميل",
+  "count_one": "عميل واحد",
+  "count_two": "عميلان",
+  "count_few": "{{count}} عملاء",
+  "count_many": "{{count}} عميلاً",
+  "count_other": "{{count}} عميل",
+  "table": {
+    "full_name": "الاسم الكامل",
+    "phone": "الهاتف",
+    "wilaya": "الولاية",
+    "delivered": "مُسلَّمة",
+    "returned": "مُرتجعة",
+    "cancelled": "ملغاة",
+    "actions": "إجراءات"
+  },
+  "empty": {
+    "title": "لا يوجد عميل",
+    "noResults": "لا نتائج لـ «{{q}}».",
+    "message": "ابدأ بإضافة أول عميل إلى قاعدة البيانات.",
+    "action": "إضافة أول عميل"
+  },
+  "modal": {
+    "addTitle": "إضافة عميل",
+    "editTitle": "تعديل العميل"
+  },
+  "form": {
+    "fullName": "الاسم الكامل",
+    "namePlaceholder": "مثال: أحمد بن علي",
+    "phone": "الهاتف",
+    "phonePlaceholder": "0555 00 00 00",
+    "phone2": "هاتف 2",
+    "optional": "اختياري",
+    "email": "البريد الإلكتروني",
+    "emailPlaceholder": "client@example.com",
+    "wilaya": "الولاية",
+    "wilayaPlaceholder": "اختر ولاية",
+    "commune": "البلدية",
+    "communePlaceholder": "اختر بلدية",
+    "communePlaceholderFirst": "اختر ولاية أولاً",
+    "address": "العنوان",
+    "addressPlaceholder": "مثال: شارع 12، حي النصر",
+    "save": "حفظ",
+    "add": "إضافة"
+  },
+  "errors": {
+    "nameRequired": "الاسم الكامل مطلوب.",
+    "phoneRequired": "الهاتف مطلوب.",
+    "saveError": "حدث خطأ أثناء الحفظ.",
+    "loadError": "تعذّر تحميل العملاء.",
+    "deleteError": "تعذّر حذف هذا العميل."
+  },
+  "toast": {
+    "added": "تمت إضافة العميل.",
+    "updated": "تم تحديث العميل.",
+    "deleted": "تم حذف العميل."
+  },
+  "delete": {
+    "title": "حذف العميل",
+    "message": "حذف «{{name}}»؟ هذا الإجراء لا يمكن التراجع عنه وقد يفشل إذا كان للعميل طلبات.",
+    "deleting": "جارٍ الحذف…"
+  }
+}

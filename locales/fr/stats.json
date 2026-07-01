@@ -1,0 +1,86 @@
+{
+  "sortBy": "Trier par",
+  "loading": "Chargement…",
+  "noData": "Aucune donnée pour les filtres sélectionnés",
+  "total": "Total",
+  "dims": {
+    "wilaya":    "Wilaya",
+    "commune":   "Commune",
+    "carrier":   "Livreur",
+    "product":   "Produit",
+    "variant":   "Variante",
+    "confirmer": "Confirmateur",
+    "boutique":  "Boutique"
+  },
+  "boutique": {
+    "title":    "Stats par boutique",
+    "subtitle": "Performance des commandes selon différentes dimensions"
+  },
+  "confirmateur": {
+    "title":        "Stats par confirmateur",
+    "subtitle":     "Performance par agent de confirmation",
+    "filterLabel":  "Confirmateur",
+    "allConfirmers":"Tous les confirmateurs ({{count}})"
+  },
+  "livreur": {
+    "title":       "Stats par livreur",
+    "subtitle":    "Performance des livreurs par statut et dimension",
+    "filterLabel": "Livreur",
+    "allCarriers": "Tous les livreurs ({{count}})"
+  },
+  "produit": {
+    "title":        "Stats par produit",
+    "subtitle":     "Performance des produits par statut et dimension",
+    "productLabel": "Produit",
+    "allProducts":  "Tous les produits ({{count}})",
+    "variantLabel": "Variante",
+    "allVariants":  "Toutes les variantes"
+  },
+  "wilaya": {
+    "title":        "Stats par wilaya",
+    "subtitle":     "Performance géographique par statut et dimension",
+    "wilayaLabel":  "Wilaya",
+    "allWilayas":   "Toutes les wilayas ({{count}})",
+    "communeLabel": "Commune",
+    "allCommunes":  "Toutes les communes ({{count}})"
+  },
+  "filters": {
+    "boutique":      "Boutique",
+    "allBoutiques":  "Toutes les boutiques",
+    "basedOn":       "Basé sur",
+    "allOrders":     "Toutes les commandes",
+    "confirmedOnly": "Confirmées uniquement",
+    "dateField":     "Filtrer selon",
+    "periodFrom":    "Période De",
+    "to":            "À",
+    "resultBy":      "Résultat par",
+    "byCount":       "Nombre commandes",
+    "byQty":         "Quantité vendue",
+    "display":       "Affichage",
+    "inNumber":      "En nombre",
+    "inPercent":     "En pourcentage",
+    "dateFields": {
+      "created":    "Date de création",
+      "assigned":   "Date d'affectation",
+      "confirmed":  "Date de confirmation",
+      "dispatched": "Date de dispatch",
+      "shipped":    "Date d'expédition",
+      "delivered":  "Date de livraison",
+      "failed":     "Date d'échec",
+      "paid":       "Date d'encaissement",
+      "returned":   "Date de retour",
+      "cancelled":  "Date d'annulation"
+    }
+  },
+  "statusCols": {
+    "en_confirmation": "En confirmation",
+    "en_preparation":  "En préparation",
+    "en_dispatch":     "En dispatch",
+    "en_livraison":    "En livraison",
+    "livrees":         "Livrées",
+    "en_retour":       "En retour",
+    "encaissee":       "Encaissées",
+    "retournee":       "Retournées",
+    "annulee":         "Annulées"
+  }
+}

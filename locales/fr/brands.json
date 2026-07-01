@@ -1,0 +1,22 @@
+{
+  "title": "Marques",
+  "subtitle": "Gestion des marques de produits",
+  "addBtn": "+ Ajouter une marque",
+  "count_one": "{{count}} marque",
+  "count_other": "{{count}} marques",
+  "cols": { "name": "Nom", "products": "Produits", "actions": "Actions" },
+  "productsBadge_one": "{{count}} produit",
+  "productsBadge_other": "{{count}} produits",
+  "empty": "Aucune marque",
+  "editTooltip": "Cliquer pour modifier",
+  "addModalTitle": "Ajouter une marque",
+  "nameLabel": "Nom",
+  "namePlaceholder": "Ex : Nike",
+  "nameRequired": "Le nom est requis.",
+  "saveError": "Erreur lors de la sauvegarde.",
+  "deleteError": "Erreur lors de la suppression.",
+  "deleteTitle": "Supprimer la marque",
+  "deleteWarn": "Attention : « {{name}} » a {{count}} produit(s) associé(s). La suppression sera bloquée tant que des produits y sont rattachés.",
+  "deleteConfirm": "Supprimer « {{name}} » ? Cette action est irréversible.",
+  "deleting": "Suppression…"
+}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslation } from 'react-i18next'
 import {
   Eye, Pencil, X, AlertCircle,
   XCircle, WifiOff, Package,
@@ -97,6 +98,7 @@ function SkeletonRow({ cols }: { cols: number }) {
 export default function EnLivraisonPage() {
   const router         = useRouter()
   const { boutiqueId } = useBoutique()
+  const { t }          = useTranslation('orders')
 
   const [orders,  setOrders]  = useState<Order[]>([])
   const [total,   setTotal]   = useState(0)
@@ -219,7 +221,7 @@ export default function EnLivraisonPage() {
   const nSelected    = selectedIds.size
 
   const carrierOptions = [
-    { value: '', label: 'Tous les livreurs' },
+    { value: '', label: t('filters.allCarriers') },
     ...carriers.map(c => ({ value: c.id, label: c.name })),
   ]
 
@@ -257,15 +259,15 @@ export default function EnLivraisonPage() {
   return (
     <>
       <PageHeader
-        title="En livraison"
+        title={t('enLivraison.title')}
         subtitle={
           total > 0
-            ? `${total} commande${total > 1 ? 's' : ''} en cours de livraison`
-            : 'Commandes en cours de livraison'
+            ? t('enLivraison.subtitleN', { count: total })
+            : t('enLivraison.subtitleDefault')
         }
         actions={
           <Button variant="primary" size="sm" onClick={() => router.push('/dashboard/orders/new')}>
-            + Nouvelle commande
+            {t('newOrder')}
           </Button>
         }
       />
@@ -282,7 +284,7 @@ export default function EnLivraisonPage() {
             borderRadius: 6, padding: '10px 14px', fontSize: 13, color: '#795548',
           }}>
             <AlertCircle size={15} />
-            Sélectionnez une boutique dans la barre de navigation.
+            {t('noBoutique')}
           </div>
         )}
 
@@ -292,7 +294,7 @@ export default function EnLivraisonPage() {
             <SearchInput
               value={search}
               onChange={handleSearchChange}
-              placeholder="Réf., téléphone, client…"
+              placeholder={t('filters.searchPh')}
             />
           </div>
 
@@ -301,12 +303,12 @@ export default function EnLivraisonPage() {
               value={filterCarrier}
               onChange={v => { setFilterCarrier(v); setPage(1) }}
               options={carrierOptions}
-              placeholder="Tous les livreurs"
+              placeholder={t('filters.allCarriers')}
             />
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <label style={{ fontSize: 12, color: colors.textMd, whiteSpace: 'nowrap' }}>De</label>
+            <label style={{ fontSize: 12, color: colors.textMd, whiteSpace: 'nowrap' }}>{t('filters.from')}</label>
             <input
               type="date" value={dateFrom}
               onChange={e => { setDateFrom(e.target.value); setPage(1) }}
@@ -321,7 +323,7 @@ export default function EnLivraisonPage() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <label style={{ fontSize: 12, color: colors.textMd }}>À</label>
+            <label style={{ fontSize: 12, color: colors.textMd }}>{t('filters.to')}</label>
             <input
               type="date" value={dateTo}
               onChange={e => { setDateTo(e.target.value); setPage(1) }}
@@ -343,12 +345,12 @@ export default function EnLivraisonPage() {
                 cursor: 'pointer', padding: '4px 6px', textDecoration: 'underline',
               }}
             >
-              Effacer filtres
+              {t('filters.clearFilters')}
             </button>
           )}
 
           <span style={{ marginLeft: 'auto', fontSize: 12, color: colors.textMd, whiteSpace: 'nowrap' }}>
-            {loading ? '…' : `${total} résultat${total !== 1 ? 's' : ''}`}
+            {loading ? '…' : t('filters.results', { count: total })}
           </span>
         </div>
 
@@ -360,13 +362,13 @@ export default function EnLivraisonPage() {
             borderRadius: 6, padding: '8px 12px',
           }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: colors.primary, marginRight: 4 }}>
-              {nSelected} sélectionné{nSelected > 1 ? 's' : ''}
+              {t('bulk.selected', { count: nSelected })}
             </span>
 
             {/* Valider livraison */}
             <BulkBtn
               icon={<PackageCheck size={13} />}
-              label="Valider livraison"
+              label={t('bulk.validateDelivery')}
               onClick={() => bulkAction('deliver')}
               loading={bulkLoading}
               color="#1B5E20"
@@ -375,7 +377,7 @@ export default function EnLivraisonPage() {
             {/* Demander retour */}
             <BulkBtn
               icon={<RotateCcw size={13} />}
-              label="Demander retour"
+              label={t('bulk.requestReturn')}
               onClick={() => bulkAction('request_return')}
               loading={bulkLoading}
               color={colors.red}
@@ -386,7 +388,7 @@ export default function EnLivraisonPage() {
               <input
                 type="number"
                 min={0}
-                placeholder="Frais DA"
+                placeholder={t('bulk.feePh')}
                 value={bulkCarrierFee}
                 onChange={e => setBulkCarrierFee(e.target.value)}
                 onClick={e => e.stopPropagation()}
@@ -400,7 +402,7 @@ export default function EnLivraisonPage() {
               />
               <BulkBtn
                 icon={<CreditCard size={13} />}
-                label="Appliquer frais"
+                label={t('bulk.applyFee')}
                 onClick={() => {
                   if (!bulkCarrierFee) { setBulkError('Entrez un montant'); return }
                   bulkAction('set_carrier_fee', bulkCarrierFee)
@@ -412,7 +414,7 @@ export default function EnLivraisonPage() {
             {/* Désactiver sync */}
             <BulkBtn
               icon={<WifiOff size={13} />}
-              label="Désactiver sync"
+              label={t('bulk.disableSync')}
               onClick={() => bulkAction('disable_sync')}
               loading={bulkLoading}
             />
@@ -420,7 +422,7 @@ export default function EnLivraisonPage() {
             {/* Annuler */}
             <BulkBtn
               icon={<XCircle size={13} />}
-              label="Annuler"
+              label={t('bulk.cancel')}
               onClick={() => bulkAction('cancel')}
               loading={bulkLoading}
               color={colors.red}
@@ -440,7 +442,7 @@ export default function EnLivraisonPage() {
                 marginLeft: 'auto', background: 'none', border: 'none',
                 cursor: 'pointer', color: colors.textLt, display: 'flex', alignItems: 'center', padding: 4,
               }}
-              title="Annuler la sélection"
+              title={t('bulk.clearSelection')}
             >
               <X size={15} />
             </button>
@@ -458,15 +460,15 @@ export default function EnLivraisonPage() {
                 <TH width={36}>
                   <Checkbox checked={allSelected} indeterminate={someSelected} onChange={toggleSelectAll} />
                 </TH>
-                <TH width={110}>Référence</TH>
-                <TH width={115}>Téléphone</TH>
-                <TH width={150}>Client</TH>
-                <TH width={95}>Wilaya</TH>
-                <TH width={100}>Expédiée le</TH>
-                <TH width={130}>Livreur</TH>
-                <TH width={130}>Statut livraison</TH>
-                <TH width={56} center>Sync</TH>
-                <TH width={72}>Actions</TH>
+                <TH width={110}>{t('cols.reference')}</TH>
+                <TH width={115}>{t('cols.phone')}</TH>
+                <TH width={150}>{t('cols.client')}</TH>
+                <TH width={95}>{t('cols.wilaya')}</TH>
+                <TH width={100}>{t('cols.shippedAt')}</TH>
+                <TH width={130}>{t('cols.carrier')}</TH>
+                <TH width={130}>{t('cols.deliveryStatus')}</TH>
+                <TH width={56} center>{t('cols.sync')}</TH>
+                <TH width={72}>{t('cols.actions')}</TH>
               </tr>
             </thead>
             <tbody>
@@ -479,7 +481,7 @@ export default function EnLivraisonPage() {
                     color: colors.textLt, fontSize: 13,
                   }}>
                     <Package size={28} style={{ opacity: 0.3, marginBottom: 8, display: 'block', margin: '0 auto 8px' }} />
-                    Aucune commande en livraison
+                    {t('enLivraison.empty')}
                   </td>
                 </tr>
               ) : (
@@ -574,7 +576,7 @@ export default function EnLivraisonPage() {
                         padding: '8px 10px', textAlign: 'center',
                         borderBottom: `1px solid ${colors.border}`, verticalAlign: 'middle',
                       }}>
-                        <span title={order.sync_enabled ? 'Sync actif' : 'Sync désactivé'}>
+                        <span title={order.sync_enabled ? t('sync.active') : t('sync.disabled')}>
                           {order.sync_enabled
                             ? <Wifi    size={14} style={{ color: colors.green }} />
                             : <WifiOff size={14} style={{ color: colors.textLt }} />
@@ -593,12 +595,12 @@ export default function EnLivraisonPage() {
                         <div style={{ display: 'flex', gap: 4 }}>
                           <ActionBtn
                             icon={<Eye size={12} />}
-                            title="Voir"
+                            title={t('actions.view')}
                             onClick={() => setDrawerOrderId(order.id)}
                           />
                           <ActionBtn
                             icon={<Pencil size={12} />}
-                            title="Modifier"
+                            title={t('actions.edit')}
                             onClick={() => router.push(`/dashboard/orders/${order.id}/edit`)}
                           />
                         </div>

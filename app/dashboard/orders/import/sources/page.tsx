@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslation } from 'react-i18next'
 import {
   RefreshCw, Trash2, Wifi, WifiOff, AlertCircle,
   ArrowLeft, Plus, Loader2, CheckCircle, Clock, Zap,
@@ -33,14 +34,15 @@ function authHeader() {
   return { Authorization: `Bearer ${localStorage.getItem('token') ?? ''}` }
 }
 
-function fmtDate(iso: string | null) {
-  if (!iso) return 'Jamais'
+function fmtDate(iso: string | null, never: string) {
+  if (!iso) return never
   const d = new Date(iso)
   return d.toLocaleDateString('fr-DZ', { day: '2-digit', month: '2-digit', year: '2-digit' })
     + ' ' + d.toLocaleTimeString('fr-DZ', { hour: '2-digit', minute: '2-digit' })
 }
 
 export default function ImportSourcesPage() {
+  const { t } = useTranslation('orders')
   const router       = useRouter()
   const { boutiqueId } = useBoutique()
 
@@ -78,18 +80,18 @@ export default function ImportSourcesPage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        setSyncing(p => ({ ...p, [source.id]: { loading: false, result: null, error: data.error ?? 'Erreur' } }))
+        setSyncing(p => ({ ...p, [source.id]: { loading: false, result: null, error: data.error ?? t('importSources.error') } }))
       } else {
         setSyncing(p => ({ ...p, [source.id]: { loading: false, result: data, error: '' } }))
         fetchSources()
       }
     } catch {
-      setSyncing(p => ({ ...p, [source.id]: { loading: false, result: null, error: 'Erreur réseau' } }))
+      setSyncing(p => ({ ...p, [source.id]: { loading: false, result: null, error: t('importSources.networkError') } }))
     }
   }
 
   async function deleteSource(id: string) {
-    if (!confirm('Supprimer cette connexion ? Les commandes déjà importées ne seront pas supprimées.')) return
+    if (!confirm(t('importSources.deleteConfirm'))) return
     setDeleting(p => ({ ...p, [id]: true }))
     await fetch(`/api/import-sources/${id}`, { method: 'DELETE', headers: authHeader() })
     setSyncing(p => { const n = { ...p }; delete n[id]; return n })
@@ -100,8 +102,8 @@ export default function ImportSourcesPage() {
   return (
     <>
       <PageHeader
-        title="Sources connectées"
-        subtitle="Connexions Google Sheets pour import automatique"
+        title={t('importSources.title')}
+        subtitle={t('importSources.subtitle')}
         actions={
           <div style={{ display: 'flex', gap: 8 }}>
             <button
@@ -113,7 +115,7 @@ export default function ImportSourcesPage() {
                 fontFamily: fonts.sans, cursor: 'pointer',
               }}
             >
-              <ArrowLeft size={13} /> Retour
+              <ArrowLeft size={13} /> {t('importSources.back')}
             </button>
             <button
               onClick={() => router.push('/dashboard/orders/import/google-sheet')}
@@ -126,7 +128,7 @@ export default function ImportSourcesPage() {
               onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = colors.primaryDk}
               onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = colors.primary}
             >
-              <Plus size={13} /> Ajouter une source
+              <Plus size={13} /> {t('importSources.addSource')}
             </button>
           </div>
         }
@@ -143,7 +145,7 @@ export default function ImportSourcesPage() {
             borderRadius: 6, padding: '10px 14px', fontSize: 13, color: '#795548', marginBottom: 16,
           }}>
             <AlertCircle size={15} />
-            Sélectionnez une boutique dans la barre de navigation.
+            {t('importSources.selectBoutique')}
           </div>
         )}
 
@@ -154,13 +156,13 @@ export default function ImportSourcesPage() {
           borderRadius: 6, padding: '10px 14px', marginBottom: 20, fontSize: 13, color: '#3730A3',
         }}>
           <Zap size={14} />
-          Les nouvelles lignes ajoutées à Google Sheet apparaissent ici en quelques secondes via le déclencheur instantané. Le sync nocturne (2h) ne sert que de filet de sécurité.
+          {t('importSources.infoBanner')}
         </div>
 
         {loading ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: colors.textLt, fontSize: 13 }}>
             <Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} />
-            Chargement…
+            {t('importSources.loading')}
           </div>
         ) : sources.length === 0 ? (
           <div style={{
@@ -169,10 +171,10 @@ export default function ImportSourcesPage() {
           }}>
             <RefreshCw size={32} color={colors.border} style={{ marginBottom: 12 }} />
             <div style={{ fontSize: 14, color: colors.textMd, marginBottom: 6 }}>
-              Aucune connexion Google Sheet
+              {t('importSources.emptyTitle')}
             </div>
             <div style={{ fontSize: 12, color: colors.textLt, marginBottom: 20 }}>
-              Importez une feuille et sauvegardez la connexion pour activer le sync automatique.
+              {t('importSources.emptyHint')}
             </div>
             <button
               onClick={() => router.push('/dashboard/orders/import/google-sheet')}
@@ -182,7 +184,7 @@ export default function ImportSourcesPage() {
                 fontFamily: fonts.sans, cursor: 'pointer',
               }}
             >
-              + Connecter une feuille
+              {t('importSources.connectSheet')}
             </button>
           </div>
         ) : (
@@ -220,24 +222,24 @@ export default function ImportSourcesPage() {
                           color: source.is_active ? '#166534' : colors.textLt,
                           textTransform: 'uppercase', letterSpacing: '0.5px',
                         }}>
-                          {source.is_active ? 'Actif' : 'Inactif'}
+                          {source.is_active ? t('importSources.active') : t('importSources.inactive')}
                         </span>
                       </div>
 
                       <div style={{ fontSize: 12, color: colors.textMd, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                         <span>
-                          Feuille : <strong style={{ fontFamily: 'monospace', fontSize: 11 }}>
+                          {t('importSources.sheet')} : <strong style={{ fontFamily: 'monospace', fontSize: 11 }}>
                             {source.sheet_id.slice(0, 20)}…
                           </strong> / {source.sheet_name || 'Sheet1'}
                         </span>
-                        <span>Compte : {source.google_email || '—'}</span>
+                        <span>{t('importSources.account')} : {source.google_email || '—'}</span>
                         <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                           <Clock size={11} />
-                          Dernier sync : {fmtDate(source.last_synced_at)}
+                          {t('importSources.lastSync')} : {fmtDate(source.last_synced_at, t('importSources.never'))}
                         </span>
                         {source.last_row > 1 && (
                           <span style={{ color: colors.textLt }}>
-                            {source.last_row - 1} ligne{source.last_row > 2 ? 's' : ''} traitée{source.last_row > 2 ? 's' : ''}
+                            {t('importSources.rowsProcessed', { count: source.last_row - 1 })}
                           </span>
                         )}
                       </div>
@@ -249,9 +251,11 @@ export default function ImportSourcesPage() {
                           fontSize: 12, color: '#166534',
                         }}>
                           <CheckCircle size={13} />
-                          {status.result.imported} importée{status.result.imported !== 1 ? 's' : ''},
-                          {' '}{status.result.skipped} ignorée{status.result.skipped !== 1 ? 's' : ''},
-                          {' '}{status.result.failed} échouée{status.result.failed !== 1 ? 's' : ''}
+                          {t('importSources.syncResult', {
+                            imported: status.result.imported,
+                            skipped:  status.result.skipped,
+                            failed:   status.result.failed,
+                          })}
                         </div>
                       )}
                       {status?.error && (
@@ -295,7 +299,7 @@ export default function ImportSourcesPage() {
                       <button
                         onClick={() => syncNow(source)}
                         disabled={!!status?.loading}
-                        title="Synchroniser maintenant"
+                        title={t('importSources.syncNowTitle')}
                         style={{
                           display: 'flex', alignItems: 'center', gap: 5,
                           padding: '6px 12px', borderRadius: 5, fontSize: 12, fontFamily: fonts.sans,
@@ -307,13 +311,13 @@ export default function ImportSourcesPage() {
                           ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />
                           : <RefreshCw size={12} />
                         }
-                        {status?.loading ? 'Sync…' : 'Sync'}
+                        {status?.loading ? t('importSources.syncing') : t('importSources.sync')}
                       </button>
 
                       {/* Toggle active */}
                       <button
                         onClick={() => toggleActive(source)}
-                        title={source.is_active ? 'Désactiver' : 'Activer'}
+                        title={source.is_active ? t('importSources.disable') : t('importSources.enable')}
                         style={{
                           padding: '6px 12px', borderRadius: 5, fontSize: 12, fontFamily: fonts.sans,
                           border: `1px solid ${colors.border}`, background: '#fff',
@@ -321,14 +325,14 @@ export default function ImportSourcesPage() {
                           cursor: 'pointer',
                         }}
                       >
-                        {source.is_active ? 'Désactiver' : 'Activer'}
+                        {source.is_active ? t('importSources.disable') : t('importSources.enable')}
                       </button>
 
                       {/* Delete */}
                       <button
                         onClick={() => deleteSource(source.id)}
                         disabled={deleting[source.id]}
-                        title="Supprimer"
+                        title={t('importSources.deleteTitle')}
                         style={{
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           width: 30, height: 30, borderRadius: 5,

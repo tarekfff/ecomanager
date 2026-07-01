@@ -1,0 +1,179 @@
+{
+  "bilan": {
+    "title":    "Bilan général",
+    "subtitle": "Analyse financière complète — ventes, livraison, charges, résultat net",
+    "filters": {
+      "boutique":        "Boutique",
+      "selectBoutique":  "-- Sélectionner --",
+      "calcBasis":       "Calculer selon",
+      "confirmed":       "Commandes confirmées",
+      "delivered":       "Commandes livrées",
+      "dateBasis":       "Filtrer par date",
+      "byCreated":       "Date de création",
+      "byDelivered":     "Date de livraison",
+      "periodFrom":      "Période De",
+      "to":              "À",
+      "calcBtn":         "Calculer",
+      "calcLoading":     "Calcul…"
+    },
+    "errBoutique": "Veuillez sélectionner une boutique.",
+    "errPeriod":   "Veuillez choisir une période.",
+    "errNetwork":  "Erreur réseau",
+    "prompt":      "Sélectionnez une boutique et une période, puis cliquez sur Calculer.",
+    "loading":     "Calcul en cours…",
+    "sections": {
+      "vente":      "Vente",
+      "livraison":  "Livraison",
+      "charges":    "Charges",
+      "resultat":   "Résultat net"
+    },
+    "rows": {
+      "ca":              "Chiffre d'affaires (CA)",
+      "valeurAchat":     "Valeur d'achat",
+      "remises":         "Remises accordées",
+      "margeBrute":      "Marge brute",
+      "fraisRecolt":     "Frais de livraison collectés",
+      "fraisLivreurs":   "Frais livreurs (carrier)",
+      "margeLivraison":  "Marge livraison",
+      "pub":             "Publicité",
+      "confirmation":    "Confirmation",
+      "emballage":       "Emballage",
+      "autresCharges":   "Autres charges",
+      "totalCharges":    "Total charges"
+    },
+    "summary": {
+      "title":     "Résumé",
+      "included":  "Commandes incluses",
+      "delivered": "Dont livrées",
+      "items":     "Produits (qtés)"
+    },
+    "pubCard": {
+      "title":       "Frais publicitaires",
+      "dbValue":     "Valeur DB :",
+      "overrideLabel":"Montant (override)",
+      "reset":       "Réinitialiser"
+    },
+    "confCard": {
+      "title":        "Config. confirmation",
+      "unitCost":     "Montant unitaire",
+      "applyTo":      "Appliquer à",
+      "basedOn":      "Basé sur",
+      "total":        "Total :",
+      "eachOrder":    "Chaque commande",
+      "allOrders":    "Toutes (forfait)",
+      "onDelivered":  "Livrées",
+      "onConfirmed":  "Confirmées"
+    },
+    "packCard": {
+      "title":        "Config. emballage",
+      "unitCost":     "Montant unitaire",
+      "per":          "Par",
+      "basedOn":      "Basé sur",
+      "total":        "Total :",
+      "perOrder":     "Commande",
+      "perProduct":   "Produit",
+      "onDelivered":  "Livrées",
+      "onShipped":    "Expédiées"
+    },
+    "confFormula": {
+      "perOrder": "{{amount}} DA × commandes {{base}}",
+      "flat":     "Forfait {{amount}} DA",
+      "delivered": "livrées",
+      "confirmed": "confirmées"
+    },
+    "packFormula": {
+      "perUnit": "{{amount}} DA par {{per}} ({{base}})",
+      "order":   "commande",
+      "product": "produit",
+      "delivered": "livrées",
+      "shipped":  "expédiées"
+    }
+  },
+  "rentabilite": {
+    "title":    "Rentabilité produit",
+    "subtitle": "Bénéfice, coût publicitaire et ROI par produit",
+    "filters": {
+      "product":      "Produit",
+      "productPh":    "Rechercher un produit…",
+      "variant":      "Variante",
+      "allVariants":  "Toutes les variantes",
+      "boutique":     "Boutique",
+      "allBoutiques": "Toutes",
+      "periodFrom":   "Période De",
+      "to":           "À",
+      "calcBtn":      "Calculer",
+      "calcLoading":  "Calcul…"
+    },
+    "toggles": {
+      "hint":        "Les charges activées sont réparties sur la quantité du produit.",
+      "yes":         "Oui",
+      "no":          "Non",
+      "remise":      "Diviser remise",
+      "livraison":   "Diviser frais livraison",
+      "livreurs":    "Diviser frais livreurs",
+      "confirmation":"Diviser frais confirmation",
+      "emballage":   "Diviser frais emballage"
+    },
+    "errProduct":  "Veuillez sélectionner un produit.",
+    "errPeriod":   "Veuillez choisir une période.",
+    "errNetwork":  "Erreur réseau",
+    "prompt":      "Sélectionnez un produit et une période, puis cliquez sur Calculer.",
+    "loading":     "Calcul en cours…",
+    "result": {
+      "beneficeTitle":  "Bénéfice total",
+      "unitsDelivered": "{{count}} unité(s) livrée(s)",
+      "beneficeUnit":   "Bénéfice unitaire",
+      "coutPub":        "Coût pub. unitaire",
+      "roi":            "ROI"
+    }
+  },
+  "export": {
+    "title":    "Exporter les données",
+    "subtitle": "Générez un fichier Excel ou CSV à partir de vos données",
+    "typeLabel":      "Type de données",
+    "boutiqueLabel":  "Boutique",
+    "allBoutiques":   "Toutes les boutiques",
+    "types": {
+      "orders":   "Commandes",
+      "clients":  "Clients",
+      "products": "Produits",
+      "stock":    "Stock",
+      "bilan":    "Bilan"
+    },
+    "statusLabel":    "Statut",
+    "loadingStatuses":"Chargement…",
+    "noStatusFilter": "Aucun filtre — tous les statuts seront inclus.",
+    "statusCount":    "{{count}} statut(s) sélectionné(s).",
+    "dateFrom":       "Date — De",
+    "dateTo":         "Date — À",
+    "formatLabel":    "Format",
+    "xlsx":           "Excel (.xlsx)",
+    "csv":            "CSV",
+    "generateBtn":    "Générer l'export",
+    "errGenerate":    "Erreur lors de la génération.",
+    "errNetwork":     "Erreur réseau lors de la génération."
+  },
+  "rapports": {
+    "title":    "Rapports",
+    "subtitle": "Accédez aux rapports détaillés de votre activité",
+    "viewBtn":  "Voir le rapport",
+    "cards": {
+      "orders": {
+        "title":       "Rapport des commandes",
+        "description": "Vue d'ensemble des commandes par boutique : volumes, statuts et chiffre d'affaires."
+      },
+      "products": {
+        "title":       "Rapport des produits",
+        "description": "Performances des produits : quantités vendues, revenus et taux de retour."
+      },
+      "livreurs": {
+        "title":       "Rapport des livreurs",
+        "description": "Activité par livreur : commandes livrées, retours et taux de réussite."
+      },
+      "confirmateurs": {
+        "title":       "Rapport des confirmateurs",
+        "description": "Activité par confirmateur : commandes confirmées, annulées et performance."
+      }
+    }
+  }
+}

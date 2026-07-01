@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
+import { useTranslation } from 'react-i18next'
 import { useBoutique } from '@/contexts/BoutiqueContext'
 import { colors, fonts } from '@/lib/tokens'
 import { getStoredToken } from '@/lib/client-auth'
@@ -20,13 +21,13 @@ const ZERO: OrderCounts = {
   en_livraison: 0, livree: 0, en_retour: 0,
 }
 
-const PIPELINE: Array<{ label: string; path: string; dot: string; key: keyof OrderCounts }> = [
-  { label: 'En confirmation', path: '/dashboard/orders/en-confirmation', dot: '#4472C4', key: 'en_confirmation' },
-  { label: 'En préparation',  path: '/dashboard/orders/en-preparation',  dot: '#9966CC', key: 'en_preparation'  },
-  { label: 'En dispatch',     path: '/dashboard/orders/en-dispatch',      dot: '#E6B800', key: 'en_dispatch'     },
-  { label: 'En livraison',    path: '/dashboard/orders/en-livraison',     dot: '#888888', key: 'en_livraison'    },
-  { label: 'Livrées',         path: '/dashboard/orders/livrees',          dot: '#00B0A0', key: 'livree'          },
-  { label: 'En retour',       path: '/dashboard/orders/en-retour',        dot: '#E84B6A', key: 'en_retour'       },
+const PIPELINE: Array<{ path: string; dot: string; key: keyof OrderCounts }> = [
+  { path: '/dashboard/orders/en-confirmation', dot: '#4472C4', key: 'en_confirmation' },
+  { path: '/dashboard/orders/en-preparation',  dot: '#9966CC', key: 'en_preparation'  },
+  { path: '/dashboard/orders/en-dispatch',      dot: '#E6B800', key: 'en_dispatch'     },
+  { path: '/dashboard/orders/en-livraison',     dot: '#888888', key: 'en_livraison'    },
+  { path: '/dashboard/orders/livrees',          dot: '#00B0A0', key: 'livree'          },
+  { path: '/dashboard/orders/en-retour',        dot: '#E84B6A', key: 'en_retour'       },
 ]
 
 interface StatusBarProps {
@@ -36,6 +37,7 @@ interface StatusBarProps {
 export default function StatusBar({ orderCounts }: StatusBarProps) {
   const router           = useRouter()
   const pathname         = usePathname()
+  const { t }            = useTranslation('statuses')
   const { boutiqueId }   = useBoutique()
   const [counts,  setCounts]  = useState<OrderCounts>(orderCounts ?? ZERO)
   const [loading, setLoading] = useState(!orderCounts)
@@ -67,7 +69,7 @@ export default function StatusBar({ orderCounts }: StatusBarProps) {
       overflowX: 'auto',
       fontFamily: fonts.sans,
     }}>
-      {PIPELINE.map(({ label, path, dot, key }) => {
+      {PIPELINE.map(({ path, dot, key }) => {
         const isActive = pathname === path || pathname.startsWith(path + '/')
         const count    = counts[key]
         return (
@@ -98,7 +100,7 @@ export default function StatusBar({ orderCounts }: StatusBarProps) {
               background: dot, flexShrink: 0,
               opacity: isActive ? 1 : 0.6,
             }} />
-            {label}
+            {t(`tracking.${key}`)}
             {loading ? (
               <Skeleton width={20} height={16} radius={10} />
             ) : count > 0 && (

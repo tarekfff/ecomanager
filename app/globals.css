@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -20,6 +21,27 @@ body, #root {
   background: #FFF7F2;
   color: #2D2D2D;
   min-height: 100vh;
+}
+
+/* ── Arabic / RTL ─────────────────────────────────
+   When the language is Arabic, <html> gets lang="ar" dir="rtl"
+   and the .lang-ar class (set by LanguageProvider). Inter has no
+   Arabic glyphs, so swap in Cairo. Components keep using fonts.sans
+   inline; these rules win via the html.lang-ar selector. */
+html.lang-ar body,
+html.lang-ar #root,
+html.lang-ar button,
+html.lang-ar input,
+html.lang-ar textarea,
+html.lang-ar select {
+  font-family: 'Cairo', 'Inter', sans-serif;
+}
+
+/* The sidebar is a left flex child with a right border in LTR; flip it
+   to the right side with a left border under RTL so it hugs the edge. */
+html[dir="rtl"] .chic-sidebar {
+  border-right: none;
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 /* ── DASHBOARD LAYOUT ─────────────────────────── */

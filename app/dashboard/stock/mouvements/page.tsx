@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { PageHeader, Table, Pagination, Badge, Select } from '@/components/ui'
 import type { Column } from '@/components/ui'
 import { colors, fonts } from '@/lib/tokens'
@@ -29,22 +30,10 @@ interface Warehouse { id: string; name: string }
 
 const LIMIT = 25
 
-const OP_LABEL: Record<string, string> = {
-  add:     'Ajouter',
-  remove:  'Retirer',
-  correct: 'Corriger',
-}
-
 const OP_COLOR: Record<string, 'green' | 'red' | 'blue'> = {
   add:     'green',
   remove:  'red',
   correct: 'blue',
-}
-
-const TARGET_LABEL: Record<string, string> = {
-  new_batch:      'Nouveau lot',
-  global:         'Stock global',
-  existing_batch: 'Lot existant',
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -80,6 +69,7 @@ function QtyCell({ op, qty }: { op: string; qty: number }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function MouvementsPage() {
+  const { t } = useTranslation('stock')
   const [items,      setItems]      = useState<Movement[]>([])
   const [total,      setTotal]      = useState(0)
   const [page,       setPage]       = useState(1)
@@ -195,50 +185,50 @@ export default function MouvementsPage() {
 
   const columns: Column<Movement>[] = [
     {
-      key: 'created_at', label: 'Date', width: 130,
+      key: 'created_at', label: t('mouvements.cols.date'), width: 130,
       render: r => <span style={{ fontSize: 12, color: colors.textMd }}>{fmtDate(r.created_at)}</span>,
     },
     {
-      key: 'product_name', label: 'Produit',
+      key: 'product_name', label: t('mouvements.cols.product'),
       render: r => (
         <div>
           <div style={{ fontWeight: 500 }}>{r.product_name}</div>
           {r.variant_sku && (
-            <div style={{ fontSize: 11, color: colors.textLt }}>Var: {r.variant_sku}</div>
+            <div style={{ fontSize: 11, color: colors.textLt }}>{t('mouvements.variantPrefix')} {r.variant_sku}</div>
           )}
         </div>
       ),
     },
     {
-      key: 'warehouse_name', label: 'Entrepôt', width: 120,
+      key: 'warehouse_name', label: t('mouvements.cols.warehouse'), width: 120,
       render: r => <span>{r.warehouse_name}</span>,
     },
     {
-      key: 'operation_type', label: 'Opération', width: 100,
+      key: 'operation_type', label: t('mouvements.cols.operation'), width: 100,
       render: r => (
         <Badge color={OP_COLOR[r.operation_type] ?? 'gray'}>
-          {OP_LABEL[r.operation_type] ?? r.operation_type}
+          {t(`mouvements.ops.${r.operation_type}`, { defaultValue: r.operation_type })}
         </Badge>
       ),
     },
     {
-      key: 'target_type', label: 'Cible', width: 110,
+      key: 'target_type', label: t('mouvements.cols.target'), width: 110,
       render: r => (
         <span style={{ fontSize: 12, color: colors.textMd }}>
-          {TARGET_LABEL[r.target_type] ?? r.target_type}
+          {t(`mouvements.targets.${r.target_type}`, { defaultValue: r.target_type })}
         </span>
       ),
     },
     {
-      key: 'quantity', label: 'Quantité', width: 80,
+      key: 'quantity', label: t('mouvements.cols.qty'), width: 80,
       render: r => <QtyCell op={r.operation_type} qty={r.quantity} />,
     },
     {
-      key: 'unit_cost', label: 'Prix achat', width: 100,
+      key: 'unit_cost', label: t('mouvements.cols.unitCost'), width: 100,
       render: r => <span style={{ color: colors.textMd }}>{fmtCost(r.unit_cost)}</span>,
     },
     {
-      key: 'batch_number', label: 'Lot', width: 100,
+      key: 'batch_number', label: t('mouvements.cols.batch'), width: 100,
       render: r => (
         <span style={{ fontSize: 12, color: colors.textMd }}>
           {r.batch_number ?? '—'}
@@ -246,7 +236,7 @@ export default function MouvementsPage() {
       ),
     },
     {
-      key: 'comment', label: 'Commentaire',
+      key: 'comment', label: t('mouvements.cols.comment'),
       render: r => (
         <span style={{ fontSize: 12, color: colors.textMd, fontStyle: r.comment ? 'normal' : 'italic' }}>
           {r.comment ?? '—'}
@@ -254,7 +244,7 @@ export default function MouvementsPage() {
       ),
     },
     {
-      key: 'user_name', label: 'Utilisateur', width: 120,
+      key: 'user_name', label: t('mouvements.cols.user'), width: 120,
       render: r => <span style={{ fontSize: 12 }}>{r.user_name}</span>,
     },
   ]
@@ -270,8 +260,8 @@ export default function MouvementsPage() {
   return (
     <>
       <PageHeader
-        title="Mouvements de stock"
-        subtitle="Historique de tous les ajustements de stock."
+        title={t('mouvements.title')}
+        subtitle={t('mouvements.subtitle')}
       />
 
       {/* Filter bar */}
@@ -283,13 +273,13 @@ export default function MouvementsPage() {
 
         {/* Product autocomplete */}
         <div ref={dropRef} style={{ position: 'relative', width: 220 }}>
-          <div style={{ fontSize: 11, color: colors.textMd, marginBottom: 3, fontFamily: fonts.sans }}>Produit</div>
+          <div style={{ fontSize: 11, color: colors.textMd, marginBottom: 3, fontFamily: fonts.sans }}>{t('mouvements.productLabel')}</div>
           <div style={{ position: 'relative' }}>
             <input
               value={prodQuery}
               onChange={e => { setProdQuery(e.target.value); if (product) clearProduct() }}
               onFocus={() => { if (prodResults.length > 0) setShowDrop(true) }}
-              placeholder="Rechercher…"
+              placeholder={t('mouvements.searchPh')}
               style={{ ...inputStyle, width: '100%', paddingRight: product ? 26 : 10 }}
             />
             {product && (
@@ -328,33 +318,33 @@ export default function MouvementsPage() {
 
         {/* Warehouse */}
         <div style={{ width: 170 }}>
-          <div style={{ fontSize: 11, color: colors.textMd, marginBottom: 3, fontFamily: fonts.sans }}>Entrepôt</div>
+          <div style={{ fontSize: 11, color: colors.textMd, marginBottom: 3, fontFamily: fonts.sans }}>{t('mouvements.warehouseLabel')}</div>
           <Select
             value={warehouseId}
             onChange={setWarehouseId}
-            placeholder="Tous"
+            placeholder={t('mouvements.allWarehouses')}
             options={warehouses.map(w => ({ value: w.id, label: w.name }))}
           />
         </div>
 
         {/* Operation type */}
         <div style={{ width: 150 }}>
-          <div style={{ fontSize: 11, color: colors.textMd, marginBottom: 3, fontFamily: fonts.sans }}>Opération</div>
+          <div style={{ fontSize: 11, color: colors.textMd, marginBottom: 3, fontFamily: fonts.sans }}>{t('mouvements.operationLabel')}</div>
           <Select
             value={opFilter}
             onChange={setOpFilter}
-            placeholder="Toutes"
+            placeholder={t('mouvements.allOps')}
             options={[
-              { value: 'add',     label: 'Ajouter'  },
-              { value: 'remove',  label: 'Retirer'  },
-              { value: 'correct', label: 'Corriger' },
+              { value: 'add',     label: t('mouvements.ops.add')     },
+              { value: 'remove',  label: t('mouvements.ops.remove')  },
+              { value: 'correct', label: t('mouvements.ops.correct') },
             ]}
           />
         </div>
 
         {/* Date from */}
         <div>
-          <div style={{ fontSize: 11, color: colors.textMd, marginBottom: 3, fontFamily: fonts.sans }}>Du</div>
+          <div style={{ fontSize: 11, color: colors.textMd, marginBottom: 3, fontFamily: fonts.sans }}>{t('mouvements.dateFrom')}</div>
           <input
             type="date"
             value={dateFrom}
@@ -365,7 +355,7 @@ export default function MouvementsPage() {
 
         {/* Date to */}
         <div>
-          <div style={{ fontSize: 11, color: colors.textMd, marginBottom: 3, fontFamily: fonts.sans }}>Au</div>
+          <div style={{ fontSize: 11, color: colors.textMd, marginBottom: 3, fontFamily: fonts.sans }}>{t('mouvements.dateTo')}</div>
           <input
             type="date"
             value={dateTo}
@@ -384,7 +374,7 @@ export default function MouvementsPage() {
               border: `1px solid ${colors.primary}`, cursor: 'pointer', fontWeight: 500,
             }}
           >
-            Filtrer
+            {t('mouvements.filterBtn')}
           </button>
           <button
             onClick={resetFilters}
@@ -394,7 +384,7 @@ export default function MouvementsPage() {
               border: `1px solid ${colors.border}`, cursor: 'pointer',
             }}
           >
-            Réinitialiser
+            {t('mouvements.resetBtn')}
           </button>
         </div>
       </div>
@@ -405,7 +395,7 @@ export default function MouvementsPage() {
           columns={columns}
           data={items}
           loading={loading}
-          emptyText="Aucun mouvement de stock trouvé."
+          emptyText={t('mouvements.empty')}
         />
         {total > LIMIT && (
           <div style={{ marginTop: 12 }}>

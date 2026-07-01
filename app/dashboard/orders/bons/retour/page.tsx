@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useBoutique } from '@/contexts/BoutiqueContext'
 import { colors, fonts } from '@/lib/tokens'
 import { ChevronDown, ChevronRight, CheckCircle, RotateCcw, ArrowLeftRight, Loader2 } from 'lucide-react'
@@ -34,6 +35,7 @@ function formatDate(iso: string) {
 
 export default function BonRetourPage() {
   const { boutiqueId } = useBoutique()
+  const { t } = useTranslation('orders')
   const [groups,  setGroups]  = useState<CarrierGroup[]>([])
   const [loading, setLoading] = useState(false)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
@@ -62,7 +64,7 @@ export default function BonRetourPage() {
           if (!map.has(key)) {
             map.set(key, {
               carrier_id:   row.carrier_id,
-              carrier_name: row.carrier_name || 'Sans livreur',
+              carrier_name: row.carrier_name || '',
               receipts:     [],
               total:        0,
             })
@@ -137,12 +139,12 @@ export default function BonRetourPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <ArrowLeftRight size={18} color={colors.primary} strokeWidth={1.8} />
           <h1 style={{ fontSize: 17, fontWeight: 700, color: colors.text, margin: 0 }}>
-            Bon de retour
+            {t('bonRetour.title')}
           </h1>
         </div>
         {!loading && countPending > 0 && (
           <span style={{ fontSize: 12, color: colors.textMd }}>
-            {countPending} retour{countPending > 1 ? 's' : ''} en attente
+            {t('bonRetour.subtitle', { count: countPending })}
             {totalPending > 0 && ` · ${fmt(totalPending)}`}
           </span>
         )}
@@ -153,7 +155,7 @@ export default function BonRetourPage() {
       {loading && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: colors.textLt, fontSize: 13, padding: '40px 0' }}>
           <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
-          Chargement…
+          {t('loading')}
         </div>
       )}
 
@@ -164,7 +166,7 @@ export default function BonRetourPage() {
           color: colors.textLt, fontSize: 14,
         }}>
           <ArrowLeftRight size={32} color={colors.border} style={{ marginBottom: 12 }} />
-          <div>Aucun bon de retour en attente</div>
+          <div>{t('bonRetour.empty')}</div>
         </div>
       )}
 
@@ -204,10 +206,10 @@ export default function BonRetourPage() {
                 }
               </span>
               <span style={{ fontWeight: 600, fontSize: 13.5, color: colors.text, flex: 1 }}>
-                {group.carrier_name}
+                {group.carrier_name || t('bonRetour.noCarrier')}
               </span>
               <span style={{ fontSize: 12, color: colors.textMd, marginRight: 16 }}>
-                {group.receipts.length} retour{group.receipts.length > 1 ? 's' : ''}
+                {t('bonRetour.receipts', { count: group.receipts.length })}
               </span>
               {group.total > 0 && (
                 <span style={{
@@ -238,7 +240,7 @@ export default function BonRetourPage() {
                 }}
               >
                 <CheckCircle size={13} strokeWidth={2} />
-                {isConfirming ? 'Confirmation…' : 'Confirmer le bon'}
+                {isConfirming ? t('bonRetour.confirmingBtn') : t('bonRetour.confirmBtn')}
               </button>
             </div>
 
@@ -255,10 +257,10 @@ export default function BonRetourPage() {
                   borderBottom: `1px solid ${colors.border}`,
                   background: '#FEFEFE',
                 }}>
-                  <span>Référence</span>
-                  <span>Client</span>
-                  <span style={{ textAlign: 'right' }}>Montant</span>
-                  <span style={{ textAlign: 'right' }}>Actions</span>
+                  <span>{t('bonRetour.colRef')}</span>
+                  <span>{t('bonRetour.colClient')}</span>
+                  <span style={{ textAlign: 'right' }}>{t('bonRetour.colAmount')}</span>
+                  <span style={{ textAlign: 'right' }}>{t('bonRetour.colActions')}</span>
                 </div>
 
                 {group.receipts.map((row, idx) => (
@@ -295,7 +297,7 @@ export default function BonRetourPage() {
                       <button
                         onClick={() => goBack(row)}
                         disabled={!!goingBack[row.id]}
-                        title="Retour en livraison"
+                        title={t('bonRetour.backDeliveryTitle')}
                         style={{
                           display: 'flex', alignItems: 'center', gap: 5,
                           padding: '5px 10px', borderRadius: 5,
@@ -315,7 +317,7 @@ export default function BonRetourPage() {
                         }}
                       >
                         <RotateCcw size={11} strokeWidth={2} />
-                        {goingBack[row.id] ? '…' : 'Retour livraison'}
+                        {goingBack[row.id] ? '…' : t('bonRetour.backDelivery')}
                       </button>
                     </div>
                   </div>

@@ -1,0 +1,259 @@
+{
+  "filters": {
+    "searchPh": "Réf., téléphone, client…",
+    "from": "De",
+    "to": "À",
+    "clearFilters": "Effacer filtres",
+    "results_one": "{{count}} résultat",
+    "results_other": "{{count}} résultats",
+    "allConfirmers": "Tous les confirmateurs",
+    "allCarriers": "Tous les livreurs",
+    "allBoutiques": "Toutes les sociétés"
+  },
+  "newOrder": "+ Nouvelle commande",
+  "noBoutique": "Sélectionnez une boutique dans la barre de navigation.",
+  "loading": "Chargement…",
+  "newBanner_one": "{{count}} nouvelle commande reçue — Cliquez pour actualiser",
+  "newBanner_other": "{{count}} nouvelles commandes reçues — Cliquez pour actualiser",
+  "bulk": {
+    "selected_one": "{{count}} sélectionné",
+    "selected_other": "{{count}} sélectionnés",
+    "clearSelection": "Annuler la sélection",
+    "noUsers": "Aucun utilisateur",
+    "confirm": "Confirmer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "assignTo": "Affecter à",
+    "confStatus": "Statut conf.",
+    "ship": "Expédier",
+    "disableSync": "Désactiver sync",
+    "printLabels": "Imprimer étiquettes",
+    "noestLabels": "Étiquettes NOEST",
+    "routeSheet": "Feuille de route",
+    "validateDelivery": "Valider livraison",
+    "requestReturn": "Demander retour",
+    "applyFee": "Appliquer frais",
+    "feePh": "Frais DA",
+    "dispatch": "Dispatcher",
+    "carrier": "Société de livraison",
+    "validateReturn": "Valider retour",
+    "prepareEncaissement": "Préparer bon encaissement",
+    "prepareRetour": "Préparer bon retour",
+    "backToDelivery": "Retour en livraison",
+    "restore": "Restaurer",
+    "hardDelete": "Supprimer définitivement",
+    "undoDelete": "Annuler la suppression",
+    "confirmHardDelete": "Supprimer définitivement ? Cette action est irréversible."
+  },
+  "cols": {
+    "reference": "Référence",
+    "confStatus": "Statut conf.",
+    "phone": "Téléphone",
+    "client": "Client",
+    "wilaya": "Wilaya",
+    "commune": "Commune",
+    "risk": "Risque",
+    "items": "Articles",
+    "total": "Total",
+    "createdAt": "Créée le",
+    "confirmedAt": "Confirmée le",
+    "dispatchedAt": "Dispatchée le",
+    "shippedAt": "Expédiée le",
+    "deliveredAtCol": "Livrée le",
+    "returnedSince": "En retour depuis",
+    "deliveryStatus": "Statut livraison",
+    "sync": "Sync",
+    "carrierFee": "Frais livreur",
+    "confirmer": "Affectée à",
+    "carrier": "Livreur",
+    "deliveryCompany": "Société de livraison",
+    "status": "Statut",
+    "date": "Date",
+    "cancelledAt": "Annulée le",
+    "deletedAt": "Supprimée le",
+    "deliveredAt": "Livrée le",
+    "returnedAt": "Retournée le",
+    "actions": "Actions"
+  },
+  "misc": {
+    "notAssigned": "Non affecté"
+  },
+  "actions": {
+    "view": "Voir",
+    "edit": "Modifier",
+    "restore": "Restaurer",
+    "hardDelete": "Supprimer définitiv.",
+    "undoDelete": "Annuler la suppression"
+  },
+  "sync": {
+    "active": "Sync actif",
+    "disabled": "Sync désactivé"
+  },
+  "confStatusLabels": {
+    "echec_1": "Échec 1",
+    "echec_2": "Échec 2",
+    "echec_3": "Échec 3",
+    "suspendue": "Suspendue",
+    "annulation_demande": "Ann. demandée"
+  },
+  "enConfirmation": {
+    "title": "En confirmation",
+    "subtitleDefault": "Commandes en attente de confirmation",
+    "subtitleN_one": "{{count}} commande en attente de confirmation",
+    "subtitleN_other": "{{count}} commandes en attente de confirmation",
+    "empty": "Aucune commande en confirmation"
+  },
+  "enPreparation": {
+    "title": "En préparation",
+    "subtitleDefault": "Commandes prêtes à être dispatchées",
+    "subtitleN_one": "{{count}} commande en cours de préparation",
+    "subtitleN_other": "{{count}} commandes en cours de préparation",
+    "empty": "Aucune commande en préparation",
+    "noCarriers": "Aucune société de livraison configurée. Ajoutez-en une dans Webhooks.",
+    "noCarriersAvailable": "Aucune société disponible"
+  },
+  "enDispatch": {
+    "title": "En dispatch",
+    "subtitleDefault": "Commandes dispatchées",
+    "subtitleN_one": "{{count}} commande dispatchée chez la société de livraison",
+    "subtitleN_other": "{{count}} commandes dispatchées chez la société de livraison",
+    "empty": "Aucune commande en dispatch",
+    "noNoestLabels": "Aucune étiquette NOEST disponible pour la sélection",
+    "errNoestLabel": "Erreur étiquette NOEST"
+  },
+  "enLivraison": {
+    "title": "En livraison",
+    "subtitleDefault": "Commandes en cours de livraison",
+    "subtitleN_one": "{{count}} commande en cours de livraison",
+    "subtitleN_other": "{{count}} commandes en cours de livraison",
+    "empty": "Aucune commande en livraison"
+  },
+  "livrees": {
+    "title": "Livrées",
+    "subtitleDefault": "Commandes livrées",
+    "subtitleN_one": "{{count}} commande livrée",
+    "subtitleN_other": "{{count}} commandes livrées",
+    "empty": "Aucune commande livrée"
+  },
+  "enRetour": {
+    "title": "En retour",
+    "subtitleDefault": "Commandes en retour",
+    "subtitleN_one": "{{count}} commande en cours de retour",
+    "subtitleN_other": "{{count}} commandes en cours de retour",
+    "empty": "Aucune commande en retour"
+  },
+  "annulees": {
+    "title": "Annulées",
+    "empty": "Aucune commande annulée"
+  },
+  "encaissees": {
+    "title": "Encaissées",
+    "empty": "Aucune commande encaissée"
+  },
+  "retournees": {
+    "title": "Retournées",
+    "empty": "Aucune commande retournée"
+  },
+  "corbeille": {
+    "title": "Corbeille",
+    "empty": "La corbeille est vide"
+  },
+  "bonEncaissement": {
+    "title": "Bon d'encaissement",
+    "subtitle_one": "{{count}} commande · {{amount}} à encaisser",
+    "subtitle_other": "{{count}} commandes · {{amount}} à encaisser",
+    "empty": "Aucun bon d'encaissement en attente",
+    "noCarrier": "Sans livreur",
+    "colRef": "Référence",
+    "colClient": "Client",
+    "colAmount": "Montant",
+    "colActions": "Actions",
+    "confirmBtn": "Confirmer le bon",
+    "confirmingBtn": "Confirmation…",
+    "backDelivery": "Retour livraison",
+    "backDeliveryTitle": "Retour en livraison",
+    "receipts_one": "{{count}} commande",
+    "receipts_other": "{{count}} commandes"
+  },
+  "pickups": {
+    "searchPh": "Référence commande…",
+    "goBack": "Retour",
+    "enCollecte": {
+      "title": "En collecte",
+      "subtitle": "Pickups en attente de collecte par le livreur",
+      "empty": "Aucun pickup en attente de collecte",
+      "validate": "Valider collecte"
+    },
+    "collecte": {
+      "title": "Collecté",
+      "subtitle": "Pickups collectés, en attente de réception",
+      "empty": "Aucun pickup collecté en attente",
+      "validate": "Valider réception"
+    },
+    "recus": {
+      "title": "Reçus",
+      "subtitle": "Pickups reçus, en attente de traitement",
+      "empty": "Aucun pickup reçu en attente",
+      "validate": "Valider traitement"
+    },
+    "traites": {
+      "title": "Traités",
+      "subtitle": "Pickups traités",
+      "empty": "Aucun pickup traité"
+    },
+    "annules": {
+      "title": "Annulés",
+      "subtitle": "Pickups annulés",
+      "empty": "Aucun pickup annulé"
+    }
+  },
+  "bonRetour": {
+    "title": "Bon de retour",
+    "subtitle_one": "{{count}} retour en attente",
+    "subtitle_other": "{{count}} retours en attente",
+    "empty": "Aucun bon de retour en attente",
+    "noCarrier": "Sans livreur",
+    "colRef": "Référence",
+    "colClient": "Client",
+    "colAmount": "Montant",
+    "colActions": "Actions",
+    "confirmBtn": "Confirmer le bon",
+    "confirmingBtn": "Confirmation…",
+    "backDelivery": "Retour livraison",
+    "backDeliveryTitle": "Retour en livraison",
+    "receipts_one": "{{count}} retour",
+    "receipts_other": "{{count}} retours"
+  },
+  "importSources": {
+    "title": "Sources connectées",
+    "subtitle": "Connexions Google Sheets pour import automatique",
+    "back": "Retour",
+    "addSource": "+ Ajouter une source",
+    "selectBoutique": "Sélectionnez une boutique dans la barre de navigation.",
+    "infoBanner": "Les nouvelles lignes ajoutées à Google Sheet apparaissent ici en quelques secondes via le déclencheur instantané. Le sync nocturne (2h) ne sert que de filet de sécurité.",
+    "loading": "Chargement…",
+    "emptyTitle": "Aucune connexion Google Sheet",
+    "emptyHint": "Importez une feuille et sauvegardez la connexion pour activer le sync automatique.",
+    "connectSheet": "+ Connecter une feuille",
+    "active": "Actif",
+    "inactive": "Inactif",
+    "sheet": "Feuille",
+    "account": "Compte",
+    "lastSync": "Dernier sync",
+    "never": "Jamais",
+    "rowsProcessed_one": "{{count}} ligne traitée",
+    "rowsProcessed_other": "{{count}} lignes traitées",
+    "syncNowTitle": "Synchroniser maintenant",
+    "syncing": "Sync…",
+    "sync": "Sync",
+    "disable": "Désactiver",
+    "enable": "Activer",
+    "deleteTitle": "Supprimer",
+    "deleteConfirm": "Supprimer cette connexion ? Les commandes déjà importées ne seront pas supprimées.",
+    "syncResult": "{{imported}} importée(s), {{skipped}} ignorée(s), {{failed}} échouée(s)",
+    "error": "Erreur",
+    "networkError": "Erreur réseau",
+    "liveTrigger": "Déclencheur instantané actif",
+    "dailySync": "Sync quotidien (fallback)"
+  }
+}

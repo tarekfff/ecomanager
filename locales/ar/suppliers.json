@@ -1,0 +1,20 @@
+{
+  "title": "الموردون",
+  "subtitle": "إدارة الموردين",
+  "addBtn": "+ إضافة مورد",
+  "count_one": "مورد واحد",
+  "count_other": "{{count}} مورد",
+  "empty": "لا يوجد موردون",
+  "addModalTitle": "إضافة مورد",
+  "editModalTitle": "تعديل المورد",
+  "namePlaceholder": "مثال: تاجر جملة الجزائر",
+  "phonePlaceholder": "0555 00 00 00",
+  "emailPlaceholder": "contact@example.com",
+  "addressPlaceholder": "العنوان الكامل…",
+  "nameRequired": "الاسم مطلوب.",
+  "saveError": "خطأ أثناء الحفظ.",
+  "deleteError": "خطأ أثناء الحذف.",
+  "deleteTitle": "حذف المورد",
+  "deleteConfirm": "حذف «{{name}}»؟ هذا الإجراء لا رجعة فيه.",
+  "deleting": "جارٍ الحذف…"
+}

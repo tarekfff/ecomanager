@@ -1,0 +1,179 @@
+{
+  "bilan": {
+    "title":    "الميزانية العامة",
+    "subtitle": "تحليل مالي شامل — المبيعات، التوصيل، المصاريف، الربح الصافي",
+    "filters": {
+      "boutique":        "المتجر",
+      "selectBoutique":  "-- اختر --",
+      "calcBasis":       "الحساب حسب",
+      "confirmed":       "الطلبات المؤكَّدة",
+      "delivered":       "الطلبات المسلَّمة",
+      "dateBasis":       "التصفية حسب التاريخ",
+      "byCreated":       "تاريخ الإنشاء",
+      "byDelivered":     "تاريخ التسليم",
+      "periodFrom":      "الفترة من",
+      "to":              "إلى",
+      "calcBtn":         "احسب",
+      "calcLoading":     "جارٍ الحساب…"
+    },
+    "errBoutique": "يرجى اختيار متجر.",
+    "errPeriod":   "يرجى اختيار فترة.",
+    "errNetwork":  "خطأ في الشبكة",
+    "prompt":      "اختر متجراً وفترة ثم انقر على احسب.",
+    "loading":     "جارٍ الحساب…",
+    "sections": {
+      "vente":      "المبيعات",
+      "livraison":  "التوصيل",
+      "charges":    "المصاريف",
+      "resultat":   "الربح الصافي"
+    },
+    "rows": {
+      "ca":              "رقم الأعمال (CA)",
+      "valeurAchat":     "قيمة الشراء",
+      "remises":         "الخصومات الممنوحة",
+      "margeBrute":      "هامش الربح الإجمالي",
+      "fraisRecolt":     "رسوم التوصيل المحصَّلة",
+      "fraisLivreurs":   "رسوم الليّورين",
+      "margeLivraison":  "هامش التوصيل",
+      "pub":             "الإعلانات",
+      "confirmation":    "التأكيد",
+      "emballage":       "التغليف",
+      "autresCharges":   "مصاريف أخرى",
+      "totalCharges":    "إجمالي المصاريف"
+    },
+    "summary": {
+      "title":     "ملخص",
+      "included":  "الطلبات المدرجة",
+      "delivered": "منها مسلَّمة",
+      "items":     "المنتجات (الكميات)"
+    },
+    "pubCard": {
+      "title":        "تكاليف الإعلانات",
+      "dbValue":      "قيمة قاعدة البيانات:",
+      "overrideLabel":"المبلغ (تجاوز)",
+      "reset":        "إعادة ضبط"
+    },
+    "confCard": {
+      "title":        "إعداد التأكيد",
+      "unitCost":     "التكلفة الوحدوية",
+      "applyTo":      "تطبيق على",
+      "basedOn":      "بناءً على",
+      "total":        "المجموع:",
+      "eachOrder":    "كل طلب",
+      "allOrders":    "الكل (سعر ثابت)",
+      "onDelivered":  "المسلَّمة",
+      "onConfirmed":  "المؤكَّدة"
+    },
+    "packCard": {
+      "title":        "إعداد التغليف",
+      "unitCost":     "التكلفة الوحدوية",
+      "per":          "بحسب",
+      "basedOn":      "بناءً على",
+      "total":        "المجموع:",
+      "perOrder":     "الطلب",
+      "perProduct":   "المنتج",
+      "onDelivered":  "المسلَّمة",
+      "onShipped":    "المشحونة"
+    },
+    "confFormula": {
+      "perOrder":  "{{amount}} دج × طلبات {{base}}",
+      "flat":      "سعر ثابت {{amount}} دج",
+      "delivered": "مسلَّمة",
+      "confirmed": "مؤكَّدة"
+    },
+    "packFormula": {
+      "perUnit":   "{{amount}} دج لكل {{per}} ({{base}})",
+      "order":     "طلب",
+      "product":   "منتج",
+      "delivered": "مسلَّمة",
+      "shipped":   "مشحونة"
+    }
+  },
+  "rentabilite": {
+    "title":    "ربحية المنتج",
+    "subtitle": "الربح، تكلفة الإعلان والعائد على الاستثمار لكل منتج",
+    "filters": {
+      "product":      "المنتج",
+      "productPh":    "ابحث عن منتج…",
+      "variant":      "المتغير",
+      "allVariants":  "جميع المتغيرات",
+      "boutique":     "المتجر",
+      "allBoutiques": "الكل",
+      "periodFrom":   "الفترة من",
+      "to":           "إلى",
+      "calcBtn":      "احسب",
+      "calcLoading":  "جارٍ الحساب…"
+    },
+    "toggles": {
+      "hint":        "التكاليف المفعَّلة توزَّع على كمية المنتج.",
+      "yes":         "نعم",
+      "no":          "لا",
+      "remise":      "تقسيم الخصم",
+      "livraison":   "تقسيم رسوم التوصيل",
+      "livreurs":    "تقسيم رسوم الليّورين",
+      "confirmation":"تقسيم رسوم التأكيد",
+      "emballage":   "تقسيم رسوم التغليف"
+    },
+    "errProduct":  "يرجى اختيار منتج.",
+    "errPeriod":   "يرجى اختيار فترة.",
+    "errNetwork":  "خطأ في الشبكة",
+    "prompt":      "اختر منتجاً وفترة ثم انقر على احسب.",
+    "loading":     "جارٍ الحساب…",
+    "result": {
+      "beneficeTitle":  "إجمالي الربح",
+      "unitsDelivered": "{{count}} وحدة مسلَّمة",
+      "beneficeUnit":   "الربح الوحدوي",
+      "coutPub":        "تكلفة الإعلان الوحدوية",
+      "roi":            "عائد الاستثمار"
+    }
+  },
+  "export": {
+    "title":    "تصدير البيانات",
+    "subtitle": "أنشئ ملف Excel أو CSV من بياناتك",
+    "typeLabel":       "نوع البيانات",
+    "boutiqueLabel":   "المتجر",
+    "allBoutiques":    "جميع المتاجر",
+    "types": {
+      "orders":   "الطلبات",
+      "clients":  "العملاء",
+      "products": "المنتجات",
+      "stock":    "المخزون",
+      "bilan":    "الميزانية"
+    },
+    "statusLabel":     "الحالة",
+    "loadingStatuses": "تحميل…",
+    "noStatusFilter":  "لا يوجد فلتر — سيتم تضمين جميع الحالات.",
+    "statusCount":     "{{count}} حالة محددة.",
+    "dateFrom":        "التاريخ — من",
+    "dateTo":          "التاريخ — إلى",
+    "formatLabel":     "الصيغة",
+    "xlsx":            "إكسل (.xlsx)",
+    "csv":             "CSV",
+    "generateBtn":     "إنشاء التصدير",
+    "errGenerate":     "خطأ أثناء إنشاء التصدير.",
+    "errNetwork":      "خطأ في الشبكة أثناء الإنشاء."
+  },
+  "rapports": {
+    "title":    "التقارير",
+    "subtitle": "الوصول إلى التقارير التفصيلية لنشاطك",
+    "viewBtn":  "عرض التقرير",
+    "cards": {
+      "orders": {
+        "title":       "تقرير الطلبات",
+        "description": "نظرة عامة على الطلبات حسب المتجر: الأحجام، الحالات وحجم المبيعات."
+      },
+      "products": {
+        "title":       "تقرير المنتجات",
+        "description": "أداء المنتجات: الكميات المباعة، الإيرادات ومعدل الإرجاع."
+      },
+      "livreurs": {
+        "title":       "تقرير الليّورين",
+        "description": "النشاط حسب الليّور: الطلبات المسلَّمة، الإرجاعات ومعدل النجاح."
+      },
+      "confirmateurs": {
+        "title":       "تقرير المؤكِّدين",
+        "description": "النشاط حسب المؤكِّد: الطلبات المؤكَّدة، الملغاة والأداء."
+      }
+    }
+  }
+}

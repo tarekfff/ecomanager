@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from 'react-i18next'
 import Modal from './Modal'
 import Button from './Button'
 import { colors, fonts } from '@/lib/tokens'
@@ -20,9 +21,10 @@ export default function ConfirmDialog({
   onConfirm,
   title,
   message,
-  confirmLabel = 'Confirmer',
+  confirmLabel,
   danger = false,
 }: ConfirmDialogProps) {
+  const { t } = useTranslation('common')
   return (
     <Modal open={open} onClose={onClose} title={title} size="sm">
       <p style={{
@@ -36,10 +38,10 @@ export default function ConfirmDialog({
       </p>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
         <Button variant="secondary" size="sm" onClick={onClose}>
-          Annuler
+          {t('actions.cancel')}
         </Button>
         <Button variant={danger ? 'danger' : 'primary'} size="sm" onClick={onConfirm}>
-          {confirmLabel}
+          {confirmLabel ?? t('actions.confirm')}
         </Button>
       </div>
     </Modal>

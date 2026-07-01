@@ -1,0 +1,20 @@
+{
+  "title": "Fournisseurs",
+  "subtitle": "Gestion des fournisseurs",
+  "addBtn": "+ Ajouter un fournisseur",
+  "count_one": "{{count}} fournisseur",
+  "count_other": "{{count}} fournisseurs",
+  "empty": "Aucun fournisseur",
+  "addModalTitle": "Ajouter un fournisseur",
+  "editModalTitle": "Modifier le fournisseur",
+  "namePlaceholder": "Ex : Grossiste Alger",
+  "phonePlaceholder": "0555 00 00 00",
+  "emailPlaceholder": "contact@exemple.com",
+  "addressPlaceholder": "Adresse complète…",
+  "nameRequired": "Le nom est requis.",
+  "saveError": "Erreur lors de la sauvegarde.",
+  "deleteError": "Erreur lors de la suppression.",
+  "deleteTitle": "Supprimer le fournisseur",
+  "deleteConfirm": "Supprimer « {{name}} » ? Cette action est irréversible.",
+  "deleting": "Suppression…"
+}

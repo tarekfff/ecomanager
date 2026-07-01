@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslation } from 'react-i18next'
 import {
   Eye, Pencil, X, ChevronDown, AlertCircle,
   XCircle, Truck, RefreshCw, Package, Calendar, Printer,
@@ -93,6 +94,7 @@ function SkeletonRow({ cols }: { cols: number }) {
 export default function EnPreparationPage() {
   const router         = useRouter()
   const { boutiqueId } = useBoutique()
+  const { t }          = useTranslation('orders')
 
   // List state
   const [orders,  setOrders]  = useState<Order[]>([])
@@ -241,7 +243,7 @@ export default function EnPreparationPage() {
   const nSelected    = selectedIds.size
 
   const carrierOptions = [
-    { value: '', label: 'Toutes les sociétés' },
+    { value: '', label: t('filters.allBoutiques') },
     ...carriers.map(c => ({ value: c.id, label: c.name })),
   ]
 
@@ -276,15 +278,15 @@ export default function EnPreparationPage() {
   return (
     <>
       <PageHeader
-        title="En préparation"
+        title={t('enPreparation.title')}
         subtitle={
           total > 0
-            ? `${total} commande${total > 1 ? 's' : ''} en cours de préparation`
-            : 'Commandes prêtes à être dispatchées'
+            ? t('enPreparation.subtitleN', { count: total })
+            : t('enPreparation.subtitleDefault')
         }
         actions={
           <Button variant="primary" size="sm" onClick={() => router.push('/dashboard/orders/new')}>
-            + Nouvelle commande
+            {t('newOrder')}
           </Button>
         }
       />
@@ -301,7 +303,7 @@ export default function EnPreparationPage() {
             borderRadius: 6, padding: '10px 14px', fontSize: 13, color: '#795548',
           }}>
             <AlertCircle size={15} />
-            Sélectionnez une boutique dans la barre de navigation.
+            {t('noBoutique')}
           </div>
         )}
 
@@ -311,7 +313,7 @@ export default function EnPreparationPage() {
             <SearchInput
               value={search}
               onChange={handleSearchChange}
-              placeholder="Réf., téléphone, client…"
+              placeholder={t('filters.searchPh')}
             />
           </div>
 
@@ -320,12 +322,12 @@ export default function EnPreparationPage() {
               value={filterCarrier}
               onChange={handleFilterChange(setFilterCarrier)}
               options={carrierOptions}
-              placeholder="Toutes les sociétés"
+              placeholder={t('filters.allBoutiques')}
             />
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <label style={{ fontSize: 12, color: colors.textMd, whiteSpace: 'nowrap' }}>De</label>
+            <label style={{ fontSize: 12, color: colors.textMd, whiteSpace: 'nowrap' }}>{t('filters.from')}</label>
             <input
               type="date"
               value={dateFrom}
@@ -341,7 +343,7 @@ export default function EnPreparationPage() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <label style={{ fontSize: 12, color: colors.textMd }}>À</label>
+            <label style={{ fontSize: 12, color: colors.textMd }}>{t('filters.to')}</label>
             <input
               type="date"
               value={dateTo}
@@ -364,12 +366,12 @@ export default function EnPreparationPage() {
                 cursor: 'pointer', padding: '4px 6px', textDecoration: 'underline',
               }}
             >
-              Effacer filtres
+              {t('filters.clearFilters')}
             </button>
           )}
 
           <span style={{ marginLeft: 'auto', fontSize: 12, color: colors.textMd, whiteSpace: 'nowrap' }}>
-            {loading ? '…' : `${total} résultat${total !== 1 ? 's' : ''}`}
+            {loading ? '…' : t('filters.results', { count: total })}
           </span>
         </div>
 
@@ -381,14 +383,14 @@ export default function EnPreparationPage() {
             borderRadius: 6, padding: '8px 12px',
           }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: colors.primary, marginRight: 4 }}>
-              {nSelected} sélectionné{nSelected > 1 ? 's' : ''}
+              {t('bulk.selected', { count: nSelected })}
             </span>
 
             {/* Dispatcher */}
             <div ref={dispatchMenuRef} style={{ position: 'relative' }}>
               <BulkBtn
                 icon={<Truck size={13} />}
-                label="Dispatcher"
+                label={t('bulk.dispatch')}
                 suffix={<ChevronDown size={11} />}
                 onClick={() => { setShowDispatchMenu(v => !v); setShowCarrierChangeMenu(false) }}
                 loading={bulkLoading}
@@ -402,7 +404,7 @@ export default function EnPreparationPage() {
                 }}>
                   {dispatchOptions.length === 0 ? (
                     <div style={{ padding: '10px 14px', fontSize: 12.5, color: colors.textLt, maxWidth: 220 }}>
-                      Aucune société de livraison configurée. Ajoutez-en une dans Webhooks.
+                      {t('enPreparation.noCarriers')}
                     </div>
                   ) : dispatchOptions.map(opt => (
                     <button
@@ -437,7 +439,7 @@ export default function EnPreparationPage() {
             <div ref={carrierChangeMenuRef} style={{ position: 'relative' }}>
               <BulkBtn
                 icon={<RefreshCw size={13} />}
-                label="Société de livraison"
+                label={t('bulk.carrier')}
                 suffix={<ChevronDown size={11} />}
                 onClick={() => { setShowCarrierChangeMenu(v => !v); setShowDispatchMenu(false) }}
                 loading={bulkLoading}
@@ -450,7 +452,7 @@ export default function EnPreparationPage() {
                 }}>
                   {carriers.length === 0 ? (
                     <div style={{ padding: '10px 14px', fontSize: 12.5, color: colors.textLt }}>
-                      Aucune société disponible
+                      {t('enPreparation.noCarriersAvailable')}
                     </div>
                   ) : carriers.map(c => (
                     <button
@@ -475,7 +477,7 @@ export default function EnPreparationPage() {
             {/* Annuler */}
             <BulkBtn
               icon={<XCircle size={13} />}
-              label="Annuler"
+              label={t('bulk.cancel')}
               onClick={() => bulkAction('cancel')}
               loading={bulkLoading}
               color={colors.red}
@@ -484,7 +486,7 @@ export default function EnPreparationPage() {
             {/* Imprimer étiquettes */}
             <BulkBtn
               icon={<Printer size={13} />}
-              label="Imprimer étiquettes"
+              label={t('bulk.printLabels')}
               onClick={() => {}}
               loading={false}
             />
@@ -504,7 +506,7 @@ export default function EnPreparationPage() {
                 cursor: 'pointer', color: colors.textLt, display: 'flex', alignItems: 'center',
                 padding: 4,
               }}
-              title="Annuler la sélection"
+              title={t('bulk.clearSelection')}
             >
               <X size={15} />
             </button>
@@ -522,15 +524,15 @@ export default function EnPreparationPage() {
                 <TH width={36}>
                   <Checkbox checked={allSelected} indeterminate={someSelected} onChange={toggleSelectAll} />
                 </TH>
-                <TH width={110}>Référence</TH>
-                <TH width={150}>Client</TH>
-                <TH width={115}>Téléphone</TH>
-                <TH width={95}>Wilaya</TH>
-                <TH width={60} center>Articles</TH>
-                <TH width={105}>Total</TH>
-                <TH width={100}>Confirmée le</TH>
-                <TH width={140}>Société de livraison</TH>
-                <TH width={72}>Actions</TH>
+                <TH width={110}>{t('cols.reference')}</TH>
+                <TH width={150}>{t('cols.client')}</TH>
+                <TH width={115}>{t('cols.phone')}</TH>
+                <TH width={95}>{t('cols.wilaya')}</TH>
+                <TH width={60} center>{t('cols.items')}</TH>
+                <TH width={105}>{t('cols.total')}</TH>
+                <TH width={100}>{t('cols.confirmedAt')}</TH>
+                <TH width={140}>{t('cols.deliveryCompany')}</TH>
+                <TH width={72}>{t('cols.actions')}</TH>
               </tr>
             </thead>
             <tbody>
@@ -543,7 +545,7 @@ export default function EnPreparationPage() {
                     color: colors.textLt, fontSize: 13,
                   }}>
                     <Package size={28} style={{ opacity: 0.3, marginBottom: 8, display: 'block', margin: '0 auto 8px' }} />
-                    Aucune commande en préparation
+                    {t('enPreparation.empty')}
                   </td>
                 </tr>
               ) : (
@@ -621,7 +623,7 @@ export default function EnPreparationPage() {
                               <Truck size={11} style={{ color: colors.textLt, flexShrink: 0 }} />
                               <span style={{ fontWeight: 500 }}>{order.carrier_name}</span>
                             </span>
-                          : <span style={{ color: colors.textLt, fontSize: 11.5 }}>Non affecté</span>
+                          : <span style={{ color: colors.textLt, fontSize: 11.5 }}>{t('misc.notAssigned')}</span>
                         }
                       </TD>
 
@@ -636,12 +638,12 @@ export default function EnPreparationPage() {
                         <div style={{ display: 'flex', gap: 4 }}>
                           <ActionBtn
                             icon={<Eye size={12} />}
-                            title="Voir"
+                            title={t('actions.view')}
                             onClick={() => setDrawerOrderId(order.id)}
                           />
                           <ActionBtn
                             icon={<Pencil size={12} />}
-                            title="Modifier"
+                            title={t('actions.edit')}
                             onClick={() => router.push(`/dashboard/orders/${order.id}/edit`)}
                           />
                         </div>

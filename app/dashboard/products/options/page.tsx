@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useRef, KeyboardEvent } from 'react'
 import { Plus, Trash2, Pencil, Check, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { PageHeader, Button, Input } from '@/components/ui'
 import { colors, fonts } from '@/lib/tokens'
 
@@ -24,6 +25,7 @@ function ValueChip({
   value: OptionValue
   onDelete: (id: string) => void
 }) {
+  const { t } = useTranslation('products')
   const [hovered, setHovered] = useState(false)
   return (
     <span
@@ -49,7 +51,7 @@ function ValueChip({
           border: 'none', cursor: 'pointer', color: colors.textLt,
           padding: 0,
         }}
-        title="Supprimer cette valeur"
+        title={t('options.deleteValue')}
       >
         <X size={10} />
       </button>
@@ -64,6 +66,7 @@ function AddValueInput({
   optionTypeId: string
   onAdded: (value: OptionValue) => void
 }) {
+  const { t } = useTranslation('products')
   const [value,   setValue]   = useState('')
   const [saving,  setSaving]  = useState(false)
   const [focused, setFocused] = useState(false)
@@ -102,7 +105,7 @@ function AddValueInput({
         onKeyDown={onKey}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        placeholder="Nouvelle valeur…"
+        placeholder={t('options.valuePh')}
         style={{
           border: `1px solid ${focused ? colors.primary : colors.border}`,
           borderRadius: 4, padding: '5px 9px', fontSize: 12.5,
@@ -123,7 +126,7 @@ function AddValueInput({
           fontFamily: fonts.sans,
         }}
       >
-        <Plus size={12} /> Ajouter
+        <Plus size={12} /> {t('options.add')}
       </button>
     </div>
   )
@@ -138,6 +141,7 @@ function OptionTypeCard({
   onUpdated: (updated: OptionType) => void
   onDeleted: (id: string) => void
 }) {
+  const { t } = useTranslation('products')
   const [editing,    setEditing]    = useState(false)
   const [name,       setName]       = useState(optionType.name)
   const [savingName, setSavingName] = useState(false)
@@ -167,7 +171,7 @@ function OptionTypeCard({
   }
 
   async function handleDelete() {
-    if (!confirm(`Supprimer "${optionType.name}" et toutes ses valeurs ?`)) return
+    if (!confirm(t('options.deleteConfirm', { name: optionType.name }))) return
     setDeleting(true)
     try {
       const res = await fetch(`/api/option-types/${optionType.id}`, {
@@ -224,7 +228,7 @@ function OptionTypeCard({
             <button
               type="button" onClick={saveName} disabled={savingName}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: colors.primary }}
-              title="Enregistrer"
+              title={t('options.save')}
             >
               <Check size={15} />
             </button>
@@ -232,7 +236,7 @@ function OptionTypeCard({
               type="button"
               onClick={() => { setEditing(false); setName(optionType.name) }}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: colors.textLt }}
-              title="Annuler"
+              title={t('options.cancel')}
             >
               <X size={15} />
             </button>
@@ -245,7 +249,7 @@ function OptionTypeCard({
             <button
               type="button" onClick={() => setEditing(true)}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: colors.textLt, padding: 2 }}
-              title="Renommer"
+              title={t('options.rename')}
             >
               <Pencil size={13} />
             </button>
@@ -262,7 +266,7 @@ function OptionTypeCard({
             cursor: deleting ? 'not-allowed' : 'pointer', opacity: deleting ? 0.6 : 1,
           }}
         >
-          <Trash2 size={12} /> Supprimer
+          <Trash2 size={12} /> {t('options.delete')}
         </button>
       </div>
 
@@ -270,7 +274,7 @@ function OptionTypeCard({
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12, minHeight: 28 }}>
         {optionType.option_values.length === 0 ? (
           <span style={{ fontSize: 12.5, color: colors.textLt, fontFamily: fonts.sans, alignSelf: 'center' }}>
-            Aucune valeur pour l&apos;instant.
+            {t('options.noValues')}
           </span>
         ) : (
           optionType.option_values.map(v => (
@@ -288,6 +292,7 @@ function OptionTypeCard({
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function OptionsPage() {
+  const { t } = useTranslation('products')
   const [optionTypes, setOptionTypes] = useState<OptionType[]>([])
   const [loading,     setLoading]     = useState(true)
   const [newTypeName, setNewTypeName] = useState('')
@@ -304,7 +309,7 @@ export default function OptionsPage() {
 
   async function handleCreate() {
     const trimmed = newTypeName.trim()
-    if (!trimmed) { setCreateErr('Le nom est requis'); return }
+    if (!trimmed) { setCreateErr(t('options.nameRequired')); return }
     setCreating(true); setCreateErr('')
     try {
       const res  = await fetch('/api/option-types', {
@@ -313,7 +318,7 @@ export default function OptionsPage() {
         body: JSON.stringify({ name: trimmed }),
       })
       const data = await res.json() as OptionType & { error?: string }
-      if (!res.ok) { setCreateErr(data.error ?? 'Erreur'); return }
+      if (!res.ok) { setCreateErr(data.error ?? t('options.error')); return }
       setOptionTypes(prev => [...prev, data])
       setNewTypeName('')
     } finally {
@@ -332,8 +337,8 @@ export default function OptionsPage() {
   return (
     <>
       <PageHeader
-        title="Options & attributs"
-        subtitle="Gérez les types d'attributs (Couleur, Taille…) et leurs valeurs."
+        title={t('options.title')}
+        subtitle={t('options.subtitle')}
       />
 
       <div style={{ flex: 1, overflow: 'auto', padding: '20px 20px 40px' }}>
@@ -351,37 +356,35 @@ export default function OptionsPage() {
             color: colors.textLt, textTransform: 'uppercase',
             letterSpacing: '0.5px', fontFamily: fonts.sans,
           }}>
-            Nouvel attribut
+            {t('options.newAttr')}
           </p>
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
             <div style={{ flex: 1 }}>
               <Input
-                label="Nom de l'attribut"
+                label={t('options.attrNameLabel')}
                 value={newTypeName}
                 onChange={v => { setNewTypeName(v); setCreateErr('') }}
-                placeholder="Ex : Couleur, Taille, Matière…"
+                placeholder={t('options.attrNamePh')}
                 error={createErr}
               />
             </div>
             <Button variant="primary" size="sm" loading={creating} onClick={handleCreate}>
               <Plus size={13} style={{ marginRight: 4 }} />
-              Créer
+              {t('options.create')}
             </Button>
           </div>
         </div>
 
         {/* List */}
         {loading ? (
-          <p style={{ fontSize: 13, color: colors.textLt, fontFamily: fonts.sans }}>Chargement…</p>
+          <p style={{ fontSize: 13, color: colors.textLt, fontFamily: fonts.sans }}>{t('options.loading')}</p>
         ) : optionTypes.length === 0 ? (
           <div style={{
             textAlign: 'center', padding: '60px 20px',
             color: colors.textLt, fontFamily: fonts.sans,
           }}>
-            <p style={{ fontSize: 14, marginBottom: 6 }}>Aucun attribut défini.</p>
-            <p style={{ fontSize: 12.5 }}>
-              Créez vos premiers types d&apos;attributs ci-dessus pour générer des variantes de produit.
-            </p>
+            <p style={{ fontSize: 14, marginBottom: 6 }}>{t('options.empty')}</p>
+            <p style={{ fontSize: 12.5 }}>{t('options.emptyHint')}</p>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

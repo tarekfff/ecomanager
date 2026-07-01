@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import { useTranslation } from 'react-i18next'
 import { Pencil, Trash2, ScrollText, Copy, Check, RefreshCw, Truck } from 'lucide-react'
 import {
   PageHeader, Table, Modal, Button, Input, Badge, ConfirmDialog,
@@ -10,9 +11,10 @@ import { colors, fonts } from '@/lib/tokens'
 
 // ── Webhook events (19 total) — grouped for the select ──────────────────────
 
-const EVENT_GROUPS: { label: string; events: string[] }[] = [
+// labels are translated inside the component using t('eventGroups.*')
+const EVENT_GROUPS_KEYS: { key: 'lifecycle' | 'statusChanges' | 'modifications'; events: string[] }[] = [
   {
-    label: 'Cycle de vie',
+    key: 'lifecycle',
     events: [
       'OrderCreated', 'OrderConfirmed', 'OrderDispatched', 'OrderShipped',
       'OrderDelivered', 'OrderFailed', 'OrderPaid', 'OrderReturned',
@@ -20,14 +22,14 @@ const EVENT_GROUPS: { label: string; events: string[] }[] = [
     ],
   },
   {
-    label: 'Changements de statut',
+    key: 'statusChanges',
     events: [
       'OrderStatusChanged', 'OrderConfirmationStatusChanged',
       'OrderShippingStatusChanged', 'OrderTrackingStatusChanged',
     ],
   },
   {
-    label: 'Modifications',
+    key: 'modifications',
     events: [
       'OrderAddressChanged', 'OrderItemsChanged',
       'OrderConfirmerChanged', 'OrderCarrierChanged',
@@ -85,6 +87,7 @@ const EMPTY_FORM: FormState = {
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function WebhooksPage() {
+  const { t } = useTranslation('webhooks')
   const [webhooks,  setWebhooks]  = useState<Webhook[]>([])
   const [boutiques, setBoutiques] = useState<Boutique[]>([])
   const [loading,   setLoading]   = useState(false)
@@ -163,9 +166,9 @@ export default function WebhooksPage() {
   }
 
   async function handleSave() {
-    if (!form.name.trim())  { setFormError('Le nom est requis.'); return }
-    if (!form.event)        { setFormError("L'événement est requis."); return }
-    if (!form.url.trim())   { setFormError("L'URL est requise."); return }
+    if (!form.name.trim())  { setFormError(t('errors.nameRequired')); return }
+    if (!form.event)        { setFormError(t('errors.eventRequired')); return }
+    if (!form.url.trim())   { setFormError(t('errors.urlRequired')); return }
 
     setSaving(true)
     setFormError('')
@@ -187,7 +190,7 @@ export default function WebhooksPage() {
       )
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        setFormError((err as { error?: string }).error ?? 'Erreur lors de la sauvegarde.')
+        setFormError((err as { error?: string }).error ?? t('errors.saveFailed'))
         return
       }
       setModalOpen(false)
@@ -233,7 +236,7 @@ export default function WebhooksPage() {
         fetchWebhooks()
       } else {
         const err = await res.json().catch(() => ({}))
-        setDeleteError((err as { error?: string }).error ?? 'Erreur lors de la suppression.')
+        setDeleteError((err as { error?: string }).error ?? t('errors.deleteFailed'))
       }
     } finally {
       setDeleting(false)
@@ -254,15 +257,15 @@ export default function WebhooksPage() {
         ping?: { ok: boolean; status: number; wilayas?: number; body?: string }
       }
       if (!res.ok) {
-        setNoestMsg({ ok: false, text: d.error ?? 'Erreur lors de la configuration NOEST.' })
+        setNoestMsg({ ok: false, text: d.error ?? t('noest.error') })
         return
       }
       const pingTxt = d.ping?.ok
-        ? `Connexion NOEST OK (${d.ping.wilayas ?? '?'} wilayas).`
-        : `⚠ Connexion NOEST échouée (HTTP ${d.ping?.status ?? 0}). Vérifiez NOEST_API_TOKEN / NOEST_USER_GUID.`
+        ? t('noest.pingOk', { wilayas: d.ping.wilayas ?? '?' })
+        : t('noest.pingFailed', { status: d.ping?.status ?? 0 })
       setNoestMsg({
         ok: !!d.ping?.ok,
-        text: `${d.created ? 'Webhook NOEST créé.' : 'Webhook NOEST déjà configuré.'} ${pingTxt}`,
+        text: `${d.created ? t('noest.created') : t('noest.alreadyConfigured')} ${pingTxt}`,
       })
       fetchWebhooks()
     } finally {
@@ -274,15 +277,15 @@ export default function WebhooksPage() {
 
   const columns: Column<Webhook>[] = [
     {
-      key: 'name', label: 'Nom',
+      key: 'name', label: t('table.name'),
       render: row => <span style={{ fontWeight: 500, color: colors.text }}>{row.name}</span>,
     },
     {
-      key: 'event', label: 'Événement', width: 220,
+      key: 'event', label: t('table.event'), width: 220,
       render: row => <Badge color="purple">{row.event}</Badge>,
     },
     {
-      key: 'url', label: 'URL',
+      key: 'url', label: t('table.url'),
       render: row => (
         <span style={{
           color: colors.textMd, fontSize: 12, maxWidth: 260,
@@ -294,10 +297,10 @@ export default function WebhooksPage() {
       ),
     },
     {
-      key: 'boutiques', label: 'Boutiques', width: 200,
+      key: 'boutiques', label: t('table.boutiques'), width: 200,
       render: row => {
         if (!row.boutique_names || row.boutique_names.length === 0) {
-          return <span style={{ color: colors.textLt, fontSize: 12 }}>Toutes</span>
+          return <span style={{ color: colors.textLt, fontSize: 12 }}>{t('table.allBoutiques')}</span>
         }
         return (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
@@ -307,19 +310,19 @@ export default function WebhooksPage() {
       },
     },
     {
-      key: 'is_active', label: 'Actif', width: 80,
+      key: 'is_active', label: t('table.active'), width: 80,
       render: row => <Toggle on={row.is_active} onClick={() => toggleActive(row)} />,
     },
     {
-      key: 'actions', label: 'Actions', width: 240,
+      key: 'actions', label: t('table.actions'), width: 240,
       render: row => (
         <div style={{ display: 'flex', gap: 6 }}>
-          <ActionBtn icon={<Pencil size={11} />} label="Modifier" onClick={() => openEdit(row)} />
+          <ActionBtn icon={<Pencil size={11} />} label={t('actions.edit')} onClick={() => openEdit(row)} />
           <Link href={`/dashboard/webhooks/${row.id}/logs`} style={{ textDecoration: 'none' }}>
-            <ActionBtn icon={<ScrollText size={11} />} label="Logs" />
+            <ActionBtn icon={<ScrollText size={11} />} label={t('actions.logs')} />
           </Link>
           <ActionBtn
-            icon={<Trash2 size={11} />} label="Supprimer" danger
+            icon={<Trash2 size={11} />} label={t('actions.delete')} danger
             onClick={() => openDelete(row)}
           />
         </div>
@@ -332,15 +335,15 @@ export default function WebhooksPage() {
   return (
     <>
       <PageHeader
-        title="Webhooks"
-        subtitle="Notifications HTTP déclenchées par les événements de commande"
+        title={t('title')}
+        subtitle={t('subtitle')}
         actions={
           <>
             <Button variant="secondary" size="sm" loading={noestLoading} onClick={setupNoest}>
-              <Truck size={13} /> Configurer NOEST
+              <Truck size={13} /> {t('setupNoest')}
             </Button>
             <Button variant="primary" size="sm" onClick={openAdd}>
-              + Ajouter un webhook
+              {t('addWebhook')}
             </Button>
           </>
         }
@@ -362,14 +365,14 @@ export default function WebhooksPage() {
         )}
 
         <span style={{ fontSize: 12, color: colors.textMd, fontFamily: fonts.sans }}>
-          {loading ? '…' : `${webhooks.length} webhook${webhooks.length !== 1 ? 's' : ''}`}
+          {loading ? '…' : t('count', { count: webhooks.length })}
         </span>
 
         <Table<Webhook>
           columns={columns}
           data={webhooks}
           loading={loading}
-          emptyText="Aucun webhook"
+          emptyText={t('empty')}
         />
       </div>
 
@@ -377,20 +380,20 @@ export default function WebhooksPage() {
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editId ? 'Modifier le webhook' : 'Ajouter un webhook'}
+        title={editId ? t('editTitle') : t('addTitle')}
         size="md"
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <Input
-            label="Nom" value={form.name}
+            label={t('form.name')} value={form.name}
             onChange={v => setForm(f => ({ ...f, name: v }))}
-            placeholder="Ex : Notification Slack" required
+            placeholder={t('form.namePh')} required
           />
 
           {/* Grouped event select */}
           <div style={{ display: 'flex', flexDirection: 'column', fontFamily: fonts.sans }}>
             <label style={{ fontSize: 12.5, color: colors.textMd, marginBottom: 4, fontWeight: 500 }}>
-              Événement<span style={{ color: colors.primary, marginLeft: 2 }}>*</span>
+              {t('form.event')}<span style={{ color: colors.primary, marginLeft: 2 }}>*</span>
             </label>
             <select
               value={form.event}
@@ -403,9 +406,9 @@ export default function WebhooksPage() {
                 cursor: 'pointer', boxSizing: 'border-box',
               }}
             >
-              <option value="" disabled>Sélectionner un événement…</option>
-              {EVENT_GROUPS.map(group => (
-                <optgroup key={group.label} label={group.label}>
+              <option value="" disabled>{t('form.eventPh')}</option>
+              {EVENT_GROUPS_KEYS.map(group => (
+                <optgroup key={group.key} label={t('eventGroups.' + group.key)}>
                   {group.events.map(ev => <option key={ev} value={ev}>{ev}</option>)}
                 </optgroup>
               ))}
@@ -413,15 +416,15 @@ export default function WebhooksPage() {
           </div>
 
           <Input
-            label="URL" value={form.url}
+            label={t('form.url')} value={form.url}
             onChange={v => setForm(f => ({ ...f, url: v }))}
-            placeholder="https://exemple.com/webhook" required
+            placeholder={t('form.urlPh')} required
           />
 
           {/* Secret with copy + regenerate */}
           <div style={{ display: 'flex', flexDirection: 'column', fontFamily: fonts.sans }}>
             <label style={{ fontSize: 12.5, color: colors.textMd, marginBottom: 4, fontWeight: 500 }}>
-              Code secret
+              {t('form.secret')}
             </label>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <input
@@ -453,10 +456,10 @@ export default function WebhooksPage() {
           {/* Boutiques multi-select */}
           <div style={{ display: 'flex', flexDirection: 'column', fontFamily: fonts.sans }}>
             <label style={{ fontSize: 12.5, color: colors.textMd, marginBottom: 6, fontWeight: 500 }}>
-              Boutiques <span style={{ color: colors.textLt, fontWeight: 400 }}>(aucune = toutes)</span>
+              {t('form.boutiques')} <span style={{ color: colors.textLt, fontWeight: 400 }}>{t('form.boutiqueHint')}</span>
             </label>
             {boutiques.length === 0 ? (
-              <span style={{ fontSize: 12, color: colors.textLt }}>Aucune boutique disponible</span>
+              <span style={{ fontSize: 12, color: colors.textLt }}>{t('form.noBoutiques')}</span>
             ) : (
               <div style={{
                 display: 'flex', flexDirection: 'column', gap: 6,
@@ -485,7 +488,7 @@ export default function WebhooksPage() {
           <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
             <Toggle on={form.is_active} onClick={() => setForm(f => ({ ...f, is_active: !f.is_active }))} />
             <span style={{ fontSize: 13, color: colors.text, fontFamily: fonts.sans }}>
-              {form.is_active ? 'Actif' : 'Inactif'}
+              {form.is_active ? t('active') : t('inactive')}
             </span>
           </label>
 
@@ -495,9 +498,9 @@ export default function WebhooksPage() {
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
-          <Button variant="secondary" size="sm" onClick={() => setModalOpen(false)}>Annuler</Button>
+          <Button variant="secondary" size="sm" onClick={() => setModalOpen(false)}>{t('cancel')}</Button>
           <Button variant="primary" size="sm" loading={saving} onClick={handleSave}>
-            {editId ? 'Enregistrer' : 'Ajouter'}
+            {editId ? t('save') : t('add')}
           </Button>
         </div>
       </Modal>
@@ -507,13 +510,13 @@ export default function WebhooksPage() {
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
-        title="Supprimer le webhook"
+        title={t('delete.title')}
         message={
           deleteError
             ? deleteError
-            : `Supprimer « ${deleteTarget?.name} » ? Cette action est irréversible.`
+            : t('delete.message', { name: deleteTarget?.name })
         }
-        confirmLabel={deleting ? 'Suppression…' : 'Supprimer'}
+        confirmLabel={deleting ? t('delete.deleting') : t('delete.confirm')}
         danger
       />
     </>

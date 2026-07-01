@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ArrowRight } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { colors, fonts } from '@/lib/tokens'
 import PageHeader from '@/components/ui/PageHeader'
 import Button from '@/components/ui/Button'
@@ -123,6 +124,8 @@ function arrowBtn(disabled: boolean): React.CSSProperties {
 // ─── StatusPanel (livraison + confirmation) ───────────────────────────────────
 
 function StatusPanel({ apiBase }: { apiBase: string }) {
+  const { t } = useTranslation('config')
+
   const [items, setItems] = useState<DeliveryStatus[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
@@ -163,7 +166,7 @@ function StatusPanel({ apiBase }: { apiBase: string }) {
 
   async function handleSave() {
     const name = formName.trim()
-    if (!name) { setFormError('Le nom est requis'); return }
+    if (!name) { setFormError(t('statuts.panel.errName')); return }
     setSaving(true)
     try {
       const url = editItem ? `${apiBase}/${editItem.id}` : apiBase
@@ -235,7 +238,7 @@ function StatusPanel({ apiBase }: { apiBase: string }) {
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
         <Button onClick={openAdd} size="sm">
           <Plus size={13} />
-          Ajouter
+          {t('statuts.panel.addBtn')}
         </Button>
       </div>
 
@@ -248,22 +251,22 @@ function StatusPanel({ apiBase }: { apiBase: string }) {
       }}>
         {loading ? (
           <div style={{ padding: '32px 16px', textAlign: 'center', color: colors.textLt, fontSize: 13 }}>
-            Chargement…
+            {t('statuts.panel.loading')}
           </div>
         ) : items.length === 0 ? (
           <div style={{ padding: '32px 16px', textAlign: 'center', color: colors.textLt, fontSize: 13 }}>
-            Aucun statut configuré
+            {t('statuts.panel.empty')}
           </div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f5f5f5' }}>
-                <th style={{ ...thStyle, width: 80 }}>Ordre</th>
-                <th style={thStyle}>Nom</th>
-                <th style={thStyle}>Slug</th>
-                <th style={{ ...thStyle, textAlign: 'center', width: 80 }}>SMS</th>
-                <th style={{ ...thStyle, textAlign: 'center', width: 80 }}>Actif</th>
-                <th style={{ ...thStyle, textAlign: 'right', width: 90 }}>Actions</th>
+                <th style={{ ...thStyle, width: 80 }}>{t('statuts.panel.cols.order')}</th>
+                <th style={thStyle}>{t('statuts.panel.cols.name')}</th>
+                <th style={thStyle}>{t('statuts.panel.cols.slug')}</th>
+                <th style={{ ...thStyle, textAlign: 'center', width: 80 }}>{t('statuts.panel.cols.sms')}</th>
+                <th style={{ ...thStyle, textAlign: 'center', width: 80 }}>{t('statuts.panel.cols.active')}</th>
+                <th style={{ ...thStyle, textAlign: 'right', width: 90 }}>{t('statuts.panel.cols.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -280,7 +283,7 @@ function StatusPanel({ apiBase }: { apiBase: string }) {
                         onClick={() => moveItem(idx, 'up')}
                         disabled={idx === 0 || reordering}
                         style={arrowBtn(idx === 0 || reordering)}
-                        title="Monter"
+                        title={t('statuts.panel.tooltipUp')}
                       >
                         <ChevronUp size={13} />
                       </button>
@@ -288,7 +291,7 @@ function StatusPanel({ apiBase }: { apiBase: string }) {
                         onClick={() => moveItem(idx, 'down')}
                         disabled={idx === items.length - 1 || reordering}
                         style={arrowBtn(idx === items.length - 1 || reordering)}
-                        title="Descendre"
+                        title={t('statuts.panel.tooltipDown')}
                       >
                         <ChevronDown size={13} />
                       </button>
@@ -298,7 +301,7 @@ function StatusPanel({ apiBase }: { apiBase: string }) {
                     {item.name}
                     {item.is_system && (
                       <span style={{ fontSize: 10, color: colors.textLt, marginLeft: 6, fontStyle: 'italic' }}>
-                        système
+                        {t('statuts.panel.system')}
                       </span>
                     )}
                   </td>
@@ -325,11 +328,11 @@ function StatusPanel({ apiBase }: { apiBase: string }) {
                   </td>
                   <td style={{ ...tdStyle, textAlign: 'right' }}>
                     <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
-                      <button onClick={() => openEdit(item)} style={iconBtn()} title="Modifier">
+                      <button onClick={() => openEdit(item)} style={iconBtn()} title={t('statuts.panel.tooltipEdit')}>
                         <Pencil size={14} />
                       </button>
                       {!item.is_system && (
-                        <button onClick={() => setDeleteId(item.id)} style={iconBtn(true)} title="Supprimer">
+                        <button onClick={() => setDeleteId(item.id)} style={iconBtn(true)} title={t('statuts.panel.tooltipDelete')}>
                           <Trash2 size={14} />
                         </button>
                       )}
@@ -346,30 +349,30 @@ function StatusPanel({ apiBase }: { apiBase: string }) {
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editItem ? 'Modifier le statut' : 'Nouveau statut'}
+        title={editItem ? t('statuts.panel.modal.titleEdit') : t('statuts.panel.modal.titleAdd')}
         size="sm"
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <Input
-            label="Nom"
+            label={t('statuts.panel.modal.nameLbl')}
             value={formName}
             onChange={v => { setFormName(v); setFormError('') }}
-            placeholder="ex: Reportée"
+            placeholder={t('statuts.panel.modal.namePh')}
             required
             error={formError}
           />
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Toggle checked={formSms} onChange={setFormSms} />
             <span style={{ fontSize: 13, color: colors.textMd, fontFamily: fonts.sans }}>
-              Notifier par SMS
+              {t('statuts.panel.modal.smsLabel')}
             </span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 4 }}>
             <Button variant="secondary" size="sm" onClick={() => setModalOpen(false)}>
-              Annuler
+              {t('statuts.panel.modal.cancelBtn')}
             </Button>
             <Button size="sm" onClick={handleSave} loading={saving}>
-              {editItem ? 'Enregistrer' : 'Ajouter'}
+              {editItem ? t('statuts.panel.modal.saveBtn') : t('statuts.panel.modal.addBtn')}
             </Button>
           </div>
         </div>
@@ -379,9 +382,9 @@ function StatusPanel({ apiBase }: { apiBase: string }) {
         open={!!deleteId}
         onClose={() => setDeleteId(null)}
         onConfirm={handleDelete}
-        title="Supprimer le statut"
-        message="Cette action est irréversible. Confirmer la suppression ?"
-        confirmLabel="Supprimer"
+        title={t('statuts.panel.delete.title')}
+        message={t('statuts.panel.delete.message')}
+        confirmLabel={t('statuts.panel.delete.confirmBtn')}
         danger
       />
     </div>
@@ -401,6 +404,7 @@ const FLOW_MAIN = [
 const FLOW_TERMINAL = ['retournee', 'encaissee', 'annulee']
 
 function TrackingPanel() {
+  const { t } = useTranslation('config')
   const [items, setItems] = useState<TrackingStatus[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -456,7 +460,7 @@ function TrackingPanel() {
         marginBottom: 16,
       }}>
         <p style={{ fontSize: 12, color: colors.textLt, margin: '0 0 12px', fontWeight: 500 }}>
-          FLUX PRINCIPAL
+          {t('statuts.tracking.flowMain')}
         </p>
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
           {FLOW_MAIN.map((slug, i) => (
@@ -470,7 +474,7 @@ function TrackingPanel() {
         </div>
 
         <p style={{ fontSize: 12, color: colors.textLt, margin: '14px 0 8px', fontWeight: 500 }}>
-          STATUTS TERMINAUX
+          {t('statuts.tracking.flowTerminal')}
         </p>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           {FLOW_TERMINAL.map(slug => (
@@ -488,16 +492,16 @@ function TrackingPanel() {
       }}>
         {loading ? (
           <div style={{ padding: '32px 16px', textAlign: 'center', color: colors.textLt, fontSize: 13 }}>
-            Chargement…
+            {t('statuts.tracking.loading')}
           </div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f5f5f5' }}>
-                <th style={thStyle}>Nom</th>
-                <th style={thStyle}>Slug</th>
-                <th style={{ ...thStyle, textAlign: 'center', width: 80 }}>SMS</th>
-                <th style={{ ...thStyle, textAlign: 'center', width: 80 }}>Actif</th>
+                <th style={thStyle}>{t('statuts.tracking.cols.name')}</th>
+                <th style={thStyle}>{t('statuts.tracking.cols.slug')}</th>
+                <th style={{ ...thStyle, textAlign: 'center', width: 80 }}>{t('statuts.tracking.cols.sms')}</th>
+                <th style={{ ...thStyle, textAlign: 'center', width: 80 }}>{t('statuts.tracking.cols.active')}</th>
               </tr>
             </thead>
             <tbody>
@@ -541,7 +545,7 @@ function TrackingPanel() {
         margin: '10px 0 0',
         fontStyle: 'italic',
       }}>
-        Les statuts de suivi sont gérés par le système et ne peuvent pas être modifiés.
+        {t('statuts.tracking.readonly')}
       </p>
     </div>
   )
@@ -549,22 +553,23 @@ function TrackingPanel() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-const TABS = [
-  { label: 'Statuts de livraison',    key: 'livraison' },
-  { label: 'Statuts de confirmation', key: 'confirmation' },
-  { label: 'Statuts de suivi',        key: 'suivi' },
-] as const
-
-type TabKey = typeof TABS[number]['key']
+type TabKey = 'livraison' | 'confirmation' | 'suivi'
 
 export default function StatutsPage() {
+  const { t } = useTranslation('config')
   const [activeTab, setActiveTab] = useState<TabKey>('livraison')
+
+  const TABS: { label: string; key: TabKey }[] = [
+    { label: t('statuts.tabs.livraison'),    key: 'livraison' },
+    { label: t('statuts.tabs.confirmation'), key: 'confirmation' },
+    { label: t('statuts.tabs.suivi'),        key: 'suivi' },
+  ]
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontFamily: fonts.sans }}>
       <PageHeader
-        title="Configuration des statuts"
-        subtitle="Gérez les statuts de livraison, de confirmation et de suivi des commandes"
+        title={t('statuts.title')}
+        subtitle={t('statuts.subtitle')}
       />
 
       {/* Tab bar */}

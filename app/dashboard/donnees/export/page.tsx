@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { Download, FileSpreadsheet, FileText } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { PageHeader, Select, Button } from '@/components/ui'
 import { colors, fonts } from '@/lib/tokens'
 
@@ -12,15 +13,6 @@ type Format     = 'xlsx' | 'csv'
 interface Boutique       { id: string; name: string; prefix: string }
 interface TrackingStatus { id: string; name: string; slug: string }
 
-const TYPE_OPTIONS: { value: ExportType; label: string }[] = [
-  { value: 'orders',   label: 'Commandes' },
-  { value: 'clients',  label: 'Clients'   },
-  { value: 'products', label: 'Produits'  },
-  { value: 'stock',    label: 'Stock'     },
-  { value: 'bilan',    label: 'Bilan'     },
-]
-
-// Types that support the status / date filters
 const SUPPORTS_STATUS = (t: ExportType) => t === 'orders'
 const SUPPORTS_DATES  = (t: ExportType) => t === 'orders' || t === 'clients' || t === 'bilan'
 
@@ -33,23 +25,25 @@ function authHeader() {
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function ExportPage() {
-  // Form state
+  const { t } = useTranslation('accounting')
   const [type,        setType]        = useState<ExportType>('orders')
   const [boutiqueId,  setBoutiqueId]  = useState('')
   const [statuses,    setStatuses]    = useState<string[]>([])
   const [dateFrom,    setDateFrom]    = useState('')
   const [dateTo,      setDateTo]      = useState('')
   const [format,      setFormat]      = useState<Format>('xlsx')
-
-  // Reference data
   const [boutiques,       setBoutiques]       = useState<Boutique[]>([])
   const [trackingStatuses, setTrackingStatuses] = useState<TrackingStatus[]>([])
-
-  // UX state
   const [generating, setGenerating] = useState(false)
   const [error,      setError]      = useState('')
 
-  // ── Load reference data ─────────────────────────────────────────────────
+  const TYPE_OPTIONS: { value: ExportType; label: string }[] = [
+    { value: 'orders',   label: t('export.types.orders')   },
+    { value: 'clients',  label: t('export.types.clients')  },
+    { value: 'products', label: t('export.types.products') },
+    { value: 'stock',    label: t('export.types.stock')    },
+    { value: 'bilan',    label: t('export.types.bilan')    },
+  ]
 
   useEffect(() => {
     fetch('/api/boutiques', { headers: authHeader() })
@@ -63,15 +57,11 @@ export default function ExportPage() {
       .catch(() => {})
   }, [])
 
-  // ── Status multi-select toggle ──────────────────────────────────────────
-
   function toggleStatus(slug: string) {
     setStatuses(prev =>
       prev.includes(slug) ? prev.filter(s => s !== slug) : [...prev, slug],
     )
   }
-
-  // ── Generate ────────────────────────────────────────────────────────────
 
   async function handleGenerate() {
     setGenerating(true)
@@ -94,11 +84,10 @@ export default function ExportPage() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        setError((err as { error?: string }).error ?? 'Erreur lors de la génération.')
+        setError((err as { error?: string }).error ?? t('export.errGenerate'))
         return
       }
 
-      // Trigger the browser download from the binary response
       const blob = await res.blob()
       const disposition = res.headers.get('Content-Disposition') ?? ''
       const match = disposition.match(/filename="?([^"]+)"?/)
@@ -113,13 +102,11 @@ export default function ExportPage() {
       a.remove()
       URL.revokeObjectURL(url)
     } catch {
-      setError('Erreur réseau lors de la génération.')
+      setError(t('export.errNetwork'))
     } finally {
       setGenerating(false)
     }
   }
-
-  // ── Sub-components ──────────────────────────────────────────────────────
 
   const labelStyle: React.CSSProperties = {
     fontSize: 12.5, color: colors.textMd, marginBottom: 4,
@@ -132,14 +119,9 @@ export default function ExportPage() {
     fontFamily: fonts.sans, outline: 'none', boxSizing: 'border-box', background: '#fff',
   }
 
-  // ── Render ──────────────────────────────────────────────────────────────
-
   return (
     <>
-      <PageHeader
-        title="Exporter les données"
-        subtitle="Générez un fichier Excel ou CSV à partir de vos données"
-      />
+      <PageHeader title={t('export.title')} subtitle={t('export.subtitle')} />
 
       <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
         <div style={{
@@ -148,32 +130,29 @@ export default function ExportPage() {
           display: 'flex', flexDirection: 'column', gap: 16,
           fontFamily: fonts.sans,
         }}>
-          {/* Type de données */}
           <Select
-            label="Type de données"
+            label={t('export.typeLabel')}
             value={type}
             onChange={v => { setType(v as ExportType); setStatuses([]) }}
             options={TYPE_OPTIONS}
           />
 
-          {/* Boutique */}
           <Select
-            label="Boutique"
+            label={t('export.boutiqueLabel')}
             value={boutiqueId}
             onChange={setBoutiqueId}
-            placeholder="Toutes les boutiques"
+            placeholder={t('export.allBoutiques')}
             options={[
-              { value: '', label: 'Toutes les boutiques' },
+              { value: '', label: t('export.allBoutiques') },
               ...boutiques.map(b => ({ value: b.id, label: b.name })),
             ]}
           />
 
-          {/* Statut (multi-select, orders only) */}
           {SUPPORTS_STATUS(type) && (
             <div>
-              <span style={labelStyle}>Statut</span>
+              <span style={labelStyle}>{t('export.statusLabel')}</span>
               {trackingStatuses.length === 0 ? (
-                <span style={{ fontSize: 12, color: colors.textLt }}>Chargement…</span>
+                <span style={{ fontSize: 12, color: colors.textLt }}>{t('export.loadingStatuses')}</span>
               ) : (
                 <div style={{
                   display: 'flex', flexWrap: 'wrap', gap: 6,
@@ -203,44 +182,32 @@ export default function ExportPage() {
               )}
               <span style={{ fontSize: 11, color: colors.textLt, marginTop: 4, display: 'block' }}>
                 {statuses.length === 0
-                  ? 'Aucun filtre — tous les statuts seront inclus.'
-                  : `${statuses.length} statut(s) sélectionné(s).`}
+                  ? t('export.noStatusFilter')
+                  : t('export.statusCount', { count: statuses.length })}
               </span>
             </div>
           )}
 
-          {/* Date De / À */}
           {SUPPORTS_DATES(type) && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
               <div>
-                <span style={labelStyle}>Date — De</span>
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={e => setDateFrom(e.target.value)}
-                  style={dateInputStyle}
-                />
+                <span style={labelStyle}>{t('export.dateFrom')}</span>
+                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={dateInputStyle} />
               </div>
               <div>
-                <span style={labelStyle}>Date — À</span>
-                <input
-                  type="date"
-                  value={dateTo}
-                  onChange={e => setDateTo(e.target.value)}
-                  style={dateInputStyle}
-                />
+                <span style={labelStyle}>{t('export.dateTo')}</span>
+                <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={dateInputStyle} />
               </div>
             </div>
           )}
 
-          {/* Format */}
           <div>
-            <span style={labelStyle}>Format</span>
+            <span style={labelStyle}>{t('export.formatLabel')}</span>
             <div style={{ display: 'flex', gap: 10 }}>
               {([
-                { value: 'xlsx', label: 'Excel (.xlsx)', icon: FileSpreadsheet },
-                { value: 'csv',  label: 'CSV',           icon: FileText },
-              ] as const).map(opt => {
+                { value: 'xlsx' as const, label: t('export.xlsx'), icon: FileSpreadsheet },
+                { value: 'csv'  as const, label: t('export.csv'),  icon: FileText },
+              ]).map(opt => {
                 const active = format === opt.value
                 const Icon = opt.icon
                 return (
@@ -271,14 +238,11 @@ export default function ExportPage() {
             </div>
           </div>
 
-          {error && (
-            <p style={{ fontSize: 12.5, color: colors.red, margin: 0 }}>{error}</p>
-          )}
+          {error && <p style={{ fontSize: 12.5, color: colors.red, margin: 0 }}>{error}</p>}
 
-          {/* Generate */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
             <Button variant="primary" loading={generating} onClick={handleGenerate}>
-              <Download size={14} /> Générer l&apos;export
+              <Download size={14} /> {t('export.generateBtn')}
             </Button>
           </div>
         </div>

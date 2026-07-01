@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Package, AlertCircle, RotateCcw, XCircle, X,
   Wifi, WifiOff, Check, Loader2,
@@ -127,6 +128,7 @@ function ActionBtn({
 
 export default function PickupsPage({ config }: { config: PickupsConfig }) {
   const { boutiqueId } = useBoutique()
+  const { t } = useTranslation('orders')
 
   const [items,    setItems]    = useState<PickupRow[]>([])
   const [total,    setTotal]    = useState(0)
@@ -282,7 +284,7 @@ export default function PickupsPage({ config }: { config: PickupsConfig }) {
             borderRadius: 6, padding: '10px 14px', fontSize: 13, color: '#795548',
           }}>
             <AlertCircle size={15} />
-            Sélectionnez une boutique dans la barre de navigation.
+            {t('noBoutique')}
           </div>
         )}
 
@@ -292,11 +294,11 @@ export default function PickupsPage({ config }: { config: PickupsConfig }) {
             <SearchInput
               value={search}
               onChange={handleSearchChange}
-              placeholder="Référence commande…"
+              placeholder={t('pickups.searchPh')}
             />
           </div>
           <span style={{ marginLeft: 'auto', fontSize: 12, color: colors.textMd, whiteSpace: 'nowrap' }}>
-            {loading ? '…' : `${total} résultat${total !== 1 ? 's' : ''}`}
+            {loading ? '…' : t('filters.results', { count: total })}
           </span>
         </div>
 
@@ -308,7 +310,7 @@ export default function PickupsPage({ config }: { config: PickupsConfig }) {
             borderRadius: 6, padding: '8px 12px',
           }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: colors.primary, marginRight: 4 }}>
-              {nSelected} sélectionné{nSelected > 1 ? 's' : ''}
+              {t('bulk.selected', { count: nSelected })}
             </span>
 
             {config.primaryAction && (
@@ -324,7 +326,7 @@ export default function PickupsPage({ config }: { config: PickupsConfig }) {
             {config.showGoBack && (
               <ActionBtn
                 icon={<RotateCcw size={12} />}
-                label="Retour"
+                label={t('pickups.goBack')}
                 onClick={() => doBulkAction('go_back')}
                 loading={bulkLoading}
                 outline
@@ -334,7 +336,7 @@ export default function PickupsPage({ config }: { config: PickupsConfig }) {
             {config.showCancel && (
               <ActionBtn
                 icon={<XCircle size={12} />}
-                label="Annuler"
+                label={t('bulk.cancel')}
                 onClick={() => doBulkAction('cancel')}
                 loading={bulkLoading}
                 color={colors.red}
@@ -348,7 +350,7 @@ export default function PickupsPage({ config }: { config: PickupsConfig }) {
                 cursor: 'pointer', color: colors.textLt,
                 display: 'flex', alignItems: 'center', padding: 4,
               }}
-              title="Annuler la sélection"
+              title={t('bulk.clearSelection')}
             >
               <X size={15} />
             </button>
@@ -366,13 +368,13 @@ export default function PickupsPage({ config }: { config: PickupsConfig }) {
                 <TH width={36}>
                   <Checkbox checked={allSelected} indeterminate={someSelected} onChange={toggleSelectAll} />
                 </TH>
-                <TH width={115}>Référence</TH>
-                <TH width={160}>Client</TH>
-                <TH width={130}>Livreur</TH>
-                <TH width={100}>Wilaya</TH>
-                <TH width={95}>Date</TH>
-                <TH width={55} center>Sync</TH>
-                <TH>Actions</TH>
+                <TH width={115}>{t('cols.reference')}</TH>
+                <TH width={160}>{t('cols.client')}</TH>
+                <TH width={130}>{t('cols.carrier')}</TH>
+                <TH width={100}>{t('cols.wilaya')}</TH>
+                <TH width={95}>{t('cols.date')}</TH>
+                <TH width={55} center>{t('cols.sync')}</TH>
+                <TH>{t('cols.actions')}</TH>
               </tr>
             </thead>
             <tbody>
@@ -446,7 +448,7 @@ export default function PickupsPage({ config }: { config: PickupsConfig }) {
                           {config.showGoBack && (
                             <ActionBtn
                               icon={<RotateCcw size={11} />}
-                              label="Retour"
+                              label={t('pickups.goBack')}
                               onClick={() => doAction(row.id, 'go_back')}
                               loading={!!actionLoading[row.id + 'go_back']}
                               outline
@@ -455,7 +457,7 @@ export default function PickupsPage({ config }: { config: PickupsConfig }) {
                           {config.showCancel && (
                             <ActionBtn
                               icon={<XCircle size={11} />}
-                              label="Annuler"
+                              label={t('bulk.cancel')}
                               onClick={() => doAction(row.id, 'cancel')}
                               loading={!!actionLoading[row.id + 'cancel']}
                               color={colors.red}

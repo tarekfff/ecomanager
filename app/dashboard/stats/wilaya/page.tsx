@@ -1,20 +1,12 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { PageHeader } from '@/components/ui'
 import StatsFilters, { type StatsFiltersValue } from '@/components/stats/StatsFilters'
 import StatsTable, { type StatsRow } from '@/components/stats/StatsTable'
 import StatsChart from '@/components/stats/StatsChart'
 import { colors, fonts } from '@/lib/tokens'
-
-const DIMENSIONS = [
-  { value: 'carrier',   label: 'Livreur' },
-  { value: 'product',   label: 'Produit' },
-  { value: 'variant',   label: 'Variante' },
-  { value: 'confirmer', label: 'Confirmateur' },
-  { value: 'commune',   label: 'Commune' },
-  { value: 'boutique',  label: 'Boutique' },
-]
 
 interface Wilaya  { id: number; name: string; code: string }
 interface Commune { id: number; name: string }
@@ -27,6 +19,7 @@ function authHeader(): HeadersInit {
 }
 
 export default function StatsWilayaPage() {
+  const { t } = useTranslation('stats')
   const [boutiques,     setBoutiques]     = useState<{ id: string; name: string }[]>([])
   const [wilayas,       setWilayas]       = useState<Wilaya[]>([])
   const [communes,      setCommunes]      = useState<Commune[]>([])
@@ -47,6 +40,15 @@ export default function StatsWilayaPage() {
   const [rows, setRows]       = useState<StatsRow[]>([])
   const [loading, setLoading] = useState(false)
 
+  const DIMENSIONS = [
+    { value: 'carrier',   label: t('dims.carrier')   },
+    { value: 'product',   label: t('dims.product')   },
+    { value: 'variant',   label: t('dims.variant')   },
+    { value: 'confirmer', label: t('dims.confirmer') },
+    { value: 'commune',   label: t('dims.commune')   },
+    { value: 'boutique',  label: t('dims.boutique')  },
+  ]
+
   useEffect(() => {
     fetch('/api/boutiques', { headers: authHeader() })
       .then(r => r.json()).then(d => { if (Array.isArray(d)) setBoutiques(d) }).catch(() => {})
@@ -59,7 +61,6 @@ export default function StatsWilayaPage() {
       .finally(() => setLoadingW(false))
   }, [])
 
-  // Load communes when wilaya changes
   useEffect(() => {
     setCommuneId('')
     setCommunes([])
@@ -99,10 +100,9 @@ export default function StatsWilayaPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: colors.bg, fontFamily: fonts.sans }}>
-      <PageHeader title="Stats par wilaya" subtitle="Performance géographique par statut et dimension" />
+      <PageHeader title={t('wilaya.title')} subtitle={t('wilaya.subtitle')} />
       <StatsFilters value={filters} onChange={setFilters} boutiques={boutiques} />
 
-      {/* Extra filters + dimension */}
       <div style={{
         background: '#fff',
         borderBottom: `1px solid ${colors.border}`,
@@ -112,10 +112,9 @@ export default function StatsWilayaPage() {
         gap: 12,
         flexWrap: 'wrap',
       }}>
-        {/* Wilaya selector */}
         <div style={{ minWidth: 220 }}>
           <label style={lbl}>
-            Wilaya {loadingW && <span style={{ color: colors.textLt, fontWeight: 400 }}>— chargement…</span>}
+            {t('wilaya.wilayaLabel')} {loadingW && <span style={{ color: colors.textLt, fontWeight: 400 }}>— {t('loading')}</span>}
           </label>
           <select
             value={wilayaId}
@@ -123,7 +122,7 @@ export default function StatsWilayaPage() {
             style={{ ...sel, minWidth: 220 }}
             disabled={loadingW}
           >
-            <option value="">Toutes les wilayas ({wilayas.length})</option>
+            <option value="">{t('wilaya.allWilayas', { count: wilayas.length })}</option>
             {wilayas.map(w => (
               <option key={w.id} value={String(w.id)}>
                 {String(w.id).padStart(2, '0')} — {w.name}
@@ -132,11 +131,10 @@ export default function StatsWilayaPage() {
           </select>
         </div>
 
-        {/* Commune selector — only when wilaya selected */}
         {wilayaId && (
           <div style={{ minWidth: 220 }}>
             <label style={lbl}>
-              Commune {loadingC && <span style={{ color: colors.textLt, fontWeight: 400 }}>— chargement…</span>}
+              {t('wilaya.communeLabel')} {loadingC && <span style={{ color: colors.textLt, fontWeight: 400 }}>— {t('loading')}</span>}
             </label>
             <select
               value={communeId}
@@ -144,7 +142,7 @@ export default function StatsWilayaPage() {
               style={{ ...sel, minWidth: 220 }}
               disabled={loadingC}
             >
-              <option value="">Toutes les communes ({communes.length})</option>
+              <option value="">{t('wilaya.allCommunes', { count: communes.length })}</option>
               {communes.map(c => (
                 <option key={c.id} value={String(c.id)}>{c.name}</option>
               ))}
@@ -152,9 +150,8 @@ export default function StatsWilayaPage() {
           </div>
         )}
 
-        {/* Dimension pills */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 12, color: colors.textMd, fontWeight: 500 }}>Trier par</span>
+          <span style={{ fontSize: 12, color: colors.textMd, fontWeight: 500 }}>{t('sortBy')}</span>
           {DIMENSIONS.map(d => (
             <DimBtn key={d.value} label={d.label} active={dimension === d.value} onClick={() => setDimension(d.value)} />
           ))}

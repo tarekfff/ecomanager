@@ -1,0 +1,55 @@
+{
+  "title": "المنتجات",
+  "import": "استيراد",
+  "addProduct": "+ إضافة منتج",
+  "searchPlaceholder": "البحث بالاسم أو SKU…",
+  "boutiquePlaceholder": "المتجر",
+  "count_zero": "{{count}} منتج",
+  "count_one": "منتج واحد",
+  "count_two": "منتجان",
+  "count_few": "{{count}} منتجات",
+  "count_many": "{{count}} منتجاً",
+  "count_other": "{{count}} منتج",
+  "status": {
+    "all": "كل الحالات",
+    "active": "نشط",
+    "inactive": "غير نشط"
+  },
+  "table": {
+    "name": "الاسم",
+    "sku": "SKU",
+    "price": "سعر البيع",
+    "stock": "المخزون",
+    "brand": "العلامة",
+    "status": "الحالة",
+    "actions": "إجراءات"
+  },
+  "empty": "لا يوجد منتج",
+  "trash": {
+    "title": "نقل إلى سلة المحذوفات",
+    "message": "نقل «{{name}}» إلى سلة المحذوفات؟ يمكنك استعادته من السلة.",
+    "moving": "جارٍ النقل…"
+  },
+  "options": {
+    "title": "الخيارات والسمات",
+    "subtitle": "إدارة أنواع السمات (اللون، المقاس…) وقيمها.",
+    "newAttr": "سمة جديدة",
+    "attrNameLabel": "اسم السمة",
+    "attrNamePh": "مثال: اللون، المقاس، المادة…",
+    "create": "إنشاء",
+    "loading": "جارٍ التحميل…",
+    "empty": "لا توجد سمات محددة.",
+    "emptyHint": "أنشئ أنواع السمات أعلاه لإنشاء متغيرات المنتج.",
+    "nameRequired": "الاسم مطلوب",
+    "error": "خطأ",
+    "deleteValue": "حذف هذه القيمة",
+    "valuePh": "قيمة جديدة…",
+    "add": "إضافة",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "rename": "إعادة تسمية",
+    "delete": "حذف",
+    "noValues": "لا توجد قيم بعد.",
+    "deleteConfirm": "حذف «{{name}}» وجميع قيمها؟"
+  }
+}

@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from 'react-i18next'
 import { colors, fonts } from '@/lib/tokens'
 
 export interface StatsRow {
@@ -16,17 +17,19 @@ interface StatsTableProps {
   dimensionLabel: string
 }
 
-export const STATUS_COLS = [
-  { slug: 'en_confirmation', label: 'En confirmation', color: '#4472C4', bg: '#EEF3FB' },
-  { slug: 'en_preparation',  label: 'En préparation',  color: '#9966CC', bg: '#F3EEF8' },
-  { slug: 'en_dispatch',     label: 'En dispatch',     color: '#B89200', bg: '#FEFAE8' },
-  { slug: 'en_livraison',    label: 'En livraison',    color: '#666666', bg: '#F2F2F2' },
-  { slug: 'livrees',         label: 'Livrées',         color: '#00897B', bg: '#E0F2F1' },
-  { slug: 'en_retour',       label: 'En retour',       color: '#E84B6A', bg: '#FDEEF2' },
-  { slug: 'encaissee',       label: 'Encaissées',      color: '#2E7D32', bg: '#E8F5E9' },
-  { slug: 'retournee',       label: 'Retournées',      color: '#546E7A', bg: '#ECEFF1' },
-  { slug: 'annulee',         label: 'Annulées',        color: '#C62828', bg: '#FFEBEE' },
+const STATUS_COLS_CONFIG = [
+  { slug: 'en_confirmation', color: '#4472C4', bg: '#EEF3FB' },
+  { slug: 'en_preparation',  color: '#9966CC', bg: '#F3EEF8' },
+  { slug: 'en_dispatch',     color: '#B89200', bg: '#FEFAE8' },
+  { slug: 'en_livraison',    color: '#666666', bg: '#F2F2F2' },
+  { slug: 'livrees',         color: '#00897B', bg: '#E0F2F1' },
+  { slug: 'en_retour',       color: '#E84B6A', bg: '#FDEEF2' },
+  { slug: 'encaissee',       color: '#2E7D32', bg: '#E8F5E9' },
+  { slug: 'retournee',       color: '#546E7A', bg: '#ECEFF1' },
+  { slug: 'annulee',         color: '#C62828', bg: '#FFEBEE' },
 ] as const
+
+export type StatusSlug = (typeof STATUS_COLS_CONFIG)[number]['slug']
 
 function fmtCell(val: number, rowTotal: number, displayMode: 'number' | 'percent'): string {
   if (val === 0) return ''
@@ -38,15 +41,22 @@ function fmtCell(val: number, rowTotal: number, displayMode: 'number' | 'percent
 }
 
 export default function StatsTable({ rows, loading, displayMode, dimensionLabel }: StatsTableProps) {
+  const { t } = useTranslation('stats')
+
+  const STATUS_COLS = STATUS_COLS_CONFIG.map(c => ({
+    ...c,
+    label: t(`statusCols.${c.slug}`),
+  }))
+
   if (loading) {
     return (
-      <div style={emptyBox}>Chargement…</div>
+      <div style={emptyBox}>{t('loading')}</div>
     )
   }
 
   if (rows.length === 0) {
     return (
-      <div style={emptyBox}>Aucune donnée pour les filtres sélectionnés</div>
+      <div style={emptyBox}>{t('noData')}</div>
     )
   }
 
@@ -67,7 +77,7 @@ export default function StatsTable({ rows, loading, displayMode, dimensionLabel 
                 {s.label}
               </th>
             ))}
-            <th style={{ ...thBase, minWidth: 72 }}>Total</th>
+            <th style={{ ...thBase, minWidth: 72 }}>{t('total')}</th>
           </tr>
         </thead>
         <tbody>

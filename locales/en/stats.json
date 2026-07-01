@@ -1,0 +1,86 @@
+{
+  "sortBy": "Sort by",
+  "loading": "Loading…",
+  "noData": "No data for selected filters",
+  "total": "Total",
+  "dims": {
+    "wilaya":    "Wilaya",
+    "commune":   "Commune",
+    "carrier":   "Carrier",
+    "product":   "Product",
+    "variant":   "Variant",
+    "confirmer": "Confirmer",
+    "boutique":  "Boutique"
+  },
+  "boutique": {
+    "title":    "Stats by boutique",
+    "subtitle": "Order performance across different dimensions"
+  },
+  "confirmateur": {
+    "title":        "Stats by confirmer",
+    "subtitle":     "Performance by confirmation agent",
+    "filterLabel":  "Confirmer",
+    "allConfirmers":"All confirmers ({{count}})"
+  },
+  "livreur": {
+    "title":       "Stats by carrier",
+    "subtitle":    "Carrier performance by status and dimension",
+    "filterLabel": "Carrier",
+    "allCarriers": "All carriers ({{count}})"
+  },
+  "produit": {
+    "title":        "Stats by product",
+    "subtitle":     "Product performance by status and dimension",
+    "productLabel": "Product",
+    "allProducts":  "All products ({{count}})",
+    "variantLabel": "Variant",
+    "allVariants":  "All variants"
+  },
+  "wilaya": {
+    "title":        "Stats by wilaya",
+    "subtitle":     "Geographic performance by status and dimension",
+    "wilayaLabel":  "Wilaya",
+    "allWilayas":   "All wilayas ({{count}})",
+    "communeLabel": "Commune",
+    "allCommunes":  "All communes ({{count}})"
+  },
+  "filters": {
+    "boutique":      "Boutique",
+    "allBoutiques":  "All boutiques",
+    "basedOn":       "Based on",
+    "allOrders":     "All orders",
+    "confirmedOnly": "Confirmed only",
+    "dateField":     "Filter by",
+    "periodFrom":    "Period From",
+    "to":            "To",
+    "resultBy":      "Result by",
+    "byCount":       "Order count",
+    "byQty":         "Qty sold",
+    "display":       "Display",
+    "inNumber":      "As number",
+    "inPercent":     "As percentage",
+    "dateFields": {
+      "created":    "Creation date",
+      "assigned":   "Assignment date",
+      "confirmed":  "Confirmation date",
+      "dispatched": "Dispatch date",
+      "shipped":    "Shipping date",
+      "delivered":  "Delivery date",
+      "failed":     "Failure date",
+      "paid":       "Payment date",
+      "returned":   "Return date",
+      "cancelled":  "Cancellation date"
+    }
+  },
+  "statusCols": {
+    "en_confirmation": "In confirmation",
+    "en_preparation":  "In preparation",
+    "en_dispatch":     "In dispatch",
+    "en_livraison":    "In delivery",
+    "livrees":         "Delivered",
+    "en_retour":       "In return",
+    "encaissee":       "Cashed",
+    "retournee":       "Returned",
+    "annulee":         "Cancelled"
+  }
+}

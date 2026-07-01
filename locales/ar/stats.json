@@ -1,0 +1,86 @@
+{
+  "sortBy": "ترتيب حسب",
+  "loading": "تحميل…",
+  "noData": "لا توجد بيانات للفلاتر المختارة",
+  "total": "المجموع",
+  "dims": {
+    "wilaya":    "الولاية",
+    "commune":   "البلدية",
+    "carrier":   "الليّور",
+    "product":   "المنتج",
+    "variant":   "المتغير",
+    "confirmer": "المؤكِّد",
+    "boutique":  "المتجر"
+  },
+  "boutique": {
+    "title":    "إحصائيات المتاجر",
+    "subtitle": "أداء الطلبات حسب أبعاد مختلفة"
+  },
+  "confirmateur": {
+    "title":        "إحصائيات المؤكِّدين",
+    "subtitle":     "أداء وكلاء التأكيد",
+    "filterLabel":  "المؤكِّد",
+    "allConfirmers":"جميع المؤكِّدين ({{count}})"
+  },
+  "livreur": {
+    "title":       "إحصائيات الليّورين",
+    "subtitle":    "أداء الليّورين حسب الحالة والبعد",
+    "filterLabel": "الليّور",
+    "allCarriers": "جميع الليّورين ({{count}})"
+  },
+  "produit": {
+    "title":        "إحصائيات المنتجات",
+    "subtitle":     "أداء المنتجات حسب الحالة والبعد",
+    "productLabel": "المنتج",
+    "allProducts":  "جميع المنتجات ({{count}})",
+    "variantLabel": "المتغير",
+    "allVariants":  "جميع المتغيرات"
+  },
+  "wilaya": {
+    "title":        "إحصائيات الولايات",
+    "subtitle":     "الأداء الجغرافي حسب الحالة والبعد",
+    "wilayaLabel":  "الولاية",
+    "allWilayas":   "جميع الولايات ({{count}})",
+    "communeLabel": "البلدية",
+    "allCommunes":  "جميع البلديات ({{count}})"
+  },
+  "filters": {
+    "boutique":      "المتجر",
+    "allBoutiques":  "جميع المتاجر",
+    "basedOn":       "بناءً على",
+    "allOrders":     "جميع الطلبات",
+    "confirmedOnly": "المؤكَّدة فقط",
+    "dateField":     "التصفية حسب",
+    "periodFrom":    "الفترة من",
+    "to":            "إلى",
+    "resultBy":      "النتيجة حسب",
+    "byCount":       "عدد الطلبات",
+    "byQty":         "الكميات المباعة",
+    "display":       "العرض",
+    "inNumber":      "بالأرقام",
+    "inPercent":     "بالنسبة المئوية",
+    "dateFields": {
+      "created":    "تاريخ الإنشاء",
+      "assigned":   "تاريخ التعيين",
+      "confirmed":  "تاريخ التأكيد",
+      "dispatched": "تاريخ الإرسال",
+      "shipped":    "تاريخ الشحن",
+      "delivered":  "تاريخ التسليم",
+      "failed":     "تاريخ الفشل",
+      "paid":       "تاريخ التحصيل",
+      "returned":   "تاريخ الإرجاع",
+      "cancelled":  "تاريخ الإلغاء"
+    }
+  },
+  "statusCols": {
+    "en_confirmation": "قيد التأكيد",
+    "en_preparation":  "قيد التحضير",
+    "en_dispatch":     "قيد الإرسال",
+    "en_livraison":    "قيد التوصيل",
+    "livrees":         "مسلَّمة",
+    "en_retour":       "قيد الإرجاع",
+    "encaissee":       "محصَّلة",
+    "retournee":       "مُرجَعة",
+    "annulee":         "مُلغاة"
+  }
+}

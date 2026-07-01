@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   PieChart, Pie, Cell, ResponsiveContainer,
@@ -61,9 +62,9 @@ function ChartSkeleton() {
   )
 }
 
-function MiniBar({ title, dataKey, color, data, loading }: {
+function MiniBar({ title, dataKey, color, data, loading, names }: {
   title: string; dataKey: string | string[]; color: string | string[]
-  data: ChartRow[]; loading: boolean
+  data: ChartRow[]; loading: boolean; names?: string[]
 }) {
   const keys   = Array.isArray(dataKey) ? dataKey : [dataKey]
   const colors = Array.isArray(color)   ? color   : [color]
@@ -79,7 +80,7 @@ function MiniBar({ title, dataKey, color, data, loading }: {
               <YAxis tick={{ fontSize: 9 }} tickLine={false} axisLine={false} allowDecimals={false} />
               <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ fontSize: 10 }} />
-              {keys.map((k, i) => <Bar key={k} dataKey={k} fill={colors[i]} radius={[2, 2, 0, 0]} />)}
+              {keys.map((k, i) => <Bar key={k} dataKey={k} name={names?.[i] ?? k} fill={colors[i]} radius={[2, 2, 0, 0]} />)}
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -92,6 +93,7 @@ function MiniBar({ title, dataKey, color, data, loading }: {
 
 export default function DashboardPage() {
   const { boutiqueId } = useBoutique()
+  const { t } = useTranslation('dashboard')
 
   const [statsLoading, setStatsLoading] = useState(false)
   const [chartData,    setChartData]    = useState<ChartRow[]>([])
@@ -115,7 +117,7 @@ export default function DashboardPage() {
       .finally(() => setStatsLoading(false))
   }, [boutiqueId])
 
-  const donutData = DONUT_DEFS.map(d => ({ name: d.name, value: counts[d.key], color: d.color }))
+  const donutData = DONUT_DEFS.map(d => ({ name: t(`statuses:tracking.${d.key}`), value: counts[d.key], color: d.color }))
 
   return (
     <main className="main-content">
@@ -124,10 +126,10 @@ export default function DashboardPage() {
           {/* COL 1 — Performance */}
           <div className="chart-col">
             <div className="chart-panel">
-              <div className="chart-panel-header">Performance</div>
+              <div className="chart-panel-header">{t('panels.performance')}</div>
               <div className="chart-inner">
-                <MiniBar title="Commandes créées"   dataKey="Créées"                   color="#4472C4"              data={chartData} loading={statsLoading} />
-                <MiniBar title="Livrées / En retour" dataKey={['Livrées', 'En retour']} color={['#4472C4', '#F5A623']} data={chartData} loading={statsLoading} />
+                <MiniBar title={t('charts.ordersCreated')}     dataKey="Créées"                   color="#4472C4"              data={chartData} loading={statsLoading} names={[t('series.created')]} />
+                <MiniBar title={t('charts.deliveredVsReturn')} dataKey={['Livrées', 'En retour']} color={['#4472C4', '#F5A623']} data={chartData} loading={statsLoading} names={[t('series.delivered'), t('series.inReturn')]} />
               </div>
             </div>
           </div>
@@ -135,10 +137,10 @@ export default function DashboardPage() {
           {/* COL 2 — Analyse */}
           <div className="chart-col">
             <div className="chart-panel">
-              <div className="chart-panel-header light">Analyse</div>
+              <div className="chart-panel-header light">{t('panels.analyse')}</div>
               <div className="chart-inner">
-                <MiniBar title="Confirmées / Annulées"   dataKey={['Confirmées', 'Annulées']}   color={['#4472C4', '#F5A623']} data={chartData} loading={statsLoading} />
-                <MiniBar title="Encaissées / Retournées" dataKey={['Encaissées', 'Retournées']} color={['#4472C4', '#F5A623']} data={chartData} loading={statsLoading} />
+                <MiniBar title={t('charts.confirmedVsCancelled')} dataKey={['Confirmées', 'Annulées']}   color={['#4472C4', '#F5A623']} data={chartData} loading={statsLoading} names={[t('series.confirmed'), t('series.cancelled')]} />
+                <MiniBar title={t('charts.collectedVsReturned')}  dataKey={['Encaissées', 'Retournées']} color={['#4472C4', '#F5A623']} data={chartData} loading={statsLoading} names={[t('series.collected'), t('series.returned')]} />
               </div>
             </div>
           </div>
@@ -146,7 +148,7 @@ export default function DashboardPage() {
           {/* COL 3 — Anomalie (donut) */}
           <div className="chart-col">
             <div className="chart-panel">
-              <div className="chart-panel-header light">Anomalie</div>
+              <div className="chart-panel-header light">{t('panels.anomalie')}</div>
               <div className="donut-col">
                 <div style={{ width: '100%', height: 220, flexShrink: 0 }}>
                   {statsLoading ? (
@@ -159,7 +161,7 @@ export default function DashboardPage() {
                     <svg width="100%" height="100%" viewBox="0 0 200 200">
                       <circle cx={100} cy={100} r={85} fill="none" stroke="#ececec" strokeWidth={32} />
                       <text x={100} y={104} textAnchor="middle" fontSize={11} fill="#aaa" fontFamily="Inter, sans-serif">
-                        Aucune commande
+                        {t('noOrders')}
                       </text>
                     </svg>
                   ) : (

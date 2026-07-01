@@ -1,0 +1,63 @@
+{
+  "title": "Clients",
+  "subtitle": "Client base management",
+  "addClient": "+ Add a client",
+  "searchPlaceholder": "Search by name or phone…",
+  "count_one": "{{count}} client",
+  "count_other": "{{count}} clients",
+  "table": {
+    "full_name": "Full name",
+    "phone": "Phone",
+    "wilaya": "Wilaya",
+    "delivered": "Delivered",
+    "returned": "Returned",
+    "cancelled": "Cancelled",
+    "actions": "Actions"
+  },
+  "empty": {
+    "title": "No client found",
+    "noResults": "No results for \"{{q}}\".",
+    "message": "Start by adding your first client to the database.",
+    "action": "Add the first client"
+  },
+  "modal": {
+    "addTitle": "Add a client",
+    "editTitle": "Edit client"
+  },
+  "form": {
+    "fullName": "Full name",
+    "namePlaceholder": "e.g. Ahmed Benali",
+    "phone": "Phone",
+    "phonePlaceholder": "0555 00 00 00",
+    "phone2": "Phone 2",
+    "optional": "Optional",
+    "email": "Email",
+    "emailPlaceholder": "client@example.com",
+    "wilaya": "Wilaya",
+    "wilayaPlaceholder": "Select a wilaya",
+    "commune": "Commune",
+    "communePlaceholder": "Select a commune",
+    "communePlaceholderFirst": "Select a wilaya first",
+    "address": "Address",
+    "addressPlaceholder": "e.g. Rue 12, Cité Ennasr",
+    "save": "Save",
+    "add": "Add"
+  },
+  "errors": {
+    "nameRequired": "Full name is required.",
+    "phoneRequired": "Phone is required.",
+    "saveError": "Error while saving.",
+    "loadError": "Unable to load clients.",
+    "deleteError": "Unable to delete this client."
+  },
+  "toast": {
+    "added": "Client added.",
+    "updated": "Client updated.",
+    "deleted": "Client deleted."
+  },
+  "delete": {
+    "title": "Delete client",
+    "message": "Delete \"{{name}}\"? This action is irreversible and may fail if the client has orders.",
+    "deleting": "Deleting…"
+  }
+}

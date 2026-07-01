@@ -1,0 +1,133 @@
+{
+  "ajustement": {
+    "title": "Ajustement de stock",
+    "subtitle": "Ajouter, retirer ou corriger le stock d'un produit.",
+    "steps": ["Sélection", "Détails"],
+    "ops": {
+      "add":     "Ajouter",
+      "remove":  "Retirer",
+      "correct": "Corriger"
+    },
+    "targets": {
+      "new_batch":      "Nouveau lot",
+      "existing_batch": "Lot existant",
+      "global":         "Stock global"
+    },
+    "warehouseLabel":  "Entrepôt",
+    "warehousePh":     "Choisir un entrepôt…",
+    "productLabel":    "Produit",
+    "productPh":       "Rechercher un produit…",
+    "variantLabel":    "Variante",
+    "variantPh":       "Choisir une variante…",
+    "operationLabel":  "Opération",
+    "targetLabel":     "Cible",
+    "batchLabel":      "Lot",
+    "batchPh":         "Choisir un lot…",
+    "noBatch":         "Aucun lot disponible dans cet entrepôt",
+    "batchNumberLabel":"N° de lot (optionnel)",
+    "batchNumberPh":   "ex: LOT-2025-01",
+    "unitCostLabel":   "Prix d'achat unitaire (DA)",
+    "expiryLabel":     "Date d'expiration",
+    "qtyLabel":        "Quantité",
+    "qtyTargetLabel":  "Quantité cible (stock total souhaité)",
+    "commentLabel":    "Commentaire",
+    "commentPh":       "Raison de l'ajustement…",
+    "cancelBtn":       "Annuler",
+    "submitBtn":       "Enregistrer l'ajustement",
+    "submitting":      "Enregistrement…",
+    "errWarehouse":    "Veuillez sélectionner un entrepôt",
+    "errProduct":      "Veuillez sélectionner un produit",
+    "errVariant":      "Veuillez sélectionner une variante",
+    "errQty":          "Quantité invalide",
+    "errBatch":        "Veuillez sélectionner un lot",
+    "errAdjust":       "Erreur lors de l'ajustement",
+    "errNetwork":      "Erreur réseau",
+    "successTitle":    "Ajustement effectué",
+    "newAdjustBtn":    "Nouvel ajustement",
+    "backToStock":     "Retour au stock",
+    "currentQty":      "Stock actuel",
+    "noVariant":       "— aucune variante —"
+  },
+  "alertes": {
+    "title":    "Alertes de stock",
+    "subtitle": "Produits dont le stock est en dessous du seuil minimum configuré.",
+    "cols": {
+      "product":    "Produit",
+      "sku":        "SKU",
+      "currentQty": "Stock actuel",
+      "minQty":     "Stock minimum",
+      "gap":        "Écart",
+      "action":     "Action"
+    },
+    "adjustBtn":  "Ajuster",
+    "empty":      "Aucune alerte de stock",
+    "emptyDesc":  "Tous les produits sont au-dessus de leur seuil minimum.",
+    "emptyTable": "Aucune alerte de stock.",
+    "count_one":  "{{count}} produit en alerte",
+    "count_other":"{{count}} produits en alerte",
+    "errLoad":    "Erreur lors du chargement.",
+    "errNetwork": "Erreur réseau."
+  },
+  "lots": {
+    "title":    "Lots de stock",
+    "subtitle": "Tous les lots actifs avec leur quantité et date d'expiration.",
+    "cols": {
+      "product":   "Produit",
+      "variant":   "Variante",
+      "warehouse": "Entrepôt",
+      "batchNo":   "N° lot",
+      "qty":       "Quantité",
+      "unitCost":  "Prix achat",
+      "expiry":    "Date expiration"
+    },
+    "expiringSoon": "⚠ bientôt",
+    "expired":      "✕ expiré",
+    "legendSoon":   "⚠ Expiration dans ≤ 30 jours",
+    "legendExpired":"✕ Expiré",
+    "searchPh":     "Rechercher…",
+    "warehouseAll": "Tous",
+    "filterBtn":    "Filtrer",
+    "resetBtn":     "Réinitialiser",
+    "productLabel": "Produit",
+    "warehouseLabel":"Entrepôt",
+    "empty":        "Aucun lot de stock trouvé."
+  },
+  "mouvements": {
+    "title":    "Mouvements de stock",
+    "subtitle": "Historique de tous les ajustements de stock.",
+    "cols": {
+      "date":      "Date",
+      "product":   "Produit",
+      "warehouse": "Entrepôt",
+      "operation": "Opération",
+      "target":    "Cible",
+      "qty":       "Quantité",
+      "unitCost":  "Prix achat",
+      "batch":     "Lot",
+      "comment":   "Commentaire",
+      "user":      "Utilisateur"
+    },
+    "ops": {
+      "add":     "Ajouter",
+      "remove":  "Retirer",
+      "correct": "Corriger"
+    },
+    "targets": {
+      "new_batch":      "Nouveau lot",
+      "global":         "Stock global",
+      "existing_batch": "Lot existant"
+    },
+    "productLabel":   "Produit",
+    "warehouseLabel": "Entrepôt",
+    "operationLabel": "Opération",
+    "allWarehouses":  "Tous",
+    "allOps":         "Toutes",
+    "dateFrom":       "Du",
+    "dateTo":         "Au",
+    "searchPh":       "Rechercher…",
+    "filterBtn":      "Filtrer",
+    "resetBtn":       "Réinitialiser",
+    "empty":          "Aucun mouvement de stock trouvé.",
+    "variantPrefix":  "Var:"
+  }
+}

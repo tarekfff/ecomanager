@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Pencil, Trash2 } from 'lucide-react'
 import {
   PageHeader, Table, Pagination, Modal, Button,
@@ -78,6 +79,7 @@ function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
 // ── Action buttons ─────────────────────────────────────────────────────────
 
 function ActionBtns({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+  const { t } = useTranslation('common')
   return (
     <div style={{ display: 'flex', gap: 6 }}>
       <button
@@ -92,7 +94,7 @@ function ActionBtns({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => 
         onMouseEnter={e => (e.currentTarget.style.background = '#f5f5f5')}
         onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
       >
-        <Pencil size={11} /> Modifier
+        <Pencil size={11} /> {t('actions.edit')}
       </button>
       <button
         onClick={onDelete}
@@ -105,7 +107,7 @@ function ActionBtns({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => 
         onMouseEnter={e => (e.currentTarget.style.background = '#fde8ea')}
         onMouseLeave={e => (e.currentTarget.style.background = '#fff8f8')}
       >
-        <Trash2 size={11} /> Supprimer
+        <Trash2 size={11} /> {t('actions.delete')}
       </button>
     </div>
   )
@@ -114,6 +116,7 @@ function ActionBtns({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => 
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function LivreursPage() {
+  const { t } = useTranslation('carriers')
   // List state
   const [carriers,     setCarriers]     = useState<Carrier[]>([])
   const [total,        setTotal]        = useState(0)
@@ -252,7 +255,7 @@ export default function LivreursPage() {
   // ── Save ──────────────────────────────────────────────────────────────────
 
   async function handleSave() {
-    if (!form.name.trim()) { setFormError('Le nom est requis.'); return }
+    if (!form.name.trim()) { setFormError(t('nameRequired')); return }
 
     setSaving(true)
     setFormError('')
@@ -276,7 +279,7 @@ export default function LivreursPage() {
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        setFormError((err as { error?: string }).error ?? 'Erreur lors de la sauvegarde.')
+        setFormError((err as { error?: string }).error ?? t('saveError'))
         return
       }
       setModalOpen(false)
@@ -305,13 +308,13 @@ export default function LivreursPage() {
 
   const columns: Column<Carrier>[] = [
     {
-      key: 'name', label: 'Nom',
+      key: 'name', label: t('common:fields.name'),
       render: row => (
         <span style={{ fontWeight: 500, color: colors.text }}>{row.name}</span>
       ),
     },
     {
-      key: 'phone', label: 'Téléphone', width: 135,
+      key: 'phone', label: t('common:fields.phone'), width: 135,
       render: row => (
         <span style={{ color: row.phone ? colors.textMd : colors.textLt, fontSize: 12 }}>
           {row.phone ?? '—'}
@@ -319,7 +322,7 @@ export default function LivreursPage() {
       ),
     },
     {
-      key: 'platform', label: 'Plateforme', width: 130,
+      key: 'platform', label: t('cols.platform'), width: 130,
       render: row => (
         <span style={{ color: row.platform ? colors.textMd : colors.textLt, fontSize: 12 }}>
           {row.platform ?? '—'}
@@ -327,23 +330,23 @@ export default function LivreursPage() {
       ),
     },
     {
-      key: 'wilaya_ids', label: 'Wilayas', width: 90,
+      key: 'wilaya_ids', label: t('cols.wilayas'), width: 90,
       render: row => (
         <Badge color={row.wilaya_ids.length > 0 ? 'blue' : 'gray'}>
-          {row.wilaya_ids.length} wilaya{row.wilaya_ids.length !== 1 ? 's' : ''}
+          {t('wilayasBadge', { count: row.wilaya_ids.length })}
         </Badge>
       ),
     },
     {
-      key: 'boutique_ids', label: 'Boutiques', width: 100,
+      key: 'boutique_ids', label: t('cols.boutiques'), width: 100,
       render: row => (
         <Badge color={row.boutique_ids.length > 0 ? 'green' : 'gray'}>
-          {row.boutique_ids.length} boutique{row.boutique_ids.length !== 1 ? 's' : ''}
+          {t('boutiquesBadge', { count: row.boutique_ids.length })}
         </Badge>
       ),
     },
     {
-      key: 'manages_stock', label: 'Gère stock', width: 100,
+      key: 'manages_stock', label: t('cols.managesStock'), width: 100,
       render: row => (
         <Toggle
           value={row.manages_stock}
@@ -352,7 +355,7 @@ export default function LivreursPage() {
       ),
     },
     {
-      key: 'is_active', label: 'Statut', width: 80,
+      key: 'is_active', label: t('cols.status'), width: 80,
       render: row => (
         <Toggle
           value={row.is_active}
@@ -361,7 +364,7 @@ export default function LivreursPage() {
       ),
     },
     {
-      key: 'actions', label: 'Actions', width: 165,
+      key: 'actions', label: t('common:fields.actions'), width: 165,
       render: row => (
         <ActionBtns onEdit={() => openEdit(row)} onDelete={() => setDeleteTarget(row)} />
       ),
@@ -382,11 +385,11 @@ export default function LivreursPage() {
   return (
     <>
       <PageHeader
-        title="Livreurs"
-        subtitle="Gestion des transporteurs et livreurs"
+        title={t('title')}
+        subtitle={t('subtitle')}
         actions={
           <Button variant="primary" size="sm" onClick={openAdd}>
-            + Ajouter un livreur
+            {t('addBtn')}
           </Button>
         }
       />
@@ -399,10 +402,10 @@ export default function LivreursPage() {
           <SearchInput
             value={search}
             onChange={handleSearchChange}
-            placeholder="Rechercher par nom ou téléphone…"
+            placeholder={t('searchPlaceholder')}
           />
           <span style={{ fontSize: 12, color: colors.textMd, fontFamily: fonts.sans }}>
-            {loading ? '…' : `${total} livreur${total !== 1 ? 's' : ''}`}
+            {loading ? '…' : t('count', { count: total })}
           </span>
         </div>
 
@@ -410,7 +413,7 @@ export default function LivreursPage() {
           columns={columns}
           data={carriers}
           loading={loading}
-          emptyText="Aucun livreur trouvé"
+          emptyText={t('empty')}
         />
 
         {total > LIMIT && (
@@ -422,7 +425,7 @@ export default function LivreursPage() {
       <Modal
         open={modalOpen}
         onClose={closeModal}
-        title={editCarrier ? 'Modifier le livreur' : 'Ajouter un livreur'}
+        title={editCarrier ? t('editModalTitle') : t('addModalTitle')}
         size="lg"
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -430,49 +433,49 @@ export default function LivreursPage() {
           {/* Nom + Téléphone */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <Input
-              label="Nom"
+              label={t('common:fields.name')}
               value={form.name}
               onChange={v => setForm(f => ({ ...f, name: v }))}
-              placeholder="Ex : Procolis Express"
+              placeholder={t('namePlaceholder')}
               required
             />
             <Input
-              label="Téléphone"
+              label={t('common:fields.phone')}
               value={form.phone}
               onChange={v => setForm(f => ({ ...f, phone: v }))}
-              placeholder="0555 00 00 00"
+              placeholder={t('phonePlaceholder')}
             />
           </div>
 
           {/* Plateforme + Statut + Gère stock */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
             <Input
-              label="Plateforme"
+              label={t('platformLabel')}
               value={form.platform}
               onChange={v => setForm(f => ({ ...f, platform: v }))}
-              placeholder="Ex : Procolis, Maystro…"
+              placeholder={t('platformPlaceholder')}
             />
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <span style={{ fontSize: 12, fontWeight: 500, color: colors.text, fontFamily: fonts.sans }}>
-                Statut
+                {t('statusLabel')}
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 5 }}>
                 <Toggle value={form.is_active} onChange={v => setForm(f => ({ ...f, is_active: v }))} />
                 <span style={{ fontSize: 12, color: colors.textMd, fontFamily: fonts.sans }}>
-                  {form.is_active ? 'Actif' : 'Inactif'}
+                  {form.is_active ? t('active') : t('inactive')}
                 </span>
               </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <span style={{ fontSize: 12, fontWeight: 500, color: colors.text, fontFamily: fonts.sans }}>
-                Gère le stock
+                {t('managesStockLabel')}
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 5 }}>
                 <Toggle value={form.manages_stock} onChange={v => setForm(f => ({ ...f, manages_stock: v }))} />
                 <span style={{ fontSize: 12, color: colors.textMd, fontFamily: fonts.sans }}>
-                  {form.manages_stock ? 'Oui' : 'Non'}
+                  {form.manages_stock ? t('yes') : t('no')}
                 </span>
               </div>
             </div>
@@ -485,7 +488,7 @@ export default function LivreursPage() {
                 fontSize: 12, fontWeight: 500, color: colors.text,
                 fontFamily: fonts.sans, display: 'block', marginBottom: 8,
               }}>
-                Boutiques associées
+                {t('associatedBoutiques')}
               </span>
               <div style={{
                 display: 'grid',
@@ -525,14 +528,14 @@ export default function LivreursPage() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
               <span style={{ fontSize: 12, fontWeight: 500, color: colors.text, fontFamily: fonts.sans }}>
-                Wilayas couvertes
+                {t('coveredWilayas')}
               </span>
               {form.wilaya_ids.length > 0 && (
                 <span style={{
                   fontSize: 11, background: colors.primaryLt, color: colors.primary,
                   padding: '1px 7px', borderRadius: 10, fontFamily: fonts.sans,
                 }}>
-                  {form.wilaya_ids.length} sélectionnée{form.wilaya_ids.length > 1 ? 's' : ''}
+                  {t('selectedCount', { count: form.wilaya_ids.length })}
                 </span>
               )}
               {form.wilaya_ids.length > 0 && (
@@ -544,7 +547,7 @@ export default function LivreursPage() {
                     padding: 0, textDecoration: 'underline',
                   }}
                 >
-                  Tout désélectionner
+                  {t('deselectAll')}
                 </button>
               )}
             </div>
@@ -558,7 +561,7 @@ export default function LivreursPage() {
               }}>
                 <input
                   type="text"
-                  placeholder="Filtrer les wilayas…"
+                  placeholder={t('filterWilayas')}
                   value={wilayaSearch}
                   onChange={e => setWilayaSearch(e.target.value)}
                   style={{
@@ -597,7 +600,7 @@ export default function LivreursPage() {
                     fontSize: 12, color: colors.textLt,
                     padding: 8, gridColumn: '1 / -1', fontFamily: fonts.sans,
                   }}>
-                    Aucune wilaya trouvée
+                    {t('noWilaya')}
                   </span>
                 )}
               </div>
@@ -612,9 +615,9 @@ export default function LivreursPage() {
         )}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
-          <Button variant="secondary" size="sm" onClick={closeModal}>Annuler</Button>
+          <Button variant="secondary" size="sm" onClick={closeModal}>{t('common:actions.cancel')}</Button>
           <Button variant="primary" size="sm" loading={saving} onClick={handleSave}>
-            {editCarrier ? 'Enregistrer' : 'Ajouter'}
+            {editCarrier ? t('common:actions.save') : t('common:actions.add')}
           </Button>
         </div>
       </Modal>
@@ -624,9 +627,9 @@ export default function LivreursPage() {
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
-        title="Supprimer le livreur"
-        message={`Supprimer « ${deleteTarget?.name} » ? Cette action est irréversible.`}
-        confirmLabel={deleting ? 'Suppression…' : 'Supprimer'}
+        title={t('deleteTitle')}
+        message={t('deleteConfirm', { name: deleteTarget?.name ?? '' })}
+        confirmLabel={deleting ? t('deleting') : t('common:actions.delete')}
         danger
       />
     </>

@@ -1,0 +1,13 @@
+{
+  "tracking": {
+    "en_confirmation": "قيد التأكيد",
+    "en_preparation": "قيد التحضير",
+    "en_dispatch": "قيد الإرسال",
+    "en_livraison": "قيد التوصيل",
+    "livree": "تم التوصيل",
+    "en_retour": "قيد الإرجاع",
+    "encaissee": "تم التحصيل",
+    "retournee": "مُرتجعة",
+    "annulee": "ملغاة"
+  }
+}

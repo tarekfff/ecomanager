@@ -1,0 +1,51 @@
+{
+  "title": "Products",
+  "import": "Import",
+  "addProduct": "+ Add a product",
+  "searchPlaceholder": "Search by name or SKU…",
+  "boutiquePlaceholder": "Store",
+  "count_one": "{{count}} product",
+  "count_other": "{{count}} products",
+  "status": {
+    "all": "All statuses",
+    "active": "Active",
+    "inactive": "Inactive"
+  },
+  "table": {
+    "name": "Name",
+    "sku": "SKU",
+    "price": "Sale price",
+    "stock": "Stock",
+    "brand": "Brand",
+    "status": "Status",
+    "actions": "Actions"
+  },
+  "empty": "No product found",
+  "trash": {
+    "title": "Move to trash",
+    "message": "Move \"{{name}}\" to trash? You can restore it from the trash.",
+    "moving": "Moving…"
+  },
+  "options": {
+    "title": "Options & attributes",
+    "subtitle": "Manage attribute types (Color, Size…) and their values.",
+    "newAttr": "New attribute",
+    "attrNameLabel": "Attribute name",
+    "attrNamePh": "E.g.: Color, Size, Material…",
+    "create": "Create",
+    "loading": "Loading…",
+    "empty": "No attributes defined.",
+    "emptyHint": "Create your first attribute types above to generate product variants.",
+    "nameRequired": "Name is required",
+    "error": "Error",
+    "deleteValue": "Delete this value",
+    "valuePh": "New value…",
+    "add": "Add",
+    "save": "Save",
+    "cancel": "Cancel",
+    "rename": "Rename",
+    "delete": "Delete",
+    "noValues": "No values yet.",
+    "deleteConfirm": "Delete \"{{name}}\" and all its values?"
+  }
+}

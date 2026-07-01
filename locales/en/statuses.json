@@ -1,0 +1,13 @@
+{
+  "tracking": {
+    "en_confirmation": "In confirmation",
+    "en_preparation": "In preparation",
+    "en_dispatch": "In dispatch",
+    "en_livraison": "Out for delivery",
+    "livree": "Delivered",
+    "en_retour": "In return",
+    "encaissee": "Collected",
+    "retournee": "Returned",
+    "annulee": "Cancelled"
+  }
+}

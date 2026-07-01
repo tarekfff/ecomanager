@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Plus, Pencil, Ban, Check, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { colors, fonts } from '@/lib/tokens'
 import PageHeader from '@/components/ui/PageHeader'
 import Table, { Column } from '@/components/ui/Table'
@@ -43,7 +44,6 @@ function authHeader() {
 
 const ONLINE_WINDOW_MS = 5 * 60 * 1000
 
-// A user counts as online when explicitly flagged OR seen within the last 5 min
 function isOnline(u: AppUser): boolean {
   if (u.is_online) return true
   if (!u.last_seen_at) return false
@@ -91,7 +91,7 @@ function BoolMark({ value }: { value: boolean }) {
     : <X size={15} style={{ color: colors.textLt }} />
 }
 
-function OnlineDot({ online }: { online: boolean }) {
+function OnlineDot({ online, onlineLabel, offlineLabel }: { online: boolean; onlineLabel: string; offlineLabel: string }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: colors.textMd }}>
       <span style={{
@@ -102,7 +102,7 @@ function OnlineDot({ online }: { online: boolean }) {
         display: 'inline-block',
         boxShadow: online ? `0 0 0 2px ${colors.green}33` : 'none',
       }} />
-      {online ? 'En ligne' : 'Hors ligne'}
+      {online ? onlineLabel : offlineLabel}
     </span>
   )
 }
@@ -185,6 +185,8 @@ const emptyForm = {
 }
 
 export default function UtilisateursPage() {
+  const { t } = useTranslation('config')
+
   const [users, setUsers] = useState<AppUser[]>([])
   const [roles, setRoles] = useState<Role[]>([])
   const [boutiques, setBoutiques] = useState<Boutique[]>([])
@@ -222,7 +224,6 @@ export default function UtilisateursPage() {
       .catch(() => {})
   }, [loadUsers])
 
-  // Refresh online status periodically (recompute against last_seen_at)
   const [, setTick] = useState(0)
   useEffect(() => {
     const t = setInterval(() => setTick(x => x + 1), 30_000)
@@ -265,10 +266,10 @@ export default function UtilisateursPage() {
   }
 
   async function handleSave() {
-    if (!form.name.trim()) { setFormError('Le nom est requis'); return }
-    if (!form.email.trim()) { setFormError('L’email est requis'); return }
+    if (!form.name.trim()) { setFormError(t('utilisateurs.errName')); return }
+    if (!form.email.trim()) { setFormError(t('utilisateurs.errEmail')); return }
     if (!editUser && form.password.length < 6) {
-      setFormError('Le mot de passe doit contenir au moins 6 caractères')
+      setFormError(t('utilisateurs.errPassword'))
       return
     }
 
@@ -283,7 +284,6 @@ export default function UtilisateursPage() {
         boutique_ids: form.boutique_ids,
         is_active: form.is_active,
       }
-      // On create the password is always sent; on edit only when non-empty
       if (!editUser || form.password.length > 0) payload.password = form.password
 
       const res = await fetch(url, { method, headers: authHeader(), body: JSON.stringify(payload) })
@@ -300,7 +300,6 @@ export default function UtilisateursPage() {
     }
   }
 
-  // Toggle is_active directly from the table
   async function toggleActive(u: AppUser) {
     const next = !u.is_active
     setUsers(prev => prev.map(x => x.id === u.id ? { ...x, is_active: next } : x))
@@ -323,17 +322,17 @@ export default function UtilisateursPage() {
   const columns: Column<AppUser>[] = [
     {
       key: 'name',
-      label: 'Nom',
+      label: t('utilisateurs.cols.name'),
       render: u => (
         <span style={{ fontWeight: 500, color: u.is_active ? colors.text : colors.textLt }}>
           {u.name}
         </span>
       ),
     },
-    { key: 'email', label: 'Email', render: u => <span style={{ color: colors.textMd }}>{u.email}</span> },
+    { key: 'email', label: t('utilisateurs.cols.email'), render: u => <span style={{ color: colors.textMd }}>{u.email}</span> },
     {
       key: 'roles',
-      label: 'Rôle(s)',
+      label: t('utilisateurs.cols.roles'),
       render: u => (
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {u.role_names.length === 0
@@ -344,37 +343,37 @@ export default function UtilisateursPage() {
     },
     {
       key: 'email_verified',
-      label: 'Email vérifié',
+      label: t('utilisateurs.cols.emailVerified'),
       width: 100,
       render: u => <div style={{ display: 'flex', justifyContent: 'center' }}><BoolMark value={u.email_verified} /></div>,
     },
     {
       key: 'two_fa_enabled',
-      label: '2FA',
+      label: t('utilisateurs.cols.twoFa'),
       width: 70,
       render: u => <div style={{ display: 'flex', justifyContent: 'center' }}><BoolMark value={u.two_fa_enabled} /></div>,
     },
     {
       key: 'online',
-      label: 'En ligne',
+      label: t('utilisateurs.cols.online'),
       width: 110,
-      render: u => <OnlineDot online={isOnline(u)} />,
+      render: u => <OnlineDot online={isOnline(u)} onlineLabel={t('utilisateurs.online')} offlineLabel={t('utilisateurs.offline')} />,
     },
     {
       key: 'is_active',
-      label: 'Actif',
+      label: t('utilisateurs.cols.active'),
       width: 70,
       render: u => <Toggle checked={u.is_active} onChange={() => toggleActive(u)} />,
     },
     {
       key: 'actions',
-      label: 'Actions',
+      label: t('utilisateurs.cols.actions'),
       width: 90,
       render: u => (
         <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
           <button
             onClick={() => openEdit(u)}
-            title="Modifier"
+            title={t('utilisateurs.tooltipEdit')}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: colors.textMd, padding: 4, borderRadius: 4, display: 'flex' }}
           >
             <Pencil size={14} />
@@ -382,7 +381,7 @@ export default function UtilisateursPage() {
           {u.is_active && (
             <button
               onClick={() => setDisableUser(u)}
-              title="Désactiver"
+              title={t('utilisateurs.tooltipDisable')}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: colors.red, padding: 4, borderRadius: 4, display: 'flex' }}
             >
               <Ban size={14} />
@@ -396,75 +395,75 @@ export default function UtilisateursPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontFamily: fonts.sans }}>
       <PageHeader
-        title="Utilisateurs"
-        subtitle="Gérez les comptes, rôles et boutiques associées"
+        title={t('utilisateurs.title')}
+        subtitle={t('utilisateurs.subtitle')}
         actions={
           <Button onClick={openAdd} size="sm">
             <Plus size={13} />
-            Nouvel utilisateur
+            {t('utilisateurs.addBtn')}
           </Button>
         }
       />
 
       <div style={{ flex: 1, overflowY: 'auto', padding: 16, background: colors.bg }}>
         <div style={{ marginBottom: 12, maxWidth: 320 }}>
-          <SearchInput value={search} onChange={setSearch} placeholder="Rechercher un utilisateur…" />
+          <SearchInput value={search} onChange={setSearch} placeholder={t('utilisateurs.searchPh')} />
         </div>
 
-        <Table columns={columns} data={filtered} loading={loading} emptyText="Aucun utilisateur" />
+        <Table columns={columns} data={filtered} loading={loading} emptyText={t('utilisateurs.empty')} />
       </div>
 
       {/* Add / Edit modal */}
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editUser ? 'Modifier l’utilisateur' : 'Nouvel utilisateur'}
+        title={editUser ? t('utilisateurs.modal.titleEdit') : t('utilisateurs.modal.titleAdd')}
         size="md"
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <Input
-            label="Nom"
+            label={t('utilisateurs.modal.nameLbl')}
             value={form.name}
             onChange={v => { setForm(f => ({ ...f, name: v })); setFormError('') }}
-            placeholder="ex: Ahmed Benali"
+            placeholder={t('utilisateurs.modal.namePh')}
             required
           />
           <Input
-            label="Email"
+            label={t('utilisateurs.modal.emailLbl')}
             type="email"
             value={form.email}
             onChange={v => { setForm(f => ({ ...f, email: v })); setFormError('') }}
-            placeholder="ex: ahmed@exemple.com"
+            placeholder={t('utilisateurs.modal.emailPh')}
             required
           />
           <Input
-            label={editUser ? 'Mot de passe' : 'Mot de passe'}
+            label={t('utilisateurs.modal.passwordLbl')}
             type="password"
             value={form.password}
             onChange={v => { setForm(f => ({ ...f, password: v })); setFormError('') }}
-            placeholder={editUser ? 'Laisser vide pour ne pas changer' : 'Au moins 6 caractères'}
+            placeholder={editUser ? t('utilisateurs.modal.passwordPhEdit') : t('utilisateurs.modal.passwordPhAdd')}
             required={!editUser}
           />
 
           <MultiSelect
-            label="Rôles"
+            label={t('utilisateurs.modal.rolesLbl')}
             options={roles}
             selected={form.role_ids}
             onChange={ids => setForm(f => ({ ...f, role_ids: ids }))}
-            emptyText="Aucun rôle disponible"
+            emptyText={t('utilisateurs.modal.rolesEmpty')}
           />
 
           <MultiSelect
-            label="Boutiques associées"
+            label={t('utilisateurs.modal.boutiquesLbl')}
             options={boutiques}
             selected={form.boutique_ids}
             onChange={ids => setForm(f => ({ ...f, boutique_ids: ids }))}
-            emptyText="Aucune boutique disponible"
+            emptyText={t('utilisateurs.modal.boutiquesEmpty')}
           />
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Toggle checked={form.is_active} onChange={v => setForm(f => ({ ...f, is_active: v }))} />
-            <span style={{ fontSize: 13, color: colors.textMd }}>Compte actif</span>
+            <span style={{ fontSize: 13, color: colors.textMd }}>{t('utilisateurs.modal.activeLabel')}</span>
           </div>
 
           {formError && (
@@ -473,10 +472,10 @@ export default function UtilisateursPage() {
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 4 }}>
             <Button variant="secondary" size="sm" onClick={() => setModalOpen(false)}>
-              Annuler
+              {t('utilisateurs.modal.cancelBtn')}
             </Button>
             <Button size="sm" onClick={handleSave} loading={saving}>
-              {editUser ? 'Enregistrer' : 'Créer'}
+              {editUser ? t('utilisateurs.modal.saveBtn') : t('utilisateurs.modal.createBtn')}
             </Button>
           </div>
         </div>
@@ -486,9 +485,9 @@ export default function UtilisateursPage() {
         open={!!disableUser}
         onClose={() => setDisableUser(null)}
         onConfirm={handleDisable}
-        title="Désactiver l’utilisateur"
-        message={`Désactiver le compte de ${disableUser?.name ?? ''} ? Il ne pourra plus se connecter. Vous pourrez le réactiver à tout moment.`}
-        confirmLabel="Désactiver"
+        title={t('utilisateurs.disable.title')}
+        message={t('utilisateurs.disable.message', { name: disableUser?.name ?? '' })}
+        confirmLabel={t('utilisateurs.disable.confirmBtn')}
         danger
       />
     </div>

@@ -1,0 +1,13 @@
+{
+  "tracking": {
+    "en_confirmation": "En confirmation",
+    "en_preparation": "En préparation",
+    "en_dispatch": "En dispatch",
+    "en_livraison": "En livraison",
+    "livree": "Livrée",
+    "en_retour": "En retour",
+    "encaissee": "Encaissée",
+    "retournee": "Retournée",
+    "annulee": "Annulée"
+  }
+}

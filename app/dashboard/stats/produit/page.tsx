@@ -1,20 +1,12 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { PageHeader } from '@/components/ui'
 import StatsFilters, { type StatsFiltersValue } from '@/components/stats/StatsFilters'
 import StatsTable, { type StatsRow } from '@/components/stats/StatsTable'
 import StatsChart from '@/components/stats/StatsChart'
 import { colors, fonts } from '@/lib/tokens'
-
-const DIMENSIONS = [
-  { value: 'confirmer', label: 'Confirmateur' },
-  { value: 'carrier',   label: 'Livreur' },
-  { value: 'wilaya',    label: 'Wilaya' },
-  { value: 'commune',   label: 'Commune' },
-  { value: 'variant',   label: 'Variante' },
-  { value: 'boutique',  label: 'Boutique' },
-]
 
 interface Product { id: string; name: string; sku: string }
 interface Variant { id: string; sku: string; price: number | null; is_active: boolean }
@@ -27,6 +19,7 @@ function authHeader(): HeadersInit {
 }
 
 export default function StatsProduitPage() {
+  const { t } = useTranslation('stats')
   const [boutiques,     setBoutiques]     = useState<{ id: string; name: string }[]>([])
   const [products,      setProducts]      = useState<Product[]>([])
   const [variants,      setVariants]      = useState<Variant[]>([])
@@ -47,7 +40,15 @@ export default function StatsProduitPage() {
   const [rows, setRows]       = useState<StatsRow[]>([])
   const [loading, setLoading] = useState(false)
 
-  // Load boutiques + ALL tenant products on mount (no boutique required)
+  const DIMENSIONS = [
+    { value: 'confirmer', label: t('dims.confirmer') },
+    { value: 'carrier',   label: t('dims.carrier')   },
+    { value: 'wilaya',    label: t('dims.wilaya')    },
+    { value: 'commune',   label: t('dims.commune')   },
+    { value: 'variant',   label: t('dims.variant')   },
+    { value: 'boutique',  label: t('dims.boutique')  },
+  ]
+
   useEffect(() => {
     fetch('/api/boutiques', { headers: authHeader() })
       .then(r => r.json()).then(d => { if (Array.isArray(d)) setBoutiques(d) }).catch(() => {})
@@ -60,7 +61,6 @@ export default function StatsProduitPage() {
       .finally(() => setLoadingProds(false))
   }, [])
 
-  // Load variants when product changes
   useEffect(() => {
     setVariantId('')
     setVariants([])
@@ -69,7 +69,6 @@ export default function StatsProduitPage() {
     fetch(`/api/products/${productId}`, { headers: authHeader() })
       .then(r => r.json())
       .then(d => {
-        // product_variants is the key from the products/[id] API
         const vars = d.product_variants ?? d.variants ?? []
         if (Array.isArray(vars)) setVariants(vars.filter((v: Variant) => v.is_active))
       })
@@ -104,10 +103,9 @@ export default function StatsProduitPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: colors.bg, fontFamily: fonts.sans }}>
-      <PageHeader title="Stats par produit" subtitle="Performance des produits par statut et dimension" />
+      <PageHeader title={t('produit.title')} subtitle={t('produit.subtitle')} />
       <StatsFilters value={filters} onChange={setFilters} boutiques={boutiques} />
 
-      {/* Extra filters + dimension bar */}
       <div style={{
         background: '#fff',
         borderBottom: `1px solid ${colors.border}`,
@@ -117,10 +115,9 @@ export default function StatsProduitPage() {
         gap: 12,
         flexWrap: 'wrap',
       }}>
-        {/* Product selector */}
         <div style={{ minWidth: 260 }}>
           <label style={lbl}>
-            Produit {loadingProds && <span style={{ color: colors.textLt, fontWeight: 400 }}>— chargement…</span>}
+            {t('produit.productLabel')} {loadingProds && <span style={{ color: colors.textLt, fontWeight: 400 }}>— {t('loading')}</span>}
           </label>
           <select
             value={productId}
@@ -128,18 +125,17 @@ export default function StatsProduitPage() {
             style={{ ...sel, minWidth: 260 }}
             disabled={loadingProds}
           >
-            <option value="">Tous les produits ({products.length})</option>
+            <option value="">{t('produit.allProducts', { count: products.length })}</option>
             {products.map(p => (
               <option key={p.id} value={p.id}>{p.name}{p.sku ? ` — ${p.sku}` : ''}</option>
             ))}
           </select>
         </div>
 
-        {/* Variant selector — only when product selected */}
         {productId && (
           <div style={{ minWidth: 200 }}>
             <label style={lbl}>
-              Variante {loadingVars && <span style={{ color: colors.textLt, fontWeight: 400 }}>— chargement…</span>}
+              {t('produit.variantLabel')} {loadingVars && <span style={{ color: colors.textLt, fontWeight: 400 }}>— {t('loading')}</span>}
             </label>
             <select
               value={variantId}
@@ -147,7 +143,7 @@ export default function StatsProduitPage() {
               style={sel}
               disabled={loadingVars}
             >
-              <option value="">Toutes les variantes</option>
+              <option value="">{t('produit.allVariants')}</option>
               {variants.map(v => (
                 <option key={v.id} value={v.id}>{v.sku}</option>
               ))}
@@ -155,9 +151,8 @@ export default function StatsProduitPage() {
           </div>
         )}
 
-        {/* Dimension pills */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 12, color: colors.textMd, fontWeight: 500 }}>Trier par</span>
+          <span style={{ fontSize: 12, color: colors.textMd, fontWeight: 500 }}>{t('sortBy')}</span>
           {DIMENSIONS.map(d => (
             <DimBtn key={d.value} label={d.label} active={dimension === d.value} onClick={() => setDimension(d.value)} />
           ))}

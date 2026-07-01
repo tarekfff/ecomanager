@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslation } from 'react-i18next'
 import {
   Eye, Pencil, X, AlertCircle,
   Package, Calendar, Truck,
@@ -76,6 +77,7 @@ function SkeletonRow({ cols }: { cols: number }) {
 export default function EnRetourPage() {
   const router         = useRouter()
   const { boutiqueId } = useBoutique()
+  const { t }          = useTranslation('orders')
 
   const [orders,  setOrders]  = useState<Order[]>([])
   const [total,   setTotal]   = useState(0)
@@ -189,7 +191,7 @@ export default function EnRetourPage() {
   const nSelected    = selectedIds.size
 
   const carrierOptions = [
-    { value: '', label: 'Tous les livreurs' },
+    { value: '', label: t('filters.allCarriers') },
     ...carriers.map(c => ({ value: c.id, label: c.name })),
   ]
 
@@ -224,11 +226,11 @@ export default function EnRetourPage() {
   return (
     <>
       <PageHeader
-        title="En retour"
-        subtitle={total > 0 ? `${total} commande${total > 1 ? 's' : ''} en cours de retour` : 'Commandes en retour'}
+        title={t('enRetour.title')}
+        subtitle={total > 0 ? t('enRetour.subtitleN', { count: total }) : t('enRetour.subtitleDefault')}
         actions={
           <Button variant="primary" size="sm" onClick={() => router.push('/dashboard/orders/new')}>
-            + Nouvelle commande
+            {t('newOrder')}
           </Button>
         }
       />
@@ -245,14 +247,14 @@ export default function EnRetourPage() {
             borderRadius: 6, padding: '10px 14px', fontSize: 13, color: '#795548',
           }}>
             <AlertCircle size={15} />
-            Sélectionnez une boutique dans la barre de navigation.
+            {t('noBoutique')}
           </div>
         )}
 
         {/* ── Filter bar ──────────────────────────────────────────────────── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <div style={{ flex: '1 1 200px', maxWidth: 260 }}>
-            <SearchInput value={search} onChange={handleSearchChange} placeholder="Réf., téléphone, client…" />
+            <SearchInput value={search} onChange={handleSearchChange} placeholder={t('filters.searchPh')} />
           </div>
 
           <div style={{ width: 190 }}>
@@ -260,12 +262,12 @@ export default function EnRetourPage() {
               value={filterCarrier}
               onChange={v => { setFilterCarrier(v); setPage(1) }}
               options={carrierOptions}
-              placeholder="Tous les livreurs"
+              placeholder={t('filters.allCarriers')}
             />
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <label style={{ fontSize: 12, color: colors.textMd, whiteSpace: 'nowrap' }}>De</label>
+            <label style={{ fontSize: 12, color: colors.textMd, whiteSpace: 'nowrap' }}>{t('filters.from')}</label>
             <input type="date" value={dateFrom}
               onChange={e => { setDateFrom(e.target.value); setPage(1) }}
               style={{
@@ -279,7 +281,7 @@ export default function EnRetourPage() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <label style={{ fontSize: 12, color: colors.textMd }}>À</label>
+            <label style={{ fontSize: 12, color: colors.textMd }}>{t('filters.to')}</label>
             <input type="date" value={dateTo}
               onChange={e => { setDateTo(e.target.value); setPage(1) }}
               style={{
@@ -297,12 +299,12 @@ export default function EnRetourPage() {
               onClick={() => { setDateFrom(''); setDateTo(''); setFilterCarrier(''); setPage(1) }}
               style={{ fontSize: 12, color: colors.textLt, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', textDecoration: 'underline' }}
             >
-              Effacer filtres
+              {t('filters.clearFilters')}
             </button>
           )}
 
           <span style={{ marginLeft: 'auto', fontSize: 12, color: colors.textMd, whiteSpace: 'nowrap' }}>
-            {loading ? '…' : `${total} résultat${total !== 1 ? 's' : ''}`}
+            {loading ? '…' : t('filters.results', { count: total })}
           </span>
         </div>
 
@@ -314,13 +316,13 @@ export default function EnRetourPage() {
             borderRadius: 6, padding: '8px 12px',
           }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: colors.primary, marginRight: 4 }}>
-              {nSelected} sélectionné{nSelected > 1 ? 's' : ''}
+              {t('bulk.selected', { count: nSelected })}
             </span>
 
             {/* Valider retour */}
             <BulkBtn
               icon={<PackageCheck size={13} />}
-              label="Valider retour"
+              label={t('bulk.validateReturn')}
               onClick={() => bulkAction('validate_return')}
               loading={bulkLoading}
               color="#1B5E20"
@@ -329,7 +331,7 @@ export default function EnRetourPage() {
             {/* Préparer bon retour */}
             <BulkBtn
               icon={<FileText size={13} />}
-              label="Préparer bon retour"
+              label={t('bulk.prepareRetour')}
               onClick={() => bulkAction('prepare_retour')}
               loading={bulkLoading}
             />
@@ -337,7 +339,7 @@ export default function EnRetourPage() {
             {/* Retour en livraison */}
             <BulkBtn
               icon={<RotateCcw size={13} />}
-              label="Retour en livraison"
+              label={t('bulk.backToDelivery')}
               onClick={() => bulkAction('go_back_to_livraison')}
               loading={bulkLoading}
               color={colors.red}
@@ -352,7 +354,7 @@ export default function EnRetourPage() {
             <button
               onClick={clearSelection}
               style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: colors.textLt, display: 'flex', alignItems: 'center', padding: 4 }}
-              title="Annuler la sélection"
+              title={t('bulk.clearSelection')}
             >
               <X size={15} />
             </button>
@@ -365,14 +367,14 @@ export default function EnRetourPage() {
             <thead>
               <tr style={{ borderBottom: `1px solid ${colors.border}` }}>
                 <TH width={36}><Checkbox checked={allSelected} indeterminate={someSelected} onChange={toggleSelectAll} /></TH>
-                <TH width={110}>Référence</TH>
-                <TH width={150}>Client</TH>
-                <TH width={115}>Téléphone</TH>
-                <TH width={95}>Wilaya</TH>
-                <TH width={110}>En retour depuis</TH>
-                <TH width={130}>Livreur</TH>
-                <TH width={105}>Total</TH>
-                <TH width={72}>Actions</TH>
+                <TH width={110}>{t('cols.reference')}</TH>
+                <TH width={150}>{t('cols.client')}</TH>
+                <TH width={115}>{t('cols.phone')}</TH>
+                <TH width={95}>{t('cols.wilaya')}</TH>
+                <TH width={110}>{t('cols.returnedSince')}</TH>
+                <TH width={130}>{t('cols.carrier')}</TH>
+                <TH width={105}>{t('cols.total')}</TH>
+                <TH width={72}>{t('cols.actions')}</TH>
               </tr>
             </thead>
             <tbody>
@@ -382,7 +384,7 @@ export default function EnRetourPage() {
                 <tr>
                   <td colSpan={COLS} style={{ textAlign: 'center', padding: '40px 12px', color: colors.textLt, fontSize: 13 }}>
                     <Package size={28} style={{ opacity: 0.3, display: 'block', margin: '0 auto 8px' }} />
-                    Aucune commande en retour
+                    {t('enRetour.empty')}
                   </td>
                 </tr>
               ) : (
@@ -435,8 +437,8 @@ export default function EnRetourPage() {
                         onClick={e => e.stopPropagation()}
                       >
                         <div style={{ display: 'flex', gap: 4 }}>
-                          <ActionBtn icon={<Eye size={12} />} title="Voir" onClick={() => setDrawerOrderId(order.id)} />
-                          <ActionBtn icon={<Pencil size={12} />} title="Modifier" onClick={() => router.push(`/dashboard/orders/${order.id}/edit`)} />
+                          <ActionBtn icon={<Eye size={12} />} title={t('actions.view')} onClick={() => setDrawerOrderId(order.id)} />
+                          <ActionBtn icon={<Pencil size={12} />} title={t('actions.edit')} onClick={() => router.push(`/dashboard/orders/${order.id}/edit`)} />
                         </div>
                       </td>
                     </tr>

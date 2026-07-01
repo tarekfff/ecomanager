@@ -6,8 +6,11 @@ import {
   ChevronDown, ShoppingBag, Store, ShoppingCart,
   User as UserIcon, CheckCheck, Package, Truck, RotateCcw, Menu,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useBoutique } from '@/contexts/BoutiqueContext'
 import { useUI } from '@/contexts/UIContext'
+import { useLang } from '@/contexts/LanguageContext'
+import { LANGS, LANG_LABELS } from '@/lib/i18n'
 import { colors, fonts } from '@/lib/tokens'
 import { getStoredToken, clearAuth } from '@/lib/client-auth'
 
@@ -23,24 +26,26 @@ interface Notification {
 }
 
 const PIPELINE = [
-  { label: 'En confirmation', path: '/dashboard/orders/en-confirmation', dot: '#4472C4' },
-  { label: 'En préparation',  path: '/dashboard/orders/en-preparation',  dot: '#9966CC' },
-  { label: 'En dispatch',     path: '/dashboard/orders/en-dispatch',      dot: '#E6B800' },
-  { label: 'En livraison',    path: '/dashboard/orders/en-livraison',     dot: '#888888' },
-  { label: 'Livrées',         path: '/dashboard/orders/livrees',          dot: '#00B0A0' },
-  { label: 'En retour',       path: '/dashboard/orders/en-retour',        dot: '#E84B6A' },
+  { slug: 'en_confirmation', path: '/dashboard/orders/en-confirmation', dot: '#4472C4' },
+  { slug: 'en_preparation',  path: '/dashboard/orders/en-preparation',  dot: '#9966CC' },
+  { slug: 'en_dispatch',     path: '/dashboard/orders/en-dispatch',      dot: '#E6B800' },
+  { slug: 'en_livraison',    path: '/dashboard/orders/en-livraison',     dot: '#888888' },
+  { slug: 'livree',          path: '/dashboard/orders/livrees',          dot: '#00B0A0' },
+  { slug: 'en_retour',       path: '/dashboard/orders/en-retour',        dot: '#E84B6A' },
 ]
 
-function timeAgo(iso: string): string {
+type TFunc = (key: string, opts?: Record<string, unknown>) => string
+
+function timeAgo(iso: string, t: TFunc): string {
   const diff = Date.now() - new Date(iso).getTime()
   const s = Math.floor(diff / 1000)
-  if (s < 60) return "à l'instant"
+  if (s < 60) return t('topbar.timeAgo.now')
   const m = Math.floor(s / 60)
-  if (m < 60) return `il y a ${m} min`
+  if (m < 60) return t('topbar.timeAgo.minutes', { n: m })
   const h = Math.floor(m / 60)
-  if (h < 24) return `il y a ${h} h`
+  if (h < 24) return t('topbar.timeAgo.hours', { n: h })
   const j = Math.floor(h / 24)
-  return `il y a ${j} j`
+  return t('topbar.timeAgo.days', { n: j })
 }
 
 function notifIcon(type: string) {
@@ -53,12 +58,15 @@ function notifIcon(type: string) {
 export default function Topbar() {
   const router   = useRouter()
   const pathname = usePathname()
+  const { t } = useTranslation('layout')
+  const { lang, setLang } = useLang()
   const { boutiqueId, boutiqueName, setBoutique } = useBoutique()
   const { toggleSidebar } = useUI()
 
   const [boutiques,        setBoutiques]        = useState<BoutiqueOption[]>([])
   const [showBoutiqueMenu, setShowBoutiqueMenu] = useState(false)
   const [showNavMenu,      setShowNavMenu]      = useState(false)
+  const [showLangMenu,     setShowLangMenu]     = useState(false)
   const [showNotifMenu,    setShowNotifMenu]    = useState(false)
   const [showUserMenu,     setShowUserMenu]     = useState(false)
 
@@ -68,6 +76,7 @@ export default function Topbar() {
 
   const boutiqueMenuRef = useRef<HTMLDivElement>(null)
   const navMenuRef      = useRef<HTMLDivElement>(null)
+  const langMenuRef     = useRef<HTMLDivElement>(null)
   const notifMenuRef    = useRef<HTMLDivElement>(null)
   const userMenuRef     = useRef<HTMLDivElement>(null)
 
@@ -115,6 +124,7 @@ export default function Topbar() {
       const t = e.target as Node
       if (boutiqueMenuRef.current && !boutiqueMenuRef.current.contains(t)) setShowBoutiqueMenu(false)
       if (navMenuRef.current      && !navMenuRef.current.contains(t))      setShowNavMenu(false)
+      if (langMenuRef.current     && !langMenuRef.current.contains(t))     setShowLangMenu(false)
       if (notifMenuRef.current    && !notifMenuRef.current.contains(t))    setShowNotifMenu(false)
       if (userMenuRef.current     && !userMenuRef.current.contains(t))     setShowUserMenu(false)
     }
@@ -170,8 +180,8 @@ export default function Topbar() {
       <button
         className="hamburger-btn"
         onClick={toggleSidebar}
-        title="Menu"
-        aria-label="Ouvrir le menu"
+        title={t('topbar.menu')}
+        aria-label={t('topbar.openMenu')}
         style={{
           alignItems: 'center', justifyContent: 'center',
           width: 32, height: 32, marginRight: 8, flexShrink: 0,
@@ -275,7 +285,7 @@ export default function Topbar() {
           onMouseLeave={e => (e.currentTarget.style.background = showNavMenu ? 'rgba(255,255,255,0.22)' : 'transparent')}
         >
           <ShoppingCart size={13} strokeWidth={1.8} />
-          Commandes
+          {t('topbar.orders')}
           <ChevronDown size={11} style={{ opacity: 0.7 }} />
         </button>
 
@@ -299,10 +309,10 @@ export default function Topbar() {
               onMouseEnter={e => (e.currentTarget.style.background = colors.primaryLt)}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
-              + Nouvelle commande
+              {t('topbar.newOrder')}
             </button>
 
-            {PIPELINE.map(({ label, path, dot }) => {
+            {PIPELINE.map(({ slug, path, dot }) => {
               const isActive = pathname.startsWith(path)
               return (
                 <button
@@ -321,7 +331,7 @@ export default function Topbar() {
                   onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
                 >
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: dot, flexShrink: 0 }} />
-                  {label}
+                  {t(`statuses:tracking.${slug}`)}
                   {isActive && <span style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: '50%', background: colors.primary }} />}
                 </button>
               )
@@ -334,10 +344,62 @@ export default function Topbar() {
 
       {/* Right actions */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        {/* Language switcher */}
+        <div ref={langMenuRef} style={{ position: 'relative' }}>
+          <button
+            title={t('topbar.language')}
+            onClick={() => setShowLangMenu(v => !v)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              background: showLangMenu ? 'rgba(255,255,255,0.22)' : 'transparent',
+              border: 'none', borderRadius: 6,
+              padding: '5px 8px', cursor: 'pointer',
+              fontSize: 12, color: 'rgba(255,255,255,0.88)',
+              fontFamily: fonts.sans, transition: 'background .15s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.15)')}
+            onMouseLeave={e => (e.currentTarget.style.background = showLangMenu ? 'rgba(255,255,255,0.22)' : 'transparent')}
+          >
+            <Globe size={14} strokeWidth={1.8} />
+            <span style={{ textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.3px' }}>{lang}</span>
+            <ChevronDown size={11} style={{ opacity: 0.7 }} />
+          </button>
+
+          {showLangMenu && (
+            <div style={{
+              position: 'absolute', top: 'calc(100% + 8px)', insetInlineEnd: 0, zIndex: 300,
+              background: '#fff', borderRadius: 8,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+              border: '1px solid #E2D8E2', minWidth: 150, overflow: 'hidden',
+            }}>
+              {LANGS.map(code => (
+                <button
+                  key={code}
+                  onClick={() => { setLang(code); setShowLangMenu(false) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                    width: '100%', textAlign: 'start',
+                    padding: '9px 14px', fontSize: 13, fontFamily: fonts.sans,
+                    border: 'none',
+                    background: code === lang ? colors.primaryLt : '#fff',
+                    color:      code === lang ? colors.primary    : colors.text,
+                    fontWeight: code === lang ? 600 : 400,
+                    cursor: 'pointer', transition: 'background .1s',
+                  }}
+                  onMouseEnter={e => { if (code !== lang) e.currentTarget.style.background = '#FAFAFA' }}
+                  onMouseLeave={e => { if (code !== lang) e.currentTarget.style.background = '#fff' }}
+                >
+                  {LANG_LABELS[code]}
+                  {code === lang && <CheckCheck size={14} strokeWidth={2} style={{ color: colors.primary }} />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         {([
-          { icon: Globe,         label: 'Langue' },
-          { icon: MessageSquare, label: 'Feedback' },
-          { icon: BookOpen,      label: 'Tutoriels' },
+          { icon: MessageSquare, label: t('topbar.feedback') },
+          { icon: BookOpen,      label: t('topbar.tutorials') },
         ] as const).map(({ icon: Icon, label }) => (
           <button
             key={label}
@@ -354,14 +416,14 @@ export default function Topbar() {
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           >
             <Icon size={14} strokeWidth={1.8} />
-            <span style={{ display: label === 'Langue' ? 'none' : 'inline' }}>{label}</span>
+            <span>{label}</span>
           </button>
         ))}
 
         {/* Notifications bell */}
         <div ref={notifMenuRef} style={{ position: 'relative' }}>
           <button
-            title="Notifications"
+            title={t('topbar.notifications')}
             onClick={() => { setShowNotifMenu(v => !v); if (!showNotifMenu) fetchNotifs() }}
             style={{
               display: 'flex', alignItems: 'center', position: 'relative',
@@ -400,7 +462,7 @@ export default function Topbar() {
                 padding: '11px 14px', borderBottom: '1px solid #f0e8f0',
               }}>
                 <span style={{ fontSize: 13.5, fontWeight: 700, color: colors.text }}>
-                  Notifications
+                  {t('topbar.notifications')}
                 </span>
                 {notifications.length > 0 && (
                   <button
@@ -413,7 +475,7 @@ export default function Topbar() {
                     }}
                   >
                     <CheckCheck size={13} strokeWidth={2} />
-                    Tout marquer comme lu
+                    {t('topbar.markAllRead')}
                   </button>
                 )}
               </div>
@@ -421,13 +483,13 @@ export default function Topbar() {
               <div style={{ maxHeight: 360, overflowY: 'auto' }}>
                 {notifications.length === 0 ? (
                   <div style={{ padding: '28px 14px', textAlign: 'center', color: colors.textLt, fontSize: 12.5 }}>
-                    Aucune notification non lue
+                    {t('topbar.noNotifications')}
                   </div>
                 ) : notifications.map(n => (
                   <button
                     key={n.id}
                     onClick={() => markRead(n.id)}
-                    title="Marquer comme lu"
+                    title={t('topbar.markAsRead')}
                     style={{
                       display: 'flex', gap: 10, width: '100%', textAlign: 'left',
                       padding: '11px 14px', border: 'none',
@@ -441,7 +503,7 @@ export default function Topbar() {
                     <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, flex: 1 }}>
                       <span style={{ fontSize: 12.5, fontWeight: 600, color: colors.text }}>{n.title}</span>
                       {n.body && <span style={{ fontSize: 12, color: colors.textMd, lineHeight: 1.35 }}>{n.body}</span>}
-                      <span style={{ fontSize: 10.5, color: colors.textLt }}>{timeAgo(n.created_at)}</span>
+                      <span style={{ fontSize: 10.5, color: colors.textLt }}>{timeAgo(n.created_at, t)}</span>
                     </span>
                   </button>
                 ))}
@@ -454,7 +516,7 @@ export default function Topbar() {
         <div ref={userMenuRef} style={{ position: 'relative', marginLeft: 4 }}>
           <button
             onClick={() => setShowUserMenu(v => !v)}
-            title="Mon compte"
+            title={t('topbar.myAccount')}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
               background: 'rgba(255,255,255,0.18)',
@@ -501,7 +563,7 @@ export default function Topbar() {
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
               >
                 <UserIcon size={14} strokeWidth={1.9} style={{ color: colors.primary }} />
-                Mon profil
+                {t('topbar.myProfile')}
               </button>
               <button
                 onClick={handleLogout}
@@ -516,7 +578,7 @@ export default function Topbar() {
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
               >
                 <LogOut size={14} strokeWidth={1.9} />
-                Se déconnecter
+                {t('topbar.logout')}
               </button>
             </div>
           )}

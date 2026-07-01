@@ -1,0 +1,57 @@
+{
+  "ajustement": {
+    "title": "Stock Adjustment",
+    "subtitle": "Add, remove or correct a product's stock.",
+    "steps": ["Selection", "Details"],
+    "ops": { "add": "Add", "remove": "Remove", "correct": "Correct" },
+    "targets": { "new_batch": "New batch", "existing_batch": "Existing batch", "global": "Global stock" },
+    "warehouseLabel": "Warehouse", "warehousePh": "Choose a warehouse…",
+    "productLabel": "Product", "productPh": "Search a product…",
+    "variantLabel": "Variant", "variantPh": "Choose a variant…",
+    "operationLabel": "Operation", "targetLabel": "Target",
+    "batchLabel": "Batch", "batchPh": "Choose a batch…",
+    "noBatch": "No batch available in this warehouse",
+    "batchNumberLabel": "Batch number (optional)", "batchNumberPh": "e.g. LOT-2025-01",
+    "unitCostLabel": "Unit purchase price (DA)", "expiryLabel": "Expiry date",
+    "qtyLabel": "Quantity", "qtyTargetLabel": "Target quantity (desired total stock)",
+    "commentLabel": "Comment", "commentPh": "Reason for adjustment…",
+    "cancelBtn": "Cancel", "submitBtn": "Save adjustment", "submitting": "Saving…",
+    "errWarehouse": "Please select a warehouse", "errProduct": "Please select a product",
+    "errVariant": "Please select a variant", "errQty": "Invalid quantity",
+    "errBatch": "Please select a batch", "errAdjust": "Error during adjustment",
+    "errNetwork": "Network error", "successTitle": "Adjustment done",
+    "newAdjustBtn": "New adjustment", "backToStock": "Back to stock",
+    "currentQty": "Current stock", "noVariant": "— no variant —"
+  },
+  "alertes": {
+    "title": "Stock alerts",
+    "subtitle": "Products whose stock is below the configured minimum threshold.",
+    "cols": { "product": "Product", "sku": "SKU", "currentQty": "Current stock", "minQty": "Minimum stock", "gap": "Gap", "action": "Action" },
+    "adjustBtn": "Adjust", "empty": "No stock alerts",
+    "emptyDesc": "All products are above their minimum threshold.",
+    "emptyTable": "No stock alerts.",
+    "count_one": "{{count}} product on alert", "count_other": "{{count}} products on alert",
+    "errLoad": "Error while loading.", "errNetwork": "Network error."
+  },
+  "lots": {
+    "title": "Stock batches",
+    "subtitle": "All active batches with their quantity and expiry date.",
+    "cols": { "product": "Product", "variant": "Variant", "warehouse": "Warehouse", "batchNo": "Batch no.", "qty": "Quantity", "unitCost": "Purchase price", "expiry": "Expiry date" },
+    "expiringSoon": "⚠ soon", "expired": "✕ expired",
+    "legendSoon": "⚠ Expiring in ≤ 30 days", "legendExpired": "✕ Expired",
+    "searchPh": "Search…", "warehouseAll": "All", "filterBtn": "Filter", "resetBtn": "Reset",
+    "productLabel": "Product", "warehouseLabel": "Warehouse", "empty": "No stock batch found."
+  },
+  "mouvements": {
+    "title": "Stock movements",
+    "subtitle": "History of all stock adjustments.",
+    "cols": { "date": "Date", "product": "Product", "warehouse": "Warehouse", "operation": "Operation", "target": "Target", "qty": "Quantity", "unitCost": "Purchase price", "batch": "Batch", "comment": "Comment", "user": "User" },
+    "ops": { "add": "Add", "remove": "Remove", "correct": "Correct" },
+    "targets": { "new_batch": "New batch", "global": "Global stock", "existing_batch": "Existing batch" },
+    "productLabel": "Product", "warehouseLabel": "Warehouse", "operationLabel": "Operation",
+    "allWarehouses": "All", "allOps": "All",
+    "dateFrom": "From", "dateTo": "To",
+    "searchPh": "Search…", "filterBtn": "Filter", "resetBtn": "Reset",
+    "empty": "No stock movement found.", "variantPrefix": "Var:"
+  }
+}

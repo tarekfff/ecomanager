@@ -1,0 +1,28 @@
+{
+  "title": "Boutiques",
+  "subtitle": "Gérez vos boutiques et leurs paramètres",
+  "addBtn": "Nouvelle boutique",
+  "empty": "Aucune boutique configurée",
+  "cols": {
+    "prefix": "Préfixe",
+    "domain": "Domaine",
+    "users": "Utilisateurs",
+    "orders": "Commandes",
+    "status": "Statut"
+  },
+  "addModalTitle": "Nouvelle boutique",
+  "editModalTitle": "Modifier la boutique",
+  "namePlaceholder": "ex: Boutique Alger",
+  "prefixLabel": "Préfixe",
+  "prefixPlaceholder": "ex: CMD",
+  "prefixHint": "2–6 caractères, majuscules uniquement. Exemple de référence :",
+  "prefixWarn": "Attention : le changement de préfixe n'affecte pas les références de commandes déjà créées.",
+  "domainLabel": "Domaine (optionnel)",
+  "domainPlaceholder": "ex: boutique.dz",
+  "activeLabel": "Boutique active",
+  "createBtn": "Créer",
+  "nameRequired": "Le nom est requis",
+  "prefixRequired": "Le préfixe est requis",
+  "prefixRange": "Entre 2 et 6 caractères",
+  "genericError": "Erreur"
+}

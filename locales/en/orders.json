@@ -1,0 +1,259 @@
+{
+  "filters": {
+    "searchPh": "Ref., phone, client…",
+    "from": "From",
+    "to": "To",
+    "clearFilters": "Clear filters",
+    "results_one": "{{count}} result",
+    "results_other": "{{count}} results",
+    "allConfirmers": "All confirmers",
+    "allCarriers": "All carriers",
+    "allBoutiques": "All companies"
+  },
+  "newOrder": "+ New order",
+  "noBoutique": "Select a store in the navigation bar.",
+  "loading": "Loading…",
+  "newBanner_one": "{{count}} new order received — Click to refresh",
+  "newBanner_other": "{{count}} new orders received — Click to refresh",
+  "bulk": {
+    "selected_one": "{{count}} selected",
+    "selected_other": "{{count}} selected",
+    "clearSelection": "Clear selection",
+    "noUsers": "No users",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "assignTo": "Assign to",
+    "confStatus": "Conf. status",
+    "ship": "Ship",
+    "disableSync": "Disable sync",
+    "printLabels": "Print labels",
+    "noestLabels": "NOEST labels",
+    "routeSheet": "Route sheet",
+    "validateDelivery": "Validate delivery",
+    "requestReturn": "Request return",
+    "applyFee": "Apply fee",
+    "feePh": "Fee DA",
+    "dispatch": "Dispatch",
+    "carrier": "Delivery company",
+    "validateReturn": "Validate return",
+    "prepareEncaissement": "Prepare payment slip",
+    "prepareRetour": "Prepare return slip",
+    "backToDelivery": "Back to delivery",
+    "restore": "Restore",
+    "hardDelete": "Delete permanently",
+    "undoDelete": "Undo deletion",
+    "confirmHardDelete": "Delete permanently? This action is irreversible."
+  },
+  "cols": {
+    "reference": "Reference",
+    "confStatus": "Conf. status",
+    "phone": "Phone",
+    "client": "Client",
+    "wilaya": "Wilaya",
+    "commune": "Commune",
+    "risk": "Risk",
+    "items": "Items",
+    "total": "Total",
+    "createdAt": "Created at",
+    "confirmedAt": "Confirmed at",
+    "dispatchedAt": "Dispatched at",
+    "shippedAt": "Shipped at",
+    "deliveredAtCol": "Delivered at",
+    "returnedSince": "In return since",
+    "deliveryStatus": "Delivery status",
+    "sync": "Sync",
+    "carrierFee": "Carrier fee",
+    "confirmer": "Assigned to",
+    "carrier": "Carrier",
+    "deliveryCompany": "Delivery company",
+    "status": "Status",
+    "date": "Date",
+    "cancelledAt": "Cancelled at",
+    "deletedAt": "Deleted at",
+    "deliveredAt": "Delivered at",
+    "returnedAt": "Returned at",
+    "actions": "Actions"
+  },
+  "misc": {
+    "notAssigned": "Not assigned"
+  },
+  "actions": {
+    "view": "View",
+    "edit": "Edit",
+    "restore": "Restore",
+    "hardDelete": "Delete perm.",
+    "undoDelete": "Undo deletion"
+  },
+  "sync": {
+    "active": "Sync active",
+    "disabled": "Sync disabled"
+  },
+  "confStatusLabels": {
+    "echec_1": "Failure 1",
+    "echec_2": "Failure 2",
+    "echec_3": "Failure 3",
+    "suspendue": "Suspended",
+    "annulation_demande": "Cancel req."
+  },
+  "enConfirmation": {
+    "title": "In confirmation",
+    "subtitleDefault": "Orders awaiting confirmation",
+    "subtitleN_one": "{{count}} order awaiting confirmation",
+    "subtitleN_other": "{{count}} orders awaiting confirmation",
+    "empty": "No orders in confirmation"
+  },
+  "enPreparation": {
+    "title": "In preparation",
+    "subtitleDefault": "Orders ready to be dispatched",
+    "subtitleN_one": "{{count}} order being prepared",
+    "subtitleN_other": "{{count}} orders being prepared",
+    "empty": "No orders in preparation",
+    "noCarriers": "No delivery company configured. Add one in Webhooks.",
+    "noCarriersAvailable": "No company available"
+  },
+  "enDispatch": {
+    "title": "In dispatch",
+    "subtitleDefault": "Dispatched orders",
+    "subtitleN_one": "{{count}} order dispatched to delivery company",
+    "subtitleN_other": "{{count}} orders dispatched to delivery company",
+    "empty": "No orders in dispatch",
+    "noNoestLabels": "No NOEST label available for selection",
+    "errNoestLabel": "NOEST label error"
+  },
+  "enLivraison": {
+    "title": "In delivery",
+    "subtitleDefault": "Orders being delivered",
+    "subtitleN_one": "{{count}} order being delivered",
+    "subtitleN_other": "{{count}} orders being delivered",
+    "empty": "No orders in delivery"
+  },
+  "livrees": {
+    "title": "Delivered",
+    "subtitleDefault": "Delivered orders",
+    "subtitleN_one": "{{count}} delivered order",
+    "subtitleN_other": "{{count}} delivered orders",
+    "empty": "No delivered orders"
+  },
+  "enRetour": {
+    "title": "In return",
+    "subtitleDefault": "Orders in return",
+    "subtitleN_one": "{{count}} order in return",
+    "subtitleN_other": "{{count}} orders in return",
+    "empty": "No orders in return"
+  },
+  "annulees": {
+    "title": "Cancelled",
+    "empty": "No cancelled orders"
+  },
+  "encaissees": {
+    "title": "Paid",
+    "empty": "No paid orders"
+  },
+  "retournees": {
+    "title": "Returned",
+    "empty": "No returned orders"
+  },
+  "corbeille": {
+    "title": "Trash",
+    "empty": "Trash is empty"
+  },
+  "bonEncaissement": {
+    "title": "Payment slip",
+    "subtitle_one": "{{count}} order · {{amount}} to collect",
+    "subtitle_other": "{{count}} orders · {{amount}} to collect",
+    "empty": "No payment slip pending",
+    "noCarrier": "No carrier",
+    "colRef": "Reference",
+    "colClient": "Client",
+    "colAmount": "Amount",
+    "colActions": "Actions",
+    "confirmBtn": "Confirm slip",
+    "confirmingBtn": "Confirming…",
+    "backDelivery": "Back to delivery",
+    "backDeliveryTitle": "Back to delivery",
+    "receipts_one": "{{count}} order",
+    "receipts_other": "{{count}} orders"
+  },
+  "pickups": {
+    "searchPh": "Order reference…",
+    "goBack": "Go back",
+    "enCollecte": {
+      "title": "In collection",
+      "subtitle": "Pickups awaiting collection by carrier",
+      "empty": "No pickup awaiting collection",
+      "validate": "Validate collection"
+    },
+    "collecte": {
+      "title": "Collected",
+      "subtitle": "Pickups collected, awaiting reception",
+      "empty": "No collected pickup pending",
+      "validate": "Validate reception"
+    },
+    "recus": {
+      "title": "Received",
+      "subtitle": "Pickups received, awaiting processing",
+      "empty": "No received pickup pending",
+      "validate": "Validate processing"
+    },
+    "traites": {
+      "title": "Processed",
+      "subtitle": "Processed pickups",
+      "empty": "No processed pickup"
+    },
+    "annules": {
+      "title": "Cancelled",
+      "subtitle": "Cancelled pickups",
+      "empty": "No cancelled pickup"
+    }
+  },
+  "bonRetour": {
+    "title": "Return slip",
+    "subtitle_one": "{{count}} return pending",
+    "subtitle_other": "{{count}} returns pending",
+    "empty": "No return slip pending",
+    "noCarrier": "No carrier",
+    "colRef": "Reference",
+    "colClient": "Client",
+    "colAmount": "Amount",
+    "colActions": "Actions",
+    "confirmBtn": "Confirm slip",
+    "confirmingBtn": "Confirming…",
+    "backDelivery": "Back to delivery",
+    "backDeliveryTitle": "Back to delivery",
+    "receipts_one": "{{count}} return",
+    "receipts_other": "{{count}} returns"
+  },
+  "importSources": {
+    "title": "Connected sources",
+    "subtitle": "Google Sheets connections for automatic import",
+    "back": "Back",
+    "addSource": "+ Add a source",
+    "selectBoutique": "Select a store in the navigation bar.",
+    "infoBanner": "New rows added to Google Sheet appear here within seconds via the live trigger. The nightly sync (2am) is only a safety net.",
+    "loading": "Loading…",
+    "emptyTitle": "No Google Sheet connection",
+    "emptyHint": "Import a sheet and save the connection to enable automatic sync.",
+    "connectSheet": "+ Connect a sheet",
+    "active": "Active",
+    "inactive": "Inactive",
+    "sheet": "Sheet",
+    "account": "Account",
+    "lastSync": "Last sync",
+    "never": "Never",
+    "rowsProcessed_one": "{{count}} row processed",
+    "rowsProcessed_other": "{{count}} rows processed",
+    "syncNowTitle": "Sync now",
+    "syncing": "Syncing…",
+    "sync": "Sync",
+    "disable": "Disable",
+    "enable": "Enable",
+    "deleteTitle": "Delete",
+    "deleteConfirm": "Delete this connection? Already-imported orders will not be deleted.",
+    "syncResult": "{{imported}} imported, {{skipped}} skipped, {{failed}} failed",
+    "error": "Error",
+    "networkError": "Network error",
+    "liveTrigger": "Live trigger active",
+    "dailySync": "Daily sync (fallback)"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "title": "Suppliers",
+  "subtitle": "Manage suppliers",
+  "addBtn": "+ Add a supplier",
+  "count_one": "{{count}} supplier",
+  "count_other": "{{count}} suppliers",
+  "empty": "No suppliers",
+  "addModalTitle": "Add a supplier",
+  "editModalTitle": "Edit supplier",
+  "namePlaceholder": "e.g. Algiers Wholesaler",
+  "phonePlaceholder": "0555 00 00 00",
+  "emailPlaceholder": "contact@example.com",
+  "addressPlaceholder": "Full address…",
+  "nameRequired": "Name is required.",
+  "saveError": "Error while saving.",
+  "deleteError": "Error while deleting.",
+  "deleteTitle": "Delete supplier",
+  "deleteConfirm": "Delete “{{name}}”? This action is irreversible.",
+  "deleting": "Deleting…"
+}

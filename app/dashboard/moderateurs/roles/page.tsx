@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Plus, Pencil, Trash2, Copy, ChevronDown, ChevronRight, ArrowLeft, ShieldCheck,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { colors, fonts } from '@/lib/tokens'
 import PageHeader from '@/components/ui/PageHeader'
 import Table, { Column } from '@/components/ui/Table'
@@ -20,217 +21,120 @@ interface Role {
   is_system: boolean
 }
 
-// ─── Permission Matrix Data ───────────────────────────────────────────────────
-
 type Perm = { key: string; label: string }
 type PermSection = { id: string; group: string; label: string; perms: Perm[] }
 
-const PERM_SECTIONS: PermSection[] = [
+// ─── Permission Matrix Data (stable keys only — labels resolved via t()) ──────
+
+type PermDef = { key: string }
+type PermSectionDef = { id: string; groupKey: string; perms: PermDef[] }
+
+const PERM_SECTIONS_DEF: PermSectionDef[] = [
   // ── Commandes ────────────────────────────────────────────────────────────
-  { id: 'orders.en_confirmation', group: 'Commandes', label: 'En confirmation', perms: [
-    { key: 'view',              label: 'Voir' },
-    { key: 'confirm',           label: 'Confirmer' },
-    { key: 'cancel',            label: 'Annuler' },
-    { key: 'delete',            label: 'Supprimer' },
-    { key: 'assign_confirmer',  label: 'Assigner confirmateur' },
-    { key: 'edit_discount',     label: 'Modifier remise' },
-    { key: 'edit_price',        label: 'Modifier prix' },
-    { key: 'edit_delivery_fee', label: 'Modifier frais livraison' },
-    { key: 'bulk_action',       label: 'Actions en masse' },
+  { id: 'orders.en_confirmation', groupKey: 'Commandes', perms: [
+    { key: 'view' }, { key: 'confirm' }, { key: 'cancel' }, { key: 'delete' },
+    { key: 'assign_confirmer' }, { key: 'edit_discount' }, { key: 'edit_price' },
+    { key: 'edit_delivery_fee' }, { key: 'bulk_action' },
   ]},
-  { id: 'orders.en_preparation', group: 'Commandes', label: 'En préparation', perms: [
-    { key: 'view',           label: 'Voir' },
-    { key: 'go_back',        label: 'Retourner' },
-    { key: 'cancel',         label: 'Annuler' },
-    { key: 'change_carrier', label: 'Changer livreur' },
-    { key: 'dispatch',       label: 'Dispatcher' },
-    { key: 'print_labels',   label: 'Imprimer étiquettes' },
-    { key: 'export',         label: 'Exporter' },
-    { key: 'edit',           label: 'Modifier' },
-    { key: 'edit_discount',  label: 'Modifier remise' },
-    { key: 'bulk_action',    label: 'Actions en masse' },
+  { id: 'orders.en_preparation', groupKey: 'Commandes', perms: [
+    { key: 'view' }, { key: 'go_back' }, { key: 'cancel' }, { key: 'change_carrier' },
+    { key: 'dispatch' }, { key: 'print_labels' }, { key: 'export' },
+    { key: 'edit' }, { key: 'edit_discount' }, { key: 'bulk_action' },
   ]},
-  { id: 'orders.en_dispatch', group: 'Commandes', label: 'En dispatch', perms: [
-    { key: 'view',           label: 'Voir' },
-    { key: 'cancel',         label: 'Annuler' },
-    { key: 'go_back',        label: 'Retourner' },
-    { key: 'change_carrier', label: 'Changer livreur' },
-    { key: 'print_labels',   label: 'Imprimer étiquettes' },
-    { key: 'print_route',    label: 'Feuille de route' },
-    { key: 'ship',           label: 'Expédier' },
-    { key: 'export',         label: 'Exporter' },
-    { key: 'edit',           label: 'Modifier' },
-    { key: 'disable_sync',   label: 'Désactiver sync' },
-    { key: 'bulk_action',    label: 'Actions en masse' },
+  { id: 'orders.en_dispatch', groupKey: 'Commandes', perms: [
+    { key: 'view' }, { key: 'cancel' }, { key: 'go_back' }, { key: 'change_carrier' },
+    { key: 'print_labels' }, { key: 'print_route' }, { key: 'ship' },
+    { key: 'export' }, { key: 'edit' }, { key: 'disable_sync' }, { key: 'bulk_action' },
   ]},
-  { id: 'orders.en_livraison', group: 'Commandes', label: 'En livraison', perms: [
-    { key: 'view',              label: 'Voir' },
-    { key: 'go_back',           label: 'Retourner' },
-    { key: 'track',             label: 'Suivre' },
-    { key: 'request_return',    label: 'Demander retour' },
-    { key: 'validate_delivery', label: 'Valider livraison' },
-    { key: 'edit',              label: 'Modifier' },
-    { key: 'edit_carrier_fee',  label: 'Modifier frais livreur' },
-    { key: 'disable_sync',      label: 'Désactiver sync' },
-    { key: 'bulk_action',       label: 'Actions en masse' },
+  { id: 'orders.en_livraison', groupKey: 'Commandes', perms: [
+    { key: 'view' }, { key: 'go_back' }, { key: 'track' }, { key: 'request_return' },
+    { key: 'validate_delivery' }, { key: 'edit' }, { key: 'edit_carrier_fee' },
+    { key: 'disable_sync' }, { key: 'bulk_action' },
   ]},
-  { id: 'orders.livrees', group: 'Commandes', label: 'Livrées', perms: [
-    { key: 'view',             label: 'Voir' },
-    { key: 'go_back',          label: 'Retourner' },
-    { key: 'prepare_bon',      label: 'Préparer bon' },
-    { key: 'edit',             label: 'Modifier' },
-    { key: 'edit_carrier_fee', label: 'Modifier frais livreur' },
-    { key: 'bulk_action',      label: 'Actions en masse' },
+  { id: 'orders.livrees', groupKey: 'Commandes', perms: [
+    { key: 'view' }, { key: 'go_back' }, { key: 'prepare_bon' },
+    { key: 'edit' }, { key: 'edit_carrier_fee' }, { key: 'bulk_action' },
   ]},
-  { id: 'orders.en_retour', group: 'Commandes', label: 'En retour', perms: [
-    { key: 'view',            label: 'Voir' },
-    { key: 'go_back',         label: 'Retourner' },
-    { key: 'prepare_bon',     label: 'Préparer bon' },
-    { key: 'validate_return', label: 'Valider retour' },
-    { key: 'edit',            label: 'Modifier' },
-    { key: 'bulk_action',     label: 'Actions en masse' },
+  { id: 'orders.en_retour', groupKey: 'Commandes', perms: [
+    { key: 'view' }, { key: 'go_back' }, { key: 'prepare_bon' },
+    { key: 'validate_return' }, { key: 'edit' }, { key: 'bulk_action' },
   ]},
-  { id: 'orders.archive_encaissees', group: 'Commandes', label: 'Archive encaissées', perms: [
-    { key: 'view',        label: 'Voir' },
-    { key: 'go_back',     label: 'Retourner' },
-    { key: 'bulk_action', label: 'Actions en masse' },
+  { id: 'orders.archive_encaissees', groupKey: 'Commandes', perms: [
+    { key: 'view' }, { key: 'go_back' }, { key: 'bulk_action' },
   ]},
-  { id: 'orders.archive_retournees', group: 'Commandes', label: 'Archive retournées', perms: [
-    { key: 'view',        label: 'Voir' },
-    { key: 'go_back',     label: 'Retourner' },
-    { key: 'bulk_action', label: 'Actions en masse' },
+  { id: 'orders.archive_retournees', groupKey: 'Commandes', perms: [
+    { key: 'view' }, { key: 'go_back' }, { key: 'bulk_action' },
   ]},
-  { id: 'orders.archive_annulees', group: 'Commandes', label: 'Archive annulées', perms: [
-    { key: 'view',        label: 'Voir' },
-    { key: 'delete',      label: 'Supprimer' },
-    { key: 'restore',     label: 'Restaurer' },
-    { key: 'bulk_action', label: 'Actions en masse' },
+  { id: 'orders.archive_annulees', groupKey: 'Commandes', perms: [
+    { key: 'view' }, { key: 'delete' }, { key: 'restore' }, { key: 'bulk_action' },
   ]},
-  { id: 'orders.corbeille', group: 'Commandes', label: 'Corbeille', perms: [
-    { key: 'view',         label: 'Voir' },
-    { key: 'undo_delete',  label: 'Annuler suppression' },
-    { key: 'bulk_action',  label: 'Actions en masse' },
+  { id: 'orders.corbeille', groupKey: 'Commandes', perms: [
+    { key: 'view' }, { key: 'undo_delete' }, { key: 'bulk_action' },
   ]},
-  { id: 'orders.bon_encaissement', group: 'Commandes', label: "Bon d'encaissement", perms: [
-    { key: 'view',        label: 'Voir' },
-    { key: 'go_back',     label: 'Retourner' },
-    { key: 'confirm',     label: 'Confirmer' },
-    { key: 'bulk_action', label: 'Actions en masse' },
+  { id: 'orders.bon_encaissement', groupKey: 'Commandes', perms: [
+    { key: 'view' }, { key: 'go_back' }, { key: 'confirm' }, { key: 'bulk_action' },
   ]},
-  { id: 'orders.bon_retour', group: 'Commandes', label: 'Bon de retour', perms: [
-    { key: 'view',        label: 'Voir' },
-    { key: 'go_back',     label: 'Retourner' },
-    { key: 'confirm',     label: 'Confirmer' },
-    { key: 'bulk_action', label: 'Actions en masse' },
+  { id: 'orders.bon_retour', groupKey: 'Commandes', perms: [
+    { key: 'view' }, { key: 'go_back' }, { key: 'confirm' }, { key: 'bulk_action' },
   ]},
   // ── Pickups ──────────────────────────────────────────────────────────────
-  { id: 'orders.pickups_en_collecte', group: 'Pickups', label: 'En collecte', perms: [
-    { key: 'view',             label: 'Voir' },
-    { key: 'go_back',          label: 'Retourner' },
-    { key: 'cancel',           label: 'Annuler' },
-    { key: 'delete',           label: 'Supprimer' },
-    { key: 'edit',             label: 'Modifier' },
-    { key: 'validate_collect', label: 'Valider collecte' },
-    { key: 'disable_sync',     label: 'Désactiver sync' },
-    { key: 'bulk_action',      label: 'Actions en masse' },
+  { id: 'orders.pickups_en_collecte', groupKey: 'Pickups', perms: [
+    { key: 'view' }, { key: 'go_back' }, { key: 'cancel' }, { key: 'delete' },
+    { key: 'edit' }, { key: 'validate_collect' }, { key: 'disable_sync' }, { key: 'bulk_action' },
   ]},
-  { id: 'orders.pickups_collecte', group: 'Pickups', label: 'Collecté', perms: [
-    { key: 'view',               label: 'Voir' },
-    { key: 'go_back',            label: 'Retourner' },
-    { key: 'edit',               label: 'Modifier' },
-    { key: 'prepare_bon',        label: 'Préparer bon' },
-    { key: 'validate_reception', label: 'Valider réception' },
-    { key: 'disable_sync',       label: 'Désactiver sync' },
-    { key: 'bulk_action',        label: 'Actions en masse' },
+  { id: 'orders.pickups_collecte', groupKey: 'Pickups', perms: [
+    { key: 'view' }, { key: 'go_back' }, { key: 'edit' }, { key: 'prepare_bon' },
+    { key: 'validate_reception' }, { key: 'disable_sync' }, { key: 'bulk_action' },
   ]},
-  { id: 'orders.pickups_recus', group: 'Pickups', label: 'Reçu', perms: [
-    { key: 'view',                label: 'Voir' },
-    { key: 'go_back',             label: 'Retourner' },
-    { key: 'edit',                label: 'Modifier' },
-    { key: 'validate_processing', label: 'Valider traitement' },
-    { key: 'bulk_action',         label: 'Actions en masse' },
+  { id: 'orders.pickups_recus', groupKey: 'Pickups', perms: [
+    { key: 'view' }, { key: 'go_back' }, { key: 'edit' },
+    { key: 'validate_processing' }, { key: 'bulk_action' },
   ]},
-  { id: 'orders.pickups_traites', group: 'Pickups', label: 'Traité', perms: [
-    { key: 'view',        label: 'Voir' },
-    { key: 'go_back',     label: 'Retourner' },
-    { key: 'bulk_action', label: 'Actions en masse' },
+  { id: 'orders.pickups_traites', groupKey: 'Pickups', perms: [
+    { key: 'view' }, { key: 'go_back' }, { key: 'bulk_action' },
   ]},
-  { id: 'orders.pickups_annules', group: 'Pickups', label: 'Annulé', perms: [
-    { key: 'view',        label: 'Voir' },
-    { key: 'go_back',     label: 'Retourner' },
-    { key: 'delete',      label: 'Supprimer' },
-    { key: 'bulk_action', label: 'Actions en masse' },
+  { id: 'orders.pickups_annules', groupKey: 'Pickups', perms: [
+    { key: 'view' }, { key: 'go_back' }, { key: 'delete' }, { key: 'bulk_action' },
   ]},
   // ── Other modules ─────────────────────────────────────────────────────────
-  { id: 'stats', group: 'Statistiques', label: 'Statistiques', perms: [
-    { key: 'boutique',     label: 'Par boutique' },
-    { key: 'product',      label: 'Par produit' },
-    { key: 'delivery',     label: 'Livraison' },
-    { key: 'confirmation', label: 'Confirmation' },
-    { key: 'order',        label: 'Commandes' },
+  { id: 'stats', groupKey: 'Statistiques', perms: [
+    { key: 'boutique' }, { key: 'product' }, { key: 'delivery' },
+    { key: 'confirmation' }, { key: 'order' },
   ]},
-  { id: 'data', group: 'Données', label: 'Données', perms: [
-    { key: 'export',   label: 'Exporter' },
-    { key: 'reports',  label: 'Rapports' },
+  { id: 'data', groupKey: 'Données', perms: [
+    { key: 'export' }, { key: 'reports' },
   ]},
-  { id: 'products', group: 'Produits', label: 'Produits', perms: [
-    { key: 'view',         label: 'Voir' },
-    { key: 'create',       label: 'Créer' },
-    { key: 'edit',         label: 'Modifier' },
-    { key: 'trash',        label: 'Corbeille' },
-    { key: 'move_to_trash',label: 'Mettre à la corbeille' },
-    { key: 'restore',      label: 'Restaurer' },
-    { key: 'delete',       label: 'Supprimer' },
+  { id: 'products', groupKey: 'Produits', perms: [
+    { key: 'view' }, { key: 'create' }, { key: 'edit' }, { key: 'trash' },
+    { key: 'move_to_trash' }, { key: 'restore' }, { key: 'delete' },
   ]},
-  { id: 'stock', group: 'Stock', label: 'Stock', perms: [
-    { key: 'adjust',              label: 'Ajuster' },
-    { key: 'movements',           label: 'Mouvements' },
-    { key: 'batches',             label: 'Lots' },
-    { key: 'alerts',              label: 'Alertes' },
-    { key: 'inventory',           label: 'Inventaire' },
-    { key: 'mega_inventory',      label: 'Méga-inventaire' },
-    { key: 'view_purchase_price', label: "Voir prix d'achat" },
+  { id: 'stock', groupKey: 'Stock', perms: [
+    { key: 'adjust' }, { key: 'movements' }, { key: 'batches' }, { key: 'alerts' },
+    { key: 'inventory' }, { key: 'mega_inventory' }, { key: 'view_purchase_price' },
   ]},
-  { id: 'brands', group: 'Catalogue', label: 'Marques', perms: [
-    { key: 'create', label: 'Créer' },
-    { key: 'edit',   label: 'Modifier' },
-    { key: 'delete', label: 'Supprimer' },
+  { id: 'brands', groupKey: 'Catalogue', perms: [
+    { key: 'create' }, { key: 'edit' }, { key: 'delete' },
   ]},
-  { id: 'suppliers', group: 'Catalogue', label: 'Fournisseurs', perms: [
-    { key: 'create', label: 'Créer' },
-    { key: 'edit',   label: 'Modifier' },
-    { key: 'delete', label: 'Supprimer' },
+  { id: 'suppliers', groupKey: 'Catalogue', perms: [
+    { key: 'create' }, { key: 'edit' }, { key: 'delete' },
   ]},
-  { id: 'accounting', group: 'Comptabilité', label: 'Comptabilité', perms: [
-    { key: 'bilan',                  label: 'Bilan général' },
-    { key: 'product_profitability',  label: 'Rentabilité produit' },
-    { key: 'enter_expenses',         label: 'Saisir dépenses' },
+  { id: 'accounting', groupKey: 'Comptabilité', perms: [
+    { key: 'bilan' }, { key: 'product_profitability' }, { key: 'enter_expenses' },
   ]},
-  { id: 'webhooks', group: 'Webhooks', label: 'Webhooks', perms: [
-    { key: 'create',    label: 'Créer' },
-    { key: 'edit',      label: 'Modifier' },
-    { key: 'delete',    label: 'Supprimer' },
-    { key: 'view_logs', label: 'Voir logs' },
+  { id: 'webhooks', groupKey: 'Webhooks', perms: [
+    { key: 'create' }, { key: 'edit' }, { key: 'delete' }, { key: 'view_logs' },
   ]},
-  { id: 'config', group: 'Configuration', label: 'Configuration', perms: [
-    { key: 'sources',      label: "Sources d'import" },
-    { key: 'clients',      label: 'Clients' },
-    { key: 'delivery',     label: 'Livraison' },
-    { key: 'boutiques',    label: 'Boutiques' },
-    { key: 'statuses',     label: 'Statuts' },
-    { key: 'users',        label: 'Utilisateurs' },
-    { key: 'roles',        label: 'Rôles' },
-    { key: 'subscription', label: 'Abonnement' },
-    { key: 'advanced',     label: 'Avancé' },
+  { id: 'config', groupKey: 'Configuration', perms: [
+    { key: 'sources' }, { key: 'clients' }, { key: 'delivery' }, { key: 'boutiques' },
+    { key: 'statuses' }, { key: 'users' }, { key: 'roles' }, { key: 'subscription' },
+    { key: 'advanced' },
   ]},
-  { id: 'other', group: 'Autre', label: 'Autre', perms: [
-    { key: 'view_unassigned_orders', label: 'Voir commandes non assignées' },
-    { key: 'view_order_logs',        label: 'Voir historique commandes' },
+  { id: 'other', groupKey: 'Autre', perms: [
+    { key: 'view_unassigned_orders' }, { key: 'view_order_logs' },
   ]},
 ]
 
-const TOTAL_PERMS = PERM_SECTIONS.reduce((sum, s) => sum + s.perms.length, 0)
-const GROUPS = Array.from(new Set(PERM_SECTIONS.map(s => s.group)))
+const TOTAL_PERMS = PERM_SECTIONS_DEF.reduce((sum, s) => sum + s.perms.length, 0)
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -284,6 +188,7 @@ function SectionCard({
   onToggleExpand: () => void
   onChange: (key: string, value: boolean) => void
 }) {
+  const { t } = useTranslation('config')
   const checkedCount = superAdmin
     ? section.perms.length
     : section.perms.filter(p => permissions[`${section.id}.${p.key}`]).length
@@ -302,7 +207,6 @@ function SectionCard({
       borderRadius: 4,
       overflow: 'hidden',
     }}>
-      {/* Section header */}
       <div
         onClick={onToggleExpand}
         style={{
@@ -333,12 +237,11 @@ function SectionCard({
               fontFamily: fonts.sans,
             }}
           >
-            {allChecked ? 'Tout décocher' : 'Tout cocher'}
+            {allChecked ? t('roles.edit.uncheckAll') : t('roles.edit.checkAll')}
           </button>
         )}
       </div>
 
-      {/* Permissions grid */}
       {expanded && (
         <div style={{
           borderTop: `1px solid ${colors.border}`,
@@ -384,6 +287,18 @@ function SectionCard({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function RolesPage() {
+  const { t } = useTranslation('config')
+
+  // Build translated PERM_SECTIONS inside the component so labels update on lang change
+  const PERM_SECTIONS: PermSection[] = PERM_SECTIONS_DEF.map(s => ({
+    id: s.id,
+    group: t(`roles.groups.${s.groupKey}`),
+    label: t(`roles.sections.${s.id.replace(/\./g, '_')}`),
+    perms: s.perms.map(p => ({ key: p.key, label: t(`roles.actions.${p.key}`, { defaultValue: p.key }) })),
+  }))
+
+  const GROUPS = Array.from(new Set(PERM_SECTIONS.map(s => s.group)))
+
   // ── List state ────────────────────────────────────────────────────────────
   const [roles, setRoles] = useState<Role[]>([])
   const [loadingList, setLoadingList] = useState(true)
@@ -447,7 +362,7 @@ export default function RolesPage() {
       method: 'POST',
       headers: authHeader(),
       body: JSON.stringify({
-        name: `Copie de ${role.name}`,
+        name: t('roles.duplicate.name', { name: role.name }),
         permissions: role.permissions,
       }),
     }).catch(() => {})
@@ -468,7 +383,7 @@ export default function RolesPage() {
 
   async function handleSave() {
     const name = roleName.trim()
-    if (!name) { setNameError('Le nom est requis'); return }
+    if (!name) { setNameError(t('roles.edit.errName')); return }
 
     const finalPerms: Record<string, boolean> = isSuperAdmin
       ? { '*': true }
@@ -530,24 +445,24 @@ export default function RolesPage() {
   const columns: Column<Role>[] = [
     {
       key: 'name',
-      label: 'Nom',
+      label: t('roles.cols.name'),
       render: r => (
         <span style={{ fontWeight: 500, color: colors.text }}>{r.name}</span>
       ),
     },
     {
       key: 'type',
-      label: 'Type',
+      label: t('roles.cols.type'),
       width: 110,
       render: r => (
         r.is_system
-          ? <Badge color="blue">Système</Badge>
-          : <Badge color="green">Personnalisé</Badge>
+          ? <Badge color="blue">{t('roles.badge.system')}</Badge>
+          : <Badge color="green">{t('roles.badge.custom')}</Badge>
       ),
     },
     {
       key: 'permissions',
-      label: 'Permissions',
+      label: t('roles.cols.permissions'),
       width: 180,
       render: r => {
         if (r.permissions['*'] === true) {
@@ -561,37 +476,25 @@ export default function RolesPage() {
         const n = countEnabled(r.permissions)
         return (
           <span style={{ fontSize: 12, color: n > 0 ? colors.textMd : colors.textLt }}>
-            {n} / {TOTAL_PERMS} permissions
+            {t('roles.permCount', { count: n, total: TOTAL_PERMS })}
           </span>
         )
       },
     },
     {
       key: 'actions',
-      label: 'Actions',
+      label: t('roles.cols.actions'),
       width: 110,
       render: r => (
         <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
-          <button
-            onClick={() => openEdit(r)}
-            title="Modifier"
-            style={iconBtn()}
-          >
+          <button onClick={() => openEdit(r)} title={t('roles.tooltipEdit')} style={iconBtn()}>
             <Pencil size={14} />
           </button>
-          <button
-            onClick={() => duplicate(r)}
-            title="Dupliquer"
-            style={iconBtn()}
-          >
+          <button onClick={() => duplicate(r)} title={t('roles.tooltipDuplicate')} style={iconBtn()}>
             <Copy size={14} />
           </button>
           {!r.is_system && (
-            <button
-              onClick={() => setDeleteTarget(r)}
-              title="Supprimer"
-              style={iconBtn(true)}
-            >
+            <button onClick={() => setDeleteTarget(r)} title={t('roles.tooltipDelete')} style={iconBtn(true)}>
               <Trash2 size={14} />
             </button>
           )}
@@ -625,7 +528,7 @@ export default function RolesPage() {
             }}
           >
             <ArrowLeft size={15} />
-            Retour
+            {t('roles.edit.back')}
           </button>
 
           <div style={{ width: 1, height: 20, background: colors.border }} />
@@ -634,7 +537,7 @@ export default function RolesPage() {
             <input
               value={roleName}
               onChange={e => { setRoleName(e.target.value); setNameError('') }}
-              placeholder="Nom du rôle…"
+              placeholder={t('roles.edit.namePh')}
               style={{
                 border: `1px solid ${nameError ? colors.red : colors.border}`,
                 borderRadius: 4, padding: '5px 10px', fontSize: 13,
@@ -650,7 +553,7 @@ export default function RolesPage() {
           </div>
 
           <span style={{ fontSize: 12, color: colors.textLt, whiteSpace: 'nowrap' }}>
-            {enabledCount} / {TOTAL_PERMS} permissions
+            {t('roles.permCount', { count: enabledCount, total: TOTAL_PERMS })}
           </span>
 
           <button
@@ -662,11 +565,11 @@ export default function RolesPage() {
               whiteSpace: 'nowrap',
             }}
           >
-            {allExpanded ? 'Tout fermer' : 'Tout ouvrir'}
+            {allExpanded ? t('roles.edit.collapseAll') : t('roles.edit.expandAll')}
           </button>
 
           <Button size="sm" onClick={handleSave} loading={saving}>
-            Enregistrer
+            {t('roles.edit.saveBtn')}
           </Button>
         </div>
 
@@ -697,10 +600,10 @@ export default function RolesPage() {
             <Toggle checked={isSuperAdmin} onChange={setIsSuperAdmin} />
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>
-                Super Administrateur
+                {t('roles.edit.superAdminTitle')}
               </div>
               <div style={{ fontSize: 12, color: colors.textMd, marginTop: 1 }}>
-                Accès complet à toutes les fonctionnalités — désactive la matrice ci-dessous
+                {t('roles.edit.superAdminDesc')}
               </div>
             </div>
             {isSuperAdmin && (
@@ -746,12 +649,12 @@ export default function RolesPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontFamily: fonts.sans }}>
       <PageHeader
-        title="Rôles"
-        subtitle="Définissez les niveaux d'accès de vos collaborateurs"
+        title={t('roles.title')}
+        subtitle={t('roles.subtitle')}
         actions={
           <Button size="sm" onClick={openNew}>
             <Plus size={13} />
-            Nouveau rôle
+            {t('roles.addBtn')}
           </Button>
         }
       />
@@ -761,7 +664,7 @@ export default function RolesPage() {
           columns={columns}
           data={roles}
           loading={loadingList}
-          emptyText="Aucun rôle configuré"
+          emptyText={t('roles.empty')}
         />
       </div>
 
@@ -769,9 +672,9 @@ export default function RolesPage() {
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
-        title="Supprimer le rôle"
-        message={`Supprimer le rôle "${deleteTarget?.name ?? ''}" ? Les utilisateurs ayant ce rôle perdront ses permissions.`}
-        confirmLabel="Supprimer"
+        title={t('roles.delete.title')}
+        message={t('roles.delete.message', { name: deleteTarget?.name ?? '' })}
+        confirmLabel={t('roles.delete.confirmBtn')}
         danger
       />
     </div>

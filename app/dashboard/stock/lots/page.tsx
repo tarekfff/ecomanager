@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { PageHeader, Table, Pagination, Select } from '@/components/ui'
 import type { Column } from '@/components/ui'
 import { colors, fonts } from '@/lib/tokens'
@@ -58,6 +59,7 @@ function isExpired(d: string | null): boolean {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function LotsPage() {
+  const { t } = useTranslation('stock')
   const [items,    setItems]    = useState<Batch[]>([])
   const [total,    setTotal]    = useState(0)
   const [page,     setPage]     = useState(1)
@@ -147,7 +149,7 @@ export default function LotsPage() {
 
   const columns: Column<Batch>[] = [
     {
-      key: 'product_name', label: 'Produit',
+      key: 'product_name', label: t('lots.cols.product'),
       render: r => (
         <div>
           <div style={{ fontWeight: 500 }}>{r.product_name}</div>
@@ -158,15 +160,15 @@ export default function LotsPage() {
       ),
     },
     {
-      key: 'variant_sku', label: 'Variante', width: 110,
+      key: 'variant_sku', label: t('lots.cols.variant'), width: 110,
       render: r => <span style={{ color: colors.textMd }}>{r.variant_sku ?? '—'}</span>,
     },
     {
-      key: 'warehouse_name', label: 'Entrepôt', width: 130,
+      key: 'warehouse_name', label: t('lots.cols.warehouse'), width: 130,
       render: r => <span>{r.warehouse_name}</span>,
     },
     {
-      key: 'batch_number', label: 'N° lot', width: 110,
+      key: 'batch_number', label: t('lots.cols.batchNo'), width: 110,
       render: r => (
         <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
           {r.batch_number ?? '—'}
@@ -174,7 +176,7 @@ export default function LotsPage() {
       ),
     },
     {
-      key: 'quantity', label: 'Quantité', width: 90,
+      key: 'quantity', label: t('lots.cols.qty'), width: 90,
       render: r => (
         <span style={{ fontWeight: 600, color: r.quantity === 0 ? colors.textLt : colors.text }}>
           {r.quantity}
@@ -182,11 +184,11 @@ export default function LotsPage() {
       ),
     },
     {
-      key: 'unit_cost', label: 'Prix achat', width: 110,
+      key: 'unit_cost', label: t('lots.cols.unitCost'), width: 110,
       render: r => <span style={{ color: colors.textMd }}>{fmtCost(r.unit_cost)}</span>,
     },
     {
-      key: 'expiry_date', label: 'Date expiration', width: 140,
+      key: 'expiry_date', label: t('lots.cols.expiry'), width: 140,
       render: r => {
         const soon    = isExpiringSoon(r.expiry_date)
         const expired = isExpired(r.expiry_date)
@@ -196,8 +198,8 @@ export default function LotsPage() {
             color: expired ? colors.red : soon ? colors.orange : colors.textMd,
           }}>
             {fmtDate(r.expiry_date)}
-            {soon    && !expired && <span style={{ marginLeft: 4, fontSize: 10 }}>⚠ bientôt</span>}
-            {expired && <span style={{ marginLeft: 4, fontSize: 10 }}>✕ expiré</span>}
+            {soon    && !expired && <span style={{ marginLeft: 4, fontSize: 10 }}>{t('lots.expiringSoon')}</span>}
+            {expired && <span style={{ marginLeft: 4, fontSize: 10 }}>{t('lots.expired')}</span>}
           </span>
         )
       },
@@ -214,8 +216,8 @@ export default function LotsPage() {
   return (
     <>
       <PageHeader
-        title="Lots de stock"
-        subtitle="Tous les lots actifs avec leur quantité et date d'expiration."
+        title={t('lots.title')}
+        subtitle={t('lots.subtitle')}
       />
 
       {/* Filter bar */}
@@ -227,13 +229,13 @@ export default function LotsPage() {
 
         {/* Product autocomplete */}
         <div ref={dropRef} style={{ position: 'relative', width: 220 }}>
-          <div style={{ fontSize: 11, color: colors.textMd, marginBottom: 3, fontFamily: fonts.sans }}>Produit</div>
+          <div style={{ fontSize: 11, color: colors.textMd, marginBottom: 3, fontFamily: fonts.sans }}>{t('lots.productLabel')}</div>
           <div style={{ position: 'relative' }}>
             <input
               value={prodQuery}
               onChange={e => { setProdQuery(e.target.value); if (product) clearProduct() }}
               onFocus={() => { if (prodResults.length > 0) setShowDrop(true) }}
-              placeholder="Rechercher…"
+              placeholder={t('lots.searchPh')}
               style={{ ...inputStyle, width: '100%', paddingRight: product ? 26 : 10 }}
             />
             {product && (
@@ -272,11 +274,11 @@ export default function LotsPage() {
 
         {/* Warehouse */}
         <div style={{ width: 170 }}>
-          <div style={{ fontSize: 11, color: colors.textMd, marginBottom: 3, fontFamily: fonts.sans }}>Entrepôt</div>
+          <div style={{ fontSize: 11, color: colors.textMd, marginBottom: 3, fontFamily: fonts.sans }}>{t('lots.warehouseLabel')}</div>
           <Select
             value={warehouseId}
             onChange={setWarehouseId}
-            placeholder="Tous"
+            placeholder={t('lots.warehouseAll')}
             options={warehouses.map(w => ({ value: w.id, label: w.name }))}
           />
         </div>
@@ -290,7 +292,7 @@ export default function LotsPage() {
               border: `1px solid ${colors.primary}`, cursor: 'pointer', fontWeight: 500,
             }}
           >
-            Filtrer
+            {t('lots.filterBtn')}
           </button>
           <button
             onClick={resetFilters}
@@ -300,7 +302,7 @@ export default function LotsPage() {
               border: `1px solid ${colors.border}`, cursor: 'pointer',
             }}
           >
-            Réinitialiser
+            {t('lots.resetBtn')}
           </button>
         </div>
       </div>
@@ -311,8 +313,8 @@ export default function LotsPage() {
         borderBottom: `1px solid ${colors.border}`,
         display: 'flex', gap: 20, fontSize: 11.5, fontFamily: fonts.sans,
       }}>
-        <span style={{ color: colors.orange, fontWeight: 500 }}>⚠ Expiration dans ≤ 30 jours</span>
-        <span style={{ color: colors.red,    fontWeight: 500 }}>✕ Expiré</span>
+        <span style={{ color: colors.orange, fontWeight: 500 }}>{t('lots.legendSoon')}</span>
+        <span style={{ color: colors.red,    fontWeight: 500 }}>{t('lots.legendExpired')}</span>
       </div>
 
       <div style={{ padding: '16px' }}>
@@ -320,7 +322,7 @@ export default function LotsPage() {
           columns={columns}
           data={items}
           loading={loading}
-          emptyText="Aucun lot de stock trouvé."
+          emptyText={t('lots.empty')}
         />
         {total > LIMIT && (
           <div style={{ marginTop: 12 }}>

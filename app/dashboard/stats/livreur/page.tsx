@@ -1,20 +1,12 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { PageHeader } from '@/components/ui'
 import StatsFilters, { type StatsFiltersValue } from '@/components/stats/StatsFilters'
 import StatsTable, { type StatsRow } from '@/components/stats/StatsTable'
 import StatsChart from '@/components/stats/StatsChart'
 import { colors, fonts } from '@/lib/tokens'
-
-const DIMENSIONS = [
-  { value: 'wilaya',    label: 'Wilaya' },
-  { value: 'commune',   label: 'Commune' },
-  { value: 'product',   label: 'Produit' },
-  { value: 'variant',   label: 'Variante' },
-  { value: 'confirmer', label: 'Confirmateur' },
-  { value: 'boutique',  label: 'Boutique' },
-]
 
 interface Carrier { id: string; name: string }
 
@@ -26,6 +18,7 @@ function authHeader(): HeadersInit {
 }
 
 export default function StatsLivreurPage() {
+  const { t } = useTranslation('stats')
   const [boutiques, setBoutiques] = useState<{ id: string; name: string }[]>([])
   const [carriers,  setCarriers]  = useState<Carrier[]>([])
   const [carrierId, setCarrierId] = useState('')
@@ -43,6 +36,15 @@ export default function StatsLivreurPage() {
   const [rows, setRows]       = useState<StatsRow[]>([])
   const [loading, setLoading] = useState(false)
 
+  const DIMENSIONS = [
+    { value: 'wilaya',    label: t('dims.wilaya')    },
+    { value: 'commune',   label: t('dims.commune')   },
+    { value: 'product',   label: t('dims.product')   },
+    { value: 'variant',   label: t('dims.variant')   },
+    { value: 'confirmer', label: t('dims.confirmer') },
+    { value: 'boutique',  label: t('dims.boutique')  },
+  ]
+
   useEffect(() => {
     fetch('/api/boutiques', { headers: authHeader() })
       .then(r => r.json()).then(d => { if (Array.isArray(d)) setBoutiques(d) }).catch(() => {})
@@ -51,7 +53,6 @@ export default function StatsLivreurPage() {
     fetch('/api/carriers?limit=200', { headers: authHeader() })
       .then(r => r.json())
       .then(d => {
-        // carriers API returns { carriers: [...], total: N }
         const list = Array.isArray(d) ? d : (d.carriers ?? [])
         if (Array.isArray(list)) setCarriers(list)
       })
@@ -85,10 +86,9 @@ export default function StatsLivreurPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: colors.bg, fontFamily: fonts.sans }}>
-      <PageHeader title="Stats par livreur" subtitle="Performance des livreurs par statut et dimension" />
+      <PageHeader title={t('livreur.title')} subtitle={t('livreur.subtitle')} />
       <StatsFilters value={filters} onChange={setFilters} boutiques={boutiques} />
 
-      {/* Extra filters + dimension */}
       <div style={{
         background: '#fff',
         borderBottom: `1px solid ${colors.border}`,
@@ -100,7 +100,7 @@ export default function StatsLivreurPage() {
       }}>
         <div style={{ minWidth: 220 }}>
           <label style={lbl}>
-            Livreur {loadingC && <span style={{ color: colors.textLt, fontWeight: 400 }}>— chargement…</span>}
+            {t('livreur.filterLabel')} {loadingC && <span style={{ color: colors.textLt, fontWeight: 400 }}>— {t('loading')}</span>}
           </label>
           <select
             value={carrierId}
@@ -108,7 +108,7 @@ export default function StatsLivreurPage() {
             style={{ ...sel, minWidth: 220 }}
             disabled={loadingC}
           >
-            <option value="">Tous les livreurs ({carriers.length})</option>
+            <option value="">{t('livreur.allCarriers', { count: carriers.length })}</option>
             {carriers.map(c => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
@@ -116,7 +116,7 @@ export default function StatsLivreurPage() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 12, color: colors.textMd, fontWeight: 500 }}>Trier par</span>
+          <span style={{ fontSize: 12, color: colors.textMd, fontWeight: 500 }}>{t('sortBy')}</span>
           {DIMENSIONS.map(d => (
             <DimBtn key={d.value} label={d.label} active={dimension === d.value} onClick={() => setDimension(d.value)} />
           ))}

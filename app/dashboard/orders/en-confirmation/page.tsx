@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslation } from 'react-i18next'
 import {
   Eye, Pencil, X, ChevronDown, AlertCircle,
   CheckCircle, XCircle, Trash2, UserCheck, Tag,
@@ -42,15 +43,13 @@ interface AppUser { id: string; name: string; email: string }
 
 const LIMIT = 25
 
-const CONF_STATUS: Record<string, { label: string; color: string; bg: string }> = {
-  echec_1:            { label: 'Échec 1',       color: '#E65100', bg: '#FFF3E0' },
-  echec_2:            { label: 'Échec 2',       color: '#D84315', bg: '#FBE9E7' },
-  echec_3:            { label: 'Échec 3',       color: '#B71C1C', bg: '#FFEBEE' },
-  suspendue:          { label: 'Suspendue',     color: '#546E7A', bg: '#ECEFF1' },
-  annulation_demande: { label: 'Ann. demandée', color: '#C62828', bg: '#FFEBEE' },
+const CONF_STATUS_COLORS: Record<string, { color: string; bg: string }> = {
+  echec_1:            { color: '#E65100', bg: '#FFF3E0' },
+  echec_2:            { color: '#D84315', bg: '#FBE9E7' },
+  echec_3:            { color: '#B71C1C', bg: '#FFEBEE' },
+  suspendue:          { color: '#546E7A', bg: '#ECEFF1' },
+  annulation_demande: { color: '#C62828', bg: '#FFEBEE' },
 }
-
-const CONF_STATUS_OPTIONS = Object.entries(CONF_STATUS).map(([value, { label }]) => ({ value, label }))
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -71,15 +70,16 @@ function fmtAmount(n: number) {
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
 function ConfStatusBadge({ slug }: { slug: string | null }) {
+  const { t } = useTranslation('orders')
   if (!slug) return <span style={{ color: colors.textLt, fontSize: 11 }}>—</span>
-  const cfg = CONF_STATUS[slug]
+  const cfg = CONF_STATUS_COLORS[slug]
   if (!cfg) return <span style={{ fontSize: 11, color: colors.textMd }}>{slug}</span>
   return (
     <span style={{
       fontSize: 10.5, fontWeight: 600, padding: '2px 7px', borderRadius: 10,
       color: cfg.color, background: cfg.bg, display: 'inline-block', whiteSpace: 'nowrap',
     }}>
-      {cfg.label}
+      {t(`confStatusLabels.${slug}`, { defaultValue: slug })}
     </span>
   )
 }
@@ -161,6 +161,7 @@ function TD({ children, center, muted }: { children: React.ReactNode; center?: b
 export default function EnConfirmationPage() {
   const router         = useRouter()
   const { boutiqueId } = useBoutique()
+  const { t }          = useTranslation('orders')
 
   // List state
   const [orders,   setOrders]   = useState<Order[]>([])
@@ -189,17 +190,23 @@ export default function EnConfirmationPage() {
   const assignMenuRef  = useRef<HTMLDivElement>(null)
   const statusMenuRef  = useRef<HTMLDivElement>(null)
 
-  // Drawer — stores order ID only; OrderDetailPanel fetches its own data
+  // Drawer
   const [drawerOrderId, setDrawerOrderId] = useState<string | null>(null)
 
-  // Live refresh — stream new orders in (prepend) when idle, or banner when busy
+  // Live refresh
   const [newCount,     setNewCount]     = useState(0)
   const [newOrderIds,  setNewOrderIds]  = useState<Set<string>>(new Set())
-  const cursorRef      = useRef<string | null>(null)   // newest created_at currently shown
-  // Mirror of filter/selection state for use inside the interval without re-registering it
+  const cursorRef      = useRef<string | null>(null)
   const liveStateRef   = useRef({ page, selectedIds, dbSearch, filterUser, dateFrom, dateTo })
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Translated conf-status options (built inside component so labels re-render on lang change)
+  const CONF_STATUS_OPTIONS = Object.entries(CONF_STATUS_COLORS).map(([value, cfg]) => ({
+    value,
+    label: t(`confStatusLabels.${value}`, { defaultValue: value }),
+    ...cfg,
+  }))
 
   // ── Close menus on outside click ─────────────────────────────────────────
 
@@ -247,7 +254,6 @@ export default function EnConfirmationPage() {
         const items: Order[] = d.items ?? []
         setOrders(items)
         setTotal(d.total ?? 0)
-        // Anchor the live cursor to the newest row we now show (page 1 only)
         if (page === 1) cursorRef.current = items[0]?.created_at ?? new Date().toISOString()
         setNewCount(0)
         setNewOrderIds(new Set())
@@ -258,17 +264,13 @@ export default function EnConfirmationPage() {
 
   useEffect(() => { fetchOrders() }, [fetchOrders])
 
-  // Keep the live-state ref in sync on every render (no extra effect needed)
   liveStateRef.current = { page, selectedIds, dbSearch, filterUser, dateFrom, dateTo }
 
-  // ── Sheet sync — on open, on focus, and every 30s while page is visible ─────
-  // Access tokens are cached in credentials_ref for 55 min, so frequent calls
-  // don't refresh the OAuth token — they reuse the cached one and just read
-  // the sheet rows. The atomic lock in syncSourceWithLock prevents duplicates.
+  // ── Sheet sync ────────────────────────────────────────────────────────────
   const lastSyncRef = useRef(0)
   const triggerSync = useCallback(() => {
     if (!boutiqueId) return
-    if (Date.now() - lastSyncRef.current < 5_000) return  // debounce flapping
+    if (Date.now() - lastSyncRef.current < 5_000) return
     lastSyncRef.current = Date.now()
     fetch(`/api/import-sources/poll?boutique_id=${boutiqueId}`, { method: 'POST', headers: authHeader() })
       .then(r => r.json())
@@ -276,12 +278,9 @@ export default function EnConfirmationPage() {
       .catch(() => {})
   }, [boutiqueId, fetchOrders])
 
-  useEffect(() => { triggerSync() }, [triggerSync])  // on open
+  useEffect(() => { triggerSync() }, [triggerSync])
 
-  // ── Live stream — sheet sync every 30s + pull new orders every 8s ───────────
-  // When the user is idle on page 1, new orders are prepended into the table and
-  // briefly highlighted (true "live" feel). When they're busy (selecting, search,
-  // filtered, other page) we don't yank the table — we surface a banner instead.
+  // ── Live stream ───────────────────────────────────────────────────────────
   useEffect(() => {
     if (!boutiqueId) return
     let lastPeriodicSync = 0
@@ -289,15 +288,13 @@ export default function EnConfirmationPage() {
     const tick = () => {
       if (document.hidden) return
 
-      // 1) Sheet sync every 30s — lands new Google Sheet rows in the DB
       if (Date.now() - lastPeriodicSync > 30_000) {
         lastPeriodicSync = Date.now()
-        lastSyncRef.current = lastPeriodicSync  // share cooldown with triggerSync
+        lastSyncRef.current = lastPeriodicSync
         fetch(`/api/import-sources/poll?boutique_id=${boutiqueId}`, { method: 'POST', headers: authHeader() })
           .catch(() => {})
       }
 
-      // 2) Live cursor — fetch only orders newer than what we already show
       if (!cursorRef.current) return
       const ls = liveStateRef.current
       const qs = new URLSearchParams({
@@ -311,17 +308,16 @@ export default function EnConfirmationPage() {
         .then(d => {
           const fresh: Order[] = d.items ?? []
           if (!fresh.length) return
-          cursorRef.current = fresh[0].created_at  // advance so we never recount
+          cursorRef.current = fresh[0].created_at
 
           const idle = ls.page === 1 && ls.selectedIds.size === 0
             && !ls.dbSearch && !ls.filterUser && !ls.dateFrom && !ls.dateTo
 
           if (idle) {
-            // Prepend (created_after is strict, so these are never already in the list)
             setOrders(prev => [...fresh, ...prev])
             setTotal(t => t + fresh.length)
             setNewOrderIds(new Set(fresh.map(o => o.id)))
-            setTimeout(() => setNewOrderIds(new Set()), 4000)  // fade highlight
+            setTimeout(() => setNewOrderIds(new Set()), 4000)
           } else {
             setNewCount(c => c + fresh.length)
           }
@@ -330,7 +326,6 @@ export default function EnConfirmationPage() {
     }
     const id = setInterval(tick, 8_000)
 
-    // On returning to this tab: pull fresh sheet rows + check for new orders now
     const onVisible = () => { if (!document.hidden) { triggerSync(); tick() } }
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('focus', onVisible)
@@ -405,7 +400,7 @@ export default function EnConfirmationPage() {
   const nSelected    = selectedIds.size
 
   const userOptions = [
-    { value: '', label: 'Tous les confirmateurs' },
+    { value: '', label: t('filters.allConfirmers') },
     ...users.map(u => ({ value: u.id, label: u.name })),
   ]
 
@@ -414,15 +409,15 @@ export default function EnConfirmationPage() {
   return (
     <>
       <PageHeader
-        title="En confirmation"
+        title={t('enConfirmation.title')}
         subtitle={
           total > 0
-            ? `${total} commande${total > 1 ? 's' : ''} en attente de confirmation`
-            : 'Commandes en attente de confirmation'
+            ? t('enConfirmation.subtitleN', { count: total })
+            : t('enConfirmation.subtitleDefault')
         }
         actions={
           <Button variant="primary" size="sm" onClick={() => router.push('/dashboard/orders/new')}>
-            + Nouvelle commande
+            {t('newOrder')}
           </Button>
         }
       />
@@ -447,9 +442,7 @@ export default function EnConfirmationPage() {
               width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 11, fontWeight: 700, flexShrink: 0,
             }}>{newCount}</span>
-            <span>
-              <strong>{newCount} nouvelle{newCount > 1 ? 's' : ''} commande{newCount > 1 ? 's' : ''}</strong> reçue{newCount > 1 ? 's' : ''} — Cliquez pour actualiser
-            </span>
+            <span>{t('newBanner', { count: newCount })}</span>
           </div>
         )}
 
@@ -461,7 +454,7 @@ export default function EnConfirmationPage() {
             borderRadius: 6, padding: '10px 14px', fontSize: 13, color: '#795548',
           }}>
             <AlertCircle size={15} />
-            Sélectionnez une boutique dans la barre de navigation.
+            {t('noBoutique')}
           </div>
         )}
 
@@ -473,7 +466,7 @@ export default function EnConfirmationPage() {
             <SearchInput
               value={search}
               onChange={handleSearchChange}
-              placeholder="Réf., téléphone, client…"
+              placeholder={t('filters.searchPh')}
             />
           </div>
 
@@ -482,12 +475,12 @@ export default function EnConfirmationPage() {
               value={filterUser}
               onChange={handleFilterChange(setFilterUser)}
               options={userOptions}
-              placeholder="Tous les confirmateurs"
+              placeholder={t('filters.allConfirmers')}
             />
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <label style={{ fontSize: 12, color: colors.textMd, whiteSpace: 'nowrap' }}>De</label>
+            <label style={{ fontSize: 12, color: colors.textMd, whiteSpace: 'nowrap' }}>{t('filters.from')}</label>
             <input
               type="date"
               value={dateFrom}
@@ -504,7 +497,7 @@ export default function EnConfirmationPage() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <label style={{ fontSize: 12, color: colors.textMd }}>À</label>
+            <label style={{ fontSize: 12, color: colors.textMd }}>{t('filters.to')}</label>
             <input
               type="date"
               value={dateTo}
@@ -528,12 +521,12 @@ export default function EnConfirmationPage() {
                 cursor: 'pointer', padding: '4px 6px', textDecoration: 'underline',
               }}
             >
-              Effacer filtres
+              {t('filters.clearFilters')}
             </button>
           )}
 
           <span style={{ marginLeft: 'auto', fontSize: 12, color: colors.textMd, whiteSpace: 'nowrap' }}>
-            {loading ? '…' : `${total} résultat${total !== 1 ? 's' : ''}`}
+            {loading ? '…' : t('filters.results', { count: total })}
           </span>
         </div>
 
@@ -545,13 +538,13 @@ export default function EnConfirmationPage() {
             borderRadius: 6, padding: '8px 12px',
           }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: colors.primary, marginRight: 4 }}>
-              {nSelected} sélectionné{nSelected > 1 ? 's' : ''}
+              {t('bulk.selected', { count: nSelected })}
             </span>
 
             {/* Confirmer */}
             <BulkBtn
               icon={<CheckCircle size={13} />}
-              label="Confirmer"
+              label={t('bulk.confirm')}
               onClick={() => bulkAction('confirm')}
               loading={bulkLoading}
               color={colors.green}
@@ -560,7 +553,7 @@ export default function EnConfirmationPage() {
             {/* Annuler */}
             <BulkBtn
               icon={<XCircle size={13} />}
-              label="Annuler"
+              label={t('bulk.cancel')}
               onClick={() => bulkAction('cancel')}
               loading={bulkLoading}
               color={colors.red}
@@ -569,7 +562,7 @@ export default function EnConfirmationPage() {
             {/* Supprimer */}
             <BulkBtn
               icon={<Trash2 size={13} />}
-              label="Supprimer"
+              label={t('bulk.delete')}
               onClick={() => bulkAction('delete')}
               loading={bulkLoading}
               color={colors.textMd}
@@ -579,7 +572,7 @@ export default function EnConfirmationPage() {
             <div ref={assignMenuRef} style={{ position: 'relative' }}>
               <BulkBtn
                 icon={<UserCheck size={13} />}
-                label="Affecter à"
+                label={t('bulk.assignTo')}
                 suffix={<ChevronDown size={11} />}
                 onClick={() => { setShowAssignMenu(v => !v); setShowStatusMenu(false) }}
                 loading={bulkLoading}
@@ -592,7 +585,7 @@ export default function EnConfirmationPage() {
                 }}>
                   {users.length === 0 && (
                     <div style={{ padding: '10px 14px', fontSize: 12.5, color: colors.textLt }}>
-                      Aucun utilisateur
+                      {t('bulk.noUsers')}
                     </div>
                   )}
                   {users.map(u => (
@@ -615,11 +608,11 @@ export default function EnConfirmationPage() {
               )}
             </div>
 
-            {/* Modifier statut confirmation */}
+            {/* Statut confirmation */}
             <div ref={statusMenuRef} style={{ position: 'relative' }}>
               <BulkBtn
                 icon={<Tag size={13} />}
-                label="Statut conf."
+                label={t('bulk.confStatus')}
                 suffix={<ChevronDown size={11} />}
                 onClick={() => { setShowStatusMenu(v => !v); setShowAssignMenu(false) }}
                 loading={bulkLoading}
@@ -638,9 +631,9 @@ export default function EnConfirmationPage() {
                         display: 'block', width: '100%', textAlign: 'left',
                         padding: '8px 14px', fontSize: 12.5, fontFamily: fonts.sans,
                         border: 'none', background: 'transparent', cursor: 'pointer',
-                        color: CONF_STATUS[opt.value].color,
+                        color: opt.color,
                       }}
-                      onMouseEnter={e => (e.currentTarget.style.background = CONF_STATUS[opt.value].bg)}
+                      onMouseEnter={e => (e.currentTarget.style.background = opt.bg)}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                     >
                       {opt.label}
@@ -665,7 +658,7 @@ export default function EnConfirmationPage() {
                 cursor: 'pointer', color: colors.textLt, display: 'flex', alignItems: 'center',
                 padding: 4,
               }}
-              title="Annuler la sélection"
+              title={t('bulk.clearSelection')}
             >
               <X size={15} />
             </button>
@@ -687,18 +680,18 @@ export default function EnConfirmationPage() {
                     onChange={toggleSelectAll}
                   />
                 </TH>
-                <TH width={110}>Référence</TH>
-                <TH width={110}>Statut conf.</TH>
-                <TH width={110}>Téléphone</TH>
-                <TH width={150}>Client</TH>
-                <TH width={95}>Wilaya</TH>
-                <TH width={95}>Commune</TH>
-                <TH width={65} center>Risque</TH>
-                <TH width={60} center>Articles</TH>
-                <TH width={105}>Total</TH>
-                <TH width={90}>Créée le</TH>
-                <TH width={120}>Affectée à</TH>
-                <TH width={72}>Actions</TH>
+                <TH width={110}>{t('cols.reference')}</TH>
+                <TH width={110}>{t('cols.confStatus')}</TH>
+                <TH width={110}>{t('cols.phone')}</TH>
+                <TH width={150}>{t('cols.client')}</TH>
+                <TH width={95}>{t('cols.wilaya')}</TH>
+                <TH width={95}>{t('cols.commune')}</TH>
+                <TH width={65} center>{t('cols.risk')}</TH>
+                <TH width={60} center>{t('cols.items')}</TH>
+                <TH width={105}>{t('cols.total')}</TH>
+                <TH width={90}>{t('cols.createdAt')}</TH>
+                <TH width={120}>{t('cols.confirmer')}</TH>
+                <TH width={72}>{t('cols.actions')}</TH>
               </tr>
             </thead>
             <tbody>
@@ -711,7 +704,7 @@ export default function EnConfirmationPage() {
                     color: colors.textLt, fontSize: 13,
                   }}>
                     <Package size={28} style={{ opacity: 0.3, marginBottom: 8, display: 'block', margin: '0 auto 8px' }} />
-                    Aucune commande en confirmation
+                    {t('enConfirmation.empty')}
                   </td>
                 </tr>
               ) : (
@@ -737,49 +730,32 @@ export default function EnConfirmationPage() {
                           (e.currentTarget as HTMLTableRowElement).style.background = baseBg
                       }}
                     >
-                      {/* Checkbox */}
                       <TD>
                         <span onClick={e => e.stopPropagation()}>
                           <Checkbox checked={isSelected} onChange={() => toggleSelect(order.id)} />
                         </span>
                       </TD>
-
-                      {/* Reference */}
                       <TD>
                         <span style={{ fontWeight: 600, color: colors.primary, fontSize: 12 }}>
                           {order.reference}
                         </span>
                       </TD>
-
-                      {/* Confirmation status */}
                       <TD><ConfStatusBadge slug={order.confirmation_status} /></TD>
-
-                      {/* Phone */}
                       <TD muted>{order.client_phone ?? order.phone}</TD>
-
-                      {/* Client */}
                       <TD>
                         {order.client_name
                           ? <span style={{ fontWeight: 500 }}>{order.client_name}</span>
                           : <span style={{ color: colors.textLt }}>—</span>
                         }
                       </TD>
-
-                      {/* Wilaya */}
                       <TD muted>{order.wilaya_name ?? '—'}</TD>
-
-                      {/* Commune */}
                       <TD muted>{order.commune_name ?? '—'}</TD>
-
-                      {/* Risk */}
                       <td style={{
                         padding: '8px 10px', textAlign: 'center',
                         borderBottom: `1px solid ${colors.border}`, verticalAlign: 'middle',
                       }}>
                         <RiskBadge score={order.return_risk_score} />
                       </td>
-
-                      {/* Items count */}
                       <td style={{
                         padding: '8px 10px', textAlign: 'center',
                         borderBottom: `1px solid ${colors.border}`, verticalAlign: 'middle',
@@ -787,23 +763,17 @@ export default function EnConfirmationPage() {
                       }}>
                         {order.items_count}
                       </td>
-
-                      {/* Total */}
                       <TD>
                         <span style={{ fontWeight: 600, color: colors.text }}>
                           {fmtAmount(order.total)}
                         </span>
                       </TD>
-
-                      {/* Created at */}
                       <TD muted>
                         <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                           <Calendar size={11} style={{ color: colors.textLt }} />
                           {fmtDate(order.created_at)}
                         </span>
                       </TD>
-
-                      {/* Confirmer */}
                       <TD muted>
                         {order.confirmer_name
                           ? <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -813,8 +783,6 @@ export default function EnConfirmationPage() {
                           : <span style={{ color: colors.textLt }}>—</span>
                         }
                       </TD>
-
-                      {/* Actions */}
                       <td
                         style={{
                           padding: '8px 10px', borderBottom: `1px solid ${colors.border}`,
@@ -825,12 +793,12 @@ export default function EnConfirmationPage() {
                         <div style={{ display: 'flex', gap: 4 }}>
                           <ActionBtn
                             icon={<Eye size={12} />}
-                            title="Voir"
+                            title={t('actions.view')}
                             onClick={() => setDrawerOrderId(order.id)}
                           />
                           <ActionBtn
                             icon={<Pencil size={12} />}
-                            title="Modifier"
+                            title={t('actions.edit')}
                             onClick={() => router.push(`/dashboard/orders/${order.id}/edit`)}
                           />
                         </div>

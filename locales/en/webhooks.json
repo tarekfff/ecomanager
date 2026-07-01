@@ -1,0 +1,94 @@
+{
+  "title":    "Webhooks",
+  "subtitle": "HTTP notifications triggered by order events",
+  "setupNoest": "Configure NOEST",
+  "addWebhook": "+ Add webhook",
+  "count_one":   "{{count}} webhook",
+  "count_other": "{{count}} webhooks",
+  "empty": "No webhooks",
+  "editTitle": "Edit webhook",
+  "addTitle":  "Add webhook",
+  "save":    "Save",
+  "add":     "Add",
+  "cancel":  "Cancel",
+  "active":  "Active",
+  "inactive":"Inactive",
+  "form": {
+    "name":       "Name",
+    "namePh":     "E.g.: Slack notification",
+    "event":      "Event",
+    "eventPh":    "Select an event…",
+    "url":        "URL",
+    "urlPh":      "https://example.com/webhook",
+    "secret":     "Secret key",
+    "boutiques":  "Stores",
+    "boutiqueHint": "(none = all stores)",
+    "noBoutiques":  "No store available"
+  },
+  "eventGroups": {
+    "lifecycle":    "Lifecycle",
+    "statusChanges":"Status changes",
+    "modifications":"Modifications"
+  },
+  "errors": {
+    "nameRequired":  "Name is required.",
+    "eventRequired": "Event is required.",
+    "urlRequired":   "URL is required.",
+    "saveFailed":    "Error saving.",
+    "deleteFailed":  "Error deleting."
+  },
+  "delete": {
+    "title":    "Delete webhook",
+    "message":  "Delete \"{{name}}\"? This action is irreversible.",
+    "confirm":  "Delete",
+    "deleting": "Deleting…"
+  },
+  "table": {
+    "name":        "Name",
+    "event":       "Event",
+    "url":         "URL",
+    "boutiques":   "Stores",
+    "allBoutiques":"All",
+    "active":      "Active",
+    "actions":     "Actions"
+  },
+  "actions": {
+    "edit":   "Edit",
+    "logs":   "Logs",
+    "delete": "Delete"
+  },
+  "noest": {
+    "error":             "Error configuring NOEST.",
+    "created":           "NOEST webhook created.",
+    "alreadyConfigured": "NOEST webhook already configured.",
+    "pingOk":     "NOEST connection OK ({{wilayas}} wilayas).",
+    "pingFailed": "⚠ NOEST connection failed (HTTP {{status}}). Check NOEST_API_TOKEN / NOEST_USER_GUID."
+  },
+  "logsPage": {
+    "title":         "Logs — {{name}}",
+    "titleFallback": "Webhook logs",
+    "subtitle":      "{{event}}",
+    "subtitleFallback": "Send history",
+    "viewPayload":   "View payload",
+    "empty":         "No logs",
+    "detailTitle":   "Log detail",
+    "back":          "Back",
+    "cols": {
+      "date":    "Date",
+      "event":   "Event",
+      "order":   "Order",
+      "http":    "HTTP",
+      "attempt": "Attempt",
+      "duration":"Duration",
+      "actions": "Actions"
+    },
+    "meta": {
+      "date":    "Date:",
+      "event":   "Event:",
+      "order":   "Order:",
+      "http":    "HTTP:",
+      "attempt": "Attempt:",
+      "duration":"Duration:"
+    }
+  }
+}

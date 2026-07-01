@@ -1,0 +1,26 @@
+{
+  "actions": {
+    "add": "Add",
+    "edit": "Edit",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "save": "Save",
+    "confirm": "Confirm",
+    "search": "Search",
+    "close": "Close"
+  },
+  "fields": {
+    "name": "Name",
+    "phone": "Phone",
+    "email": "Email",
+    "address": "Address",
+    "actions": "Actions"
+  },
+  "empty": "—",
+  "loading": "Loading…",
+  "pagination": {
+    "showing": "Showing {{from}}–{{to}} of {{total}} results",
+    "prev": "Previous",
+    "next": "Next"
+  }
+}

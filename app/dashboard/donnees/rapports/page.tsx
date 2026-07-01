@@ -2,56 +2,30 @@
 import { useRouter } from 'next/navigation'
 import { ShoppingCart, Package, Truck, UserCheck } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { PageHeader, Button } from '@/components/ui'
 import { colors, fonts } from '@/lib/tokens'
 
-// ── Report cards ───────────────────────────────────────────────────────────
-
-interface ReportCard {
-  icon:        LucideIcon
-  title:       string
-  description: string
-  href:        string
+interface ReportCardDef {
+  icon: LucideIcon
+  key:  'orders' | 'products' | 'livreurs' | 'confirmateurs'
+  href: string
 }
 
-const REPORTS: ReportCard[] = [
-  {
-    icon: ShoppingCart,
-    title: 'Rapport des commandes',
-    description: 'Vue d’ensemble des commandes par boutique : volumes, statuts et chiffre d’affaires.',
-    href: '/dashboard/stats/boutique',
-  },
-  {
-    icon: Package,
-    title: 'Rapport des produits',
-    description: 'Performances des produits : quantités vendues, revenus et taux de retour.',
-    href: '/dashboard/stats/produit',
-  },
-  {
-    icon: Truck,
-    title: 'Rapport des livreurs',
-    description: 'Activité par livreur : commandes livrées, retours et taux de réussite.',
-    href: '/dashboard/stats/livreur',
-  },
-  {
-    icon: UserCheck,
-    title: 'Rapport des confirmateurs',
-    description: 'Activité par confirmateur : commandes confirmées, annulées et performance.',
-    href: '/dashboard/stats/confirmateur',
-  },
+const REPORT_DEFS: ReportCardDef[] = [
+  { icon: ShoppingCart, key: 'orders',        href: '/dashboard/stats/boutique'    },
+  { icon: Package,      key: 'products',      href: '/dashboard/stats/produit'     },
+  { icon: Truck,        key: 'livreurs',      href: '/dashboard/stats/livreur'     },
+  { icon: UserCheck,    key: 'confirmateurs', href: '/dashboard/stats/confirmateur'},
 ]
-
-// ── Page ───────────────────────────────────────────────────────────────────
 
 export default function RapportsPage() {
   const router = useRouter()
+  const { t } = useTranslation('accounting')
 
   return (
     <>
-      <PageHeader
-        title="Rapports"
-        subtitle="Accédez aux rapports détaillés de votre activité"
-      />
+      <PageHeader title={t('rapports.title')} subtitle={t('rapports.subtitle')} />
 
       <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
         <div style={{
@@ -60,7 +34,7 @@ export default function RapportsPage() {
           gap: 14,
           maxWidth: 920,
         }}>
-          {REPORTS.map(({ icon: Icon, title, description, href }) => (
+          {REPORT_DEFS.map(({ icon: Icon, key, href }) => (
             <div
               key={href}
               style={{
@@ -83,21 +57,17 @@ export default function RapportsPage() {
               </div>
 
               <div style={{ flex: 1 }}>
-                <h3 style={{
-                  fontSize: 14, fontWeight: 600, color: colors.text, margin: '0 0 4px',
-                }}>
-                  {title}
+                <h3 style={{ fontSize: 14, fontWeight: 600, color: colors.text, margin: '0 0 4px' }}>
+                  {t(`rapports.cards.${key}.title`)}
                 </h3>
-                <p style={{
-                  fontSize: 12.5, color: colors.textMd, margin: 0, lineHeight: 1.5,
-                }}>
-                  {description}
+                <p style={{ fontSize: 12.5, color: colors.textMd, margin: 0, lineHeight: 1.5 }}>
+                  {t(`rapports.cards.${key}.description`)}
                 </p>
               </div>
 
               <div>
                 <Button variant="secondary" size="sm" onClick={() => router.push(href)}>
-                  Voir le rapport
+                  {t('rapports.viewBtn')}
                 </Button>
               </div>
             </div>

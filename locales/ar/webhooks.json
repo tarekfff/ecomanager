@@ -1,0 +1,98 @@
+{
+  "title":    "الـ Webhooks",
+  "subtitle": "إشعارات HTTP تُطلَق بواسطة أحداث الطلبات",
+  "setupNoest": "إعداد NOEST",
+  "addWebhook": "+ إضافة Webhook",
+  "count_zero":  "لا Webhooks",
+  "count_one":   "Webhook واحد",
+  "count_two":   "Webhookان",
+  "count_few":   "{{count}} Webhooks",
+  "count_many":  "{{count}} Webhook",
+  "count_other": "{{count}} Webhook",
+  "empty": "لا Webhooks",
+  "editTitle": "تعديل الـ Webhook",
+  "addTitle":  "إضافة Webhook",
+  "save":    "حفظ",
+  "add":     "إضافة",
+  "cancel":  "إلغاء",
+  "active":  "نشط",
+  "inactive":"غير نشط",
+  "form": {
+    "name":       "الاسم",
+    "namePh":     "مثال: إشعار Slack",
+    "event":      "الحدث",
+    "eventPh":    "اختر حدثًا…",
+    "url":        "الرابط",
+    "urlPh":      "https://example.com/webhook",
+    "secret":     "المفتاح السري",
+    "boutiques":  "المتاجر",
+    "boutiqueHint": "(بدون تحديد = جميع المتاجر)",
+    "noBoutiques":  "لا توجد متاجر"
+  },
+  "eventGroups": {
+    "lifecycle":    "دورة الحياة",
+    "statusChanges":"تغييرات الحالة",
+    "modifications":"التعديلات"
+  },
+  "errors": {
+    "nameRequired":  "الاسم مطلوب.",
+    "eventRequired": "الحدث مطلوب.",
+    "urlRequired":   "الرابط مطلوب.",
+    "saveFailed":    "خطأ أثناء الحفظ.",
+    "deleteFailed":  "خطأ أثناء الحذف."
+  },
+  "delete": {
+    "title":    "حذف الـ Webhook",
+    "message":  "حذف «{{name}}»؟ هذا الإجراء لا يمكن التراجع عنه.",
+    "confirm":  "حذف",
+    "deleting": "جارٍ الحذف…"
+  },
+  "table": {
+    "name":        "الاسم",
+    "event":       "الحدث",
+    "url":         "الرابط",
+    "boutiques":   "المتاجر",
+    "allBoutiques":"الكل",
+    "active":      "نشط",
+    "actions":     "إجراءات"
+  },
+  "actions": {
+    "edit":   "تعديل",
+    "logs":   "السجلات",
+    "delete": "حذف"
+  },
+  "noest": {
+    "error":             "خطأ في إعداد NOEST.",
+    "created":           "تم إنشاء Webhook NOEST.",
+    "alreadyConfigured": "Webhook NOEST مُعدَّ بالفعل.",
+    "pingOk":     "اتصال NOEST ناجح ({{wilayas}} ولاية).",
+    "pingFailed": "⚠ فشل اتصال NOEST (HTTP {{status}}). تحقق من NOEST_API_TOKEN / NOEST_USER_GUID."
+  },
+  "logsPage": {
+    "title":         "سجلات — {{name}}",
+    "titleFallback": "سجلات الـ Webhook",
+    "subtitle":      "{{event}}",
+    "subtitleFallback": "سجل الإرسال",
+    "viewPayload":   "عرض البيانات",
+    "empty":         "لا سجلات",
+    "detailTitle":   "تفاصيل السجل",
+    "back":          "رجوع",
+    "cols": {
+      "date":    "التاريخ",
+      "event":   "الحدث",
+      "order":   "الطلب",
+      "http":    "HTTP",
+      "attempt": "المحاولة",
+      "duration":"المدة",
+      "actions": "إجراءات"
+    },
+    "meta": {
+      "date":    "التاريخ:",
+      "event":   "الحدث:",
+      "order":   "الطلب:",
+      "http":    "HTTP:",
+      "attempt": "المحاولة:",
+      "duration":"المدة:"
+    }
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "title": "Clients",
+  "subtitle": "Gestion de la base clients",
+  "addClient": "+ Ajouter un client",
+  "searchPlaceholder": "Rechercher par nom ou téléphone…",
+  "count_one": "{{count}} client",
+  "count_other": "{{count}} clients",
+  "table": {
+    "full_name": "Nom complet",
+    "phone": "Téléphone",
+    "wilaya": "Wilaya",
+    "delivered": "Livrés",
+    "returned": "Retournés",
+    "cancelled": "Annulés",
+    "actions": "Actions"
+  },
+  "empty": {
+    "title": "Aucun client trouvé",
+    "noResults": "Aucun résultat pour « {{q}} ».",
+    "message": "Commencez par ajouter votre premier client à la base.",
+    "action": "Ajouter le premier client"
+  },
+  "modal": {
+    "addTitle": "Ajouter un client",
+    "editTitle": "Modifier le client"
+  },
+  "form": {
+    "fullName": "Nom complet",
+    "namePlaceholder": "Ex : Ahmed Benali",
+    "phone": "Téléphone",
+    "phonePlaceholder": "0555 00 00 00",
+    "phone2": "Téléphone 2",
+    "optional": "Optionnel",
+    "email": "Email",
+    "emailPlaceholder": "client@example.com",
+    "wilaya": "Wilaya",
+    "wilayaPlaceholder": "Sélectionner une wilaya",
+    "commune": "Commune",
+    "communePlaceholder": "Sélectionner une commune",
+    "communePlaceholderFirst": "Sélectionnez d'abord une wilaya",
+    "address": "Adresse",
+    "addressPlaceholder": "Ex : Rue 12, Cité Ennasr",
+    "save": "Enregistrer",
+    "add": "Ajouter"
+  },
+  "errors": {
+    "nameRequired": "Le nom complet est requis.",
+    "phoneRequired": "Le téléphone est requis.",
+    "saveError": "Erreur lors de la sauvegarde.",
+    "loadError": "Impossible de charger les clients.",
+    "deleteError": "Impossible de supprimer ce client."
+  },
+  "toast": {
+    "added": "Client ajouté.",
+    "updated": "Client mis à jour.",
+    "deleted": "Client supprimé."
+  },
+  "delete": {
+    "title": "Supprimer le client",
+    "message": "Supprimer « {{name}} » ? Cette action est irréversible et peut échouer si le client possède des commandes.",
+    "deleting": "Suppression…"
+  }
+}

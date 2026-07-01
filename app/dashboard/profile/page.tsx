@@ -2,6 +2,7 @@
 
 import { useEffect, useState, ReactNode } from 'react'
 import { User, Lock, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { PageHeader, Button, Input } from '@/components/ui'
 import { colors, fonts } from '@/lib/tokens'
 import { getStoredToken } from '@/lib/client-auth'
@@ -60,6 +61,8 @@ function Banner({ msg }: { msg: Msg }) {
 }
 
 export default function ProfilePage() {
+  const { t } = useTranslation('config')
+
   const [email, setEmail] = useState('')
   const [name,  setName]  = useState('')
   const [twoFaEnabled, setTwoFaEnabled] = useState(false)
@@ -96,7 +99,7 @@ export default function ProfilePage() {
 
   async function saveProfile() {
     setProfileMsg(null)
-    if (!name.trim()) { setProfileMsg({ kind: 'err', text: 'Le nom est requis' }); return }
+    if (!name.trim()) { setProfileMsg({ kind: 'err', text: t('profile.info.errName') }); return }
     setSavingProfile(true)
     try {
       const r = await fetch('/api/auth/profile', {
@@ -104,7 +107,7 @@ export default function ProfilePage() {
       })
       const d = await r.json()
       if (!r.ok) throw new Error(d.error || 'Erreur')
-      setProfileMsg({ kind: 'ok', text: 'Profil mis à jour' })
+      setProfileMsg({ kind: 'ok', text: t('profile.info.savedOk') })
     } catch (e) {
       setProfileMsg({ kind: 'err', text: (e as Error).message })
     } finally {
@@ -114,9 +117,9 @@ export default function ProfilePage() {
 
   async function savePassword() {
     setPwdMsg(null)
-    if (!oldPwd || !newPwd) { setPwdMsg({ kind: 'err', text: 'Tous les champs sont requis' }); return }
-    if (newPwd.length < 6)  { setPwdMsg({ kind: 'err', text: 'Le nouveau mot de passe doit contenir au moins 6 caractères' }); return }
-    if (newPwd !== confirmPwd) { setPwdMsg({ kind: 'err', text: 'Les mots de passe ne correspondent pas' }); return }
+    if (!oldPwd || !newPwd) { setPwdMsg({ kind: 'err', text: t('profile.password.errRequired') }); return }
+    if (newPwd.length < 6)  { setPwdMsg({ kind: 'err', text: t('profile.password.errTooShort') }); return }
+    if (newPwd !== confirmPwd) { setPwdMsg({ kind: 'err', text: t('profile.password.errMismatch') }); return }
     setSavingPwd(true)
     try {
       const r = await fetch('/api/auth/password', {
@@ -124,7 +127,7 @@ export default function ProfilePage() {
       })
       const d = await r.json()
       if (!r.ok) throw new Error(d.error || 'Erreur')
-      setPwdMsg({ kind: 'ok', text: 'Mot de passe modifié' })
+      setPwdMsg({ kind: 'ok', text: t('profile.password.savedOk') })
       setOldPwd(''); setNewPwd(''); setConfirmPwd('')
     } catch (e) {
       setPwdMsg({ kind: 'err', text: (e as Error).message })
@@ -149,7 +152,7 @@ export default function ProfilePage() {
 
   async function confirm2fa() {
     setTwoFaMsg(null)
-    if (code.trim().length !== 6) { setTwoFaMsg({ kind: 'err', text: 'Entrez le code à 6 chiffres' }); return }
+    if (code.trim().length !== 6) { setTwoFaMsg({ kind: 'err', text: t('profile.twofa.errCode') }); return }
     setTwoFaBusy(true)
     try {
       const r = await fetch('/api/auth/2fa', {
@@ -158,7 +161,7 @@ export default function ProfilePage() {
       const d = await r.json()
       if (!r.ok) throw new Error(d.error || 'Code invalide')
       setTwoFaEnabled(true); setQr(null); setCode('')
-      setTwoFaMsg({ kind: 'ok', text: 'Double authentification activée' })
+      setTwoFaMsg({ kind: 'ok', text: t('profile.twofa.enabledOk') })
     } catch (e) {
       setTwoFaMsg({ kind: 'err', text: (e as Error).message })
     } finally {
@@ -173,7 +176,7 @@ export default function ProfilePage() {
       const d = await r.json()
       if (!r.ok) throw new Error(d.error || 'Erreur')
       setTwoFaEnabled(false); setQr(null); setCode('')
-      setTwoFaMsg({ kind: 'ok', text: 'Double authentification désactivée' })
+      setTwoFaMsg({ kind: 'ok', text: t('profile.twofa.disabledOk') })
     } catch (e) {
       setTwoFaMsg({ kind: 'err', text: (e as Error).message })
     } finally {
@@ -185,15 +188,15 @@ export default function ProfilePage() {
 
   return (
     <div>
-      <PageHeader title="Mon profil" subtitle="Gérez vos informations personnelles et la sécurité de votre compte" />
+      <PageHeader title={t('profile.title')} subtitle={t('profile.subtitle')} />
 
       <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 18 }}>
 
         {/* Section 1 — Informations */}
-        <Section icon={<User size={16} strokeWidth={2} />} title="Informations">
+        <Section icon={<User size={16} strokeWidth={2} />} title={t('profile.info.sectionTitle')}>
           <Banner msg={profileMsg} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <Input label="Nom complet" value={name} onChange={setName} required />
+            <Input label={t('profile.info.nameLabel')} value={name} onChange={setName} required />
             <div>
               <label style={{ fontSize: 12.5, color: colors.textMd, marginBottom: 4, fontWeight: 500, display: 'block' }}>
                 Email
@@ -210,20 +213,20 @@ export default function ProfilePage() {
               />
             </div>
             <div>
-              <Button onClick={saveProfile} loading={savingProfile}>Enregistrer</Button>
+              <Button onClick={saveProfile} loading={savingProfile}>{t('profile.info.saveBtn')}</Button>
             </div>
           </div>
         </Section>
 
         {/* Section 2 — Mot de passe */}
-        <Section icon={<Lock size={16} strokeWidth={2} />} title="Changer le mot de passe">
+        <Section icon={<Lock size={16} strokeWidth={2} />} title={t('profile.password.sectionTitle')}>
           <Banner msg={pwdMsg} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <Input label="Ancien mot de passe"  value={oldPwd}     onChange={setOldPwd}     type="password" required />
-            <Input label="Nouveau mot de passe" value={newPwd}     onChange={setNewPwd}     type="password" required />
-            <Input label="Confirmer le mot de passe" value={confirmPwd} onChange={setConfirmPwd} type="password" required />
+            <Input label={t('profile.password.oldLabel')}     value={oldPwd}     onChange={setOldPwd}     type="password" required />
+            <Input label={t('profile.password.newLabel')}     value={newPwd}     onChange={setNewPwd}     type="password" required />
+            <Input label={t('profile.password.confirmLabel')} value={confirmPwd} onChange={setConfirmPwd} type="password" required />
             <div>
-              <Button onClick={savePassword} loading={savingPwd}>Modifier le mot de passe</Button>
+              <Button onClick={savePassword} loading={savingPwd}>{t('profile.password.saveBtn')}</Button>
             </div>
           </div>
         </Section>
@@ -231,8 +234,8 @@ export default function ProfilePage() {
         {/* Section 3 — 2FA */}
         <Section
           icon={<ShieldCheck size={16} strokeWidth={2} />}
-          title="Double authentification (2FA)"
-          desc="Ajoutez une couche de sécurité avec une application d'authentification (Google Authenticator, Authy…)."
+          title={t('profile.twofa.sectionTitle')}
+          desc={t('profile.twofa.sectionDesc')}
         >
           <Banner msg={twoFaMsg} />
 
@@ -246,14 +249,14 @@ export default function ProfilePage() {
                 background: twoFaEnabled ? colors.green : colors.textLt,
               }} />
               <span style={{ fontSize: 13, color: colors.text, fontWeight: 500 }}>
-                {twoFaEnabled ? 'Activée' : 'Désactivée'}
+                {twoFaEnabled ? t('profile.twofa.enabled') : t('profile.twofa.disabled')}
               </span>
             </div>
 
             {twoFaEnabled ? (
-              <Button variant="danger" onClick={disable2fa} loading={twoFaBusy}>Désactiver</Button>
+              <Button variant="danger" onClick={disable2fa} loading={twoFaBusy}>{t('profile.twofa.deactivateBtn')}</Button>
             ) : !qr ? (
-              <Button onClick={startEnable2fa} loading={twoFaBusy}>Activer</Button>
+              <Button onClick={startEnable2fa} loading={twoFaBusy}>{t('profile.twofa.activateBtn')}</Button>
             ) : null}
           </div>
 
@@ -264,16 +267,23 @@ export default function ProfilePage() {
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
             }}>
               <p style={{ fontSize: 12.5, color: colors.textMd, margin: 0, textAlign: 'center', maxWidth: 380 }}>
-                Scannez ce QR code avec votre application d&apos;authentification, puis entrez le code à 6 chiffres généré.
+                {t('profile.twofa.scanText')}
               </p>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={qr} alt="QR code 2FA" width={180} height={180} style={{ border: `1px solid ${colors.border}`, borderRadius: 8 }} />
               <div style={{ width: 200 }}>
-                <Input label="Code de vérification" value={code} onChange={v => setCode(v.replace(/\D/g, '').slice(0, 6))} placeholder="123456" />
+                <Input
+                  label={t('profile.twofa.codeLabel')}
+                  value={code}
+                  onChange={v => setCode(v.replace(/\D/g, '').slice(0, 6))}
+                  placeholder={t('profile.twofa.codePh')}
+                />
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <Button onClick={confirm2fa} loading={twoFaBusy}>Confirmer l&apos;activation</Button>
-                <Button variant="secondary" onClick={() => { setQr(null); setCode(''); setTwoFaMsg(null) }}>Annuler</Button>
+                <Button onClick={confirm2fa} loading={twoFaBusy}>{t('profile.twofa.confirmBtn')}</Button>
+                <Button variant="secondary" onClick={() => { setQr(null); setCode(''); setTwoFaMsg(null) }}>
+                  {t('profile.twofa.cancelBtn')}
+                </Button>
               </div>
             </div>
           )}

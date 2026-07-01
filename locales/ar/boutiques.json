@@ -1,0 +1,28 @@
+{
+  "title": "المتاجر",
+  "subtitle": "إدارة متاجرك وإعداداتها",
+  "addBtn": "متجر جديد",
+  "empty": "لا يوجد متجر مُهيّأ",
+  "cols": {
+    "prefix": "البادئة",
+    "domain": "النطاق",
+    "users": "المستخدمون",
+    "orders": "الطلبات",
+    "status": "الحالة"
+  },
+  "addModalTitle": "متجر جديد",
+  "editModalTitle": "تعديل المتجر",
+  "namePlaceholder": "مثال: متجر الجزائر",
+  "prefixLabel": "البادئة",
+  "prefixPlaceholder": "مثال: CMD",
+  "prefixHint": "من 2 إلى 6 أحرف، حروف كبيرة فقط. مثال على المرجع:",
+  "prefixWarn": "تنبيه: تغيير البادئة لا يؤثر على مراجع الطلبات التي تم إنشاؤها بالفعل.",
+  "domainLabel": "النطاق (اختياري)",
+  "domainPlaceholder": "مثال: store.dz",
+  "activeLabel": "المتجر نشط",
+  "createBtn": "إنشاء",
+  "nameRequired": "الاسم مطلوب",
+  "prefixRequired": "البادئة مطلوبة",
+  "prefixRange": "بين 2 و 6 أحرف",
+  "genericError": "خطأ"
+}

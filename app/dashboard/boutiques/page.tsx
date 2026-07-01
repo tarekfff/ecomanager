@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Plus, Pencil, Globe, AlertTriangle } from 'lucide-react'
 import { colors, fonts } from '@/lib/tokens'
 import PageHeader from '@/components/ui/PageHeader'
@@ -109,6 +110,7 @@ function iconBtn(): React.CSSProperties {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function BoutiquesPage() {
+  const { t } = useTranslation('boutiques')
   const [boutiques, setBoutiques] = useState<Boutique[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
@@ -169,10 +171,10 @@ export default function BoutiquesPage() {
 
   function validate(): boolean {
     const next: Record<string, string> = {}
-    if (!formName.trim()) next.name = 'Le nom est requis'
-    if (!formPrefix.trim()) next.prefix = 'Le préfixe est requis'
+    if (!formName.trim()) next.name = t('nameRequired')
+    if (!formPrefix.trim()) next.prefix = t('prefixRequired')
     else if (formPrefix.length < 2 || formPrefix.length > 6)
-      next.prefix = 'Entre 2 et 6 caractères'
+      next.prefix = t('prefixRange')
     setErrors(next)
     return Object.keys(next).length === 0
   }
@@ -196,12 +198,12 @@ export default function BoutiquesPage() {
       })
       if (!res.ok) {
         const body = await res.json()
-        throw new Error(body.error ?? 'Erreur')
+        throw new Error(body.error ?? t('genericError'))
       }
       setModalOpen(false)
       load()
     } catch (e: unknown) {
-      setApiError(e instanceof Error ? e.message : 'Erreur')
+      setApiError(e instanceof Error ? e.message : t('genericError'))
     } finally {
       setSaving(false)
     }
@@ -228,12 +230,12 @@ export default function BoutiquesPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontFamily: fonts.sans }}>
       <PageHeader
-        title="Boutiques"
-        subtitle="Gérez vos boutiques et leurs paramètres"
+        title={t('title')}
+        subtitle={t('subtitle')}
         actions={
           <Button onClick={openAdd} size="sm">
             <Plus size={13} />
-            Nouvelle boutique
+            {t('addBtn')}
           </Button>
         }
       />
@@ -247,23 +249,23 @@ export default function BoutiquesPage() {
         }}>
           {loading ? (
             <div style={{ padding: '40px 16px', textAlign: 'center', color: colors.textLt, fontSize: 13 }}>
-              Chargement…
+              {t('common:loading')}
             </div>
           ) : boutiques.length === 0 ? (
             <div style={{ padding: '40px 16px', textAlign: 'center', color: colors.textLt, fontSize: 13 }}>
-              Aucune boutique configurée
+              {t('empty')}
             </div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#f5f5f5' }}>
-                  <th style={thStyle}>Nom</th>
-                  <th style={thStyle}>Préfixe</th>
-                  <th style={thStyle}>Domaine</th>
-                  <th style={{ ...thStyle, textAlign: 'center', width: 90 }}>Utilisateurs</th>
-                  <th style={{ ...thStyle, textAlign: 'center', width: 90 }}>Commandes</th>
-                  <th style={{ ...thStyle, textAlign: 'center', width: 80 }}>Statut</th>
-                  <th style={{ ...thStyle, textAlign: 'right', width: 70 }}>Actions</th>
+                  <th style={thStyle}>{t('common:fields.name')}</th>
+                  <th style={thStyle}>{t('cols.prefix')}</th>
+                  <th style={thStyle}>{t('cols.domain')}</th>
+                  <th style={{ ...thStyle, textAlign: 'center', width: 90 }}>{t('cols.users')}</th>
+                  <th style={{ ...thStyle, textAlign: 'center', width: 90 }}>{t('cols.orders')}</th>
+                  <th style={{ ...thStyle, textAlign: 'center', width: 80 }}>{t('cols.status')}</th>
+                  <th style={{ ...thStyle, textAlign: 'right', width: 70 }}>{t('common:fields.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -310,7 +312,7 @@ export default function BoutiquesPage() {
                       </div>
                     </td>
                     <td style={{ ...tdStyle, textAlign: 'right' }}>
-                      <button onClick={() => openEdit(b)} style={iconBtn()} title="Modifier">
+                      <button onClick={() => openEdit(b)} style={iconBtn()} title={t('common:actions.edit')}>
                         <Pencil size={14} />
                       </button>
                     </td>
@@ -326,30 +328,30 @@ export default function BoutiquesPage() {
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editItem ? 'Modifier la boutique' : 'Nouvelle boutique'}
+        title={editItem ? t('editModalTitle') : t('addModalTitle')}
         size="sm"
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <Input
-            label="Nom"
+            label={t('common:fields.name')}
             value={formName}
             onChange={v => { setFormName(v); setErrors(prev => ({ ...prev, name: '' })) }}
-            placeholder="ex: Boutique Alger"
+            placeholder={t('namePlaceholder')}
             required
             error={errors.name}
           />
 
           <div>
             <Input
-              label="Préfixe"
+              label={t('prefixLabel')}
               value={formPrefix}
               onChange={handlePrefixChange}
-              placeholder="ex: CMD"
+              placeholder={t('prefixPlaceholder')}
               required
               error={errors.prefix}
             />
             <p style={{ fontSize: 11.5, color: colors.textLt, margin: '4px 0 0', fontFamily: fonts.sans }}>
-              2–6 caractères, majuscules uniquement. Exemple de référence :{' '}
+              {t('prefixHint')}{' '}
               <span style={{ color: colors.primary, fontWeight: 600 }}>{exampleRef}</span>
             </p>
             {prefixChanged && (
@@ -365,23 +367,23 @@ export default function BoutiquesPage() {
               }}>
                 <AlertTriangle size={14} style={{ color: '#F59800', flexShrink: 0, marginTop: 1 }} />
                 <span style={{ fontSize: 12, color: '#7A5C00', fontFamily: fonts.sans, lineHeight: 1.4 }}>
-                  Attention : le changement de préfixe n&apos;affecte pas les références de commandes déjà créées.
+                  {t('prefixWarn')}
                 </span>
               </div>
             )}
           </div>
 
           <Input
-            label="Domaine (optionnel)"
+            label={t('domainLabel')}
             value={formDomain}
             onChange={v => setFormDomain(v)}
-            placeholder="ex: boutique.dz"
+            placeholder={t('domainPlaceholder')}
           />
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Toggle checked={formActive} onChange={setFormActive} />
             <span style={{ fontSize: 13, color: colors.textMd, fontFamily: fonts.sans }}>
-              Boutique active
+              {t('activeLabel')}
             </span>
           </div>
 
@@ -393,10 +395,10 @@ export default function BoutiquesPage() {
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 4 }}>
             <Button variant="secondary" size="sm" onClick={() => setModalOpen(false)}>
-              Annuler
+              {t('common:actions.cancel')}
             </Button>
             <Button size="sm" onClick={handleSave} loading={saving}>
-              {editItem ? 'Enregistrer' : 'Créer'}
+              {editItem ? t('common:actions.save') : t('createBtn')}
             </Button>
           </div>
         </div>

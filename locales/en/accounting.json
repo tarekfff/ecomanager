@@ -1,0 +1,179 @@
+{
+  "bilan": {
+    "title":    "General Balance Sheet",
+    "subtitle": "Complete financial analysis — sales, delivery, expenses, net result",
+    "filters": {
+      "boutique":        "Boutique",
+      "selectBoutique":  "-- Select --",
+      "calcBasis":       "Calculate by",
+      "confirmed":       "Confirmed orders",
+      "delivered":       "Delivered orders",
+      "dateBasis":       "Filter by date",
+      "byCreated":       "Creation date",
+      "byDelivered":     "Delivery date",
+      "periodFrom":      "Period From",
+      "to":              "To",
+      "calcBtn":         "Calculate",
+      "calcLoading":     "Calculating…"
+    },
+    "errBoutique": "Please select a boutique.",
+    "errPeriod":   "Please choose a period.",
+    "errNetwork":  "Network error",
+    "prompt":      "Select a boutique and a period, then click Calculate.",
+    "loading":     "Calculating…",
+    "sections": {
+      "vente":      "Sales",
+      "livraison":  "Delivery",
+      "charges":    "Expenses",
+      "resultat":   "Net result"
+    },
+    "rows": {
+      "ca":              "Revenue (CA)",
+      "valeurAchat":     "Purchase value",
+      "remises":         "Discounts granted",
+      "margeBrute":      "Gross margin",
+      "fraisRecolt":     "Delivery fees collected",
+      "fraisLivreurs":   "Carrier fees",
+      "margeLivraison":  "Delivery margin",
+      "pub":             "Advertising",
+      "confirmation":    "Confirmation",
+      "emballage":       "Packaging",
+      "autresCharges":   "Other expenses",
+      "totalCharges":    "Total expenses"
+    },
+    "summary": {
+      "title":     "Summary",
+      "included":  "Included orders",
+      "delivered": "Of which delivered",
+      "items":     "Products (qty)"
+    },
+    "pubCard": {
+      "title":        "Advertising costs",
+      "dbValue":      "DB value:",
+      "overrideLabel":"Amount (override)",
+      "reset":        "Reset"
+    },
+    "confCard": {
+      "title":        "Confirmation config",
+      "unitCost":     "Unit cost",
+      "applyTo":      "Apply to",
+      "basedOn":      "Based on",
+      "total":        "Total:",
+      "eachOrder":    "Each order",
+      "allOrders":    "All (flat fee)",
+      "onDelivered":  "Delivered",
+      "onConfirmed":  "Confirmed"
+    },
+    "packCard": {
+      "title":        "Packaging config",
+      "unitCost":     "Unit cost",
+      "per":          "Per",
+      "basedOn":      "Based on",
+      "total":        "Total:",
+      "perOrder":     "Order",
+      "perProduct":   "Product",
+      "onDelivered":  "Delivered",
+      "onShipped":    "Shipped"
+    },
+    "confFormula": {
+      "perOrder":  "{{amount}} DA × {{base}} orders",
+      "flat":      "Flat {{amount}} DA",
+      "delivered": "delivered",
+      "confirmed": "confirmed"
+    },
+    "packFormula": {
+      "perUnit":   "{{amount}} DA per {{per}} ({{base}})",
+      "order":     "order",
+      "product":   "product",
+      "delivered": "delivered",
+      "shipped":   "shipped"
+    }
+  },
+  "rentabilite": {
+    "title":    "Product profitability",
+    "subtitle": "Profit, advertising cost and ROI per product",
+    "filters": {
+      "product":      "Product",
+      "productPh":    "Search a product…",
+      "variant":      "Variant",
+      "allVariants":  "All variants",
+      "boutique":     "Boutique",
+      "allBoutiques": "All",
+      "periodFrom":   "Period From",
+      "to":           "To",
+      "calcBtn":      "Calculate",
+      "calcLoading":  "Calculating…"
+    },
+    "toggles": {
+      "hint":        "Enabled costs are spread over the product quantity.",
+      "yes":         "Yes",
+      "no":          "No",
+      "remise":      "Split discounts",
+      "livraison":   "Split delivery fees",
+      "livreurs":    "Split carrier fees",
+      "confirmation":"Split confirmation fees",
+      "emballage":   "Split packaging fees"
+    },
+    "errProduct":  "Please select a product.",
+    "errPeriod":   "Please choose a period.",
+    "errNetwork":  "Network error",
+    "prompt":      "Select a product and a period, then click Calculate.",
+    "loading":     "Calculating…",
+    "result": {
+      "beneficeTitle":  "Total profit",
+      "unitsDelivered": "{{count}} unit(s) delivered",
+      "beneficeUnit":   "Unit profit",
+      "coutPub":        "Unit ad cost",
+      "roi":            "ROI"
+    }
+  },
+  "export": {
+    "title":    "Export data",
+    "subtitle": "Generate an Excel or CSV file from your data",
+    "typeLabel":       "Data type",
+    "boutiqueLabel":   "Boutique",
+    "allBoutiques":    "All boutiques",
+    "types": {
+      "orders":   "Orders",
+      "clients":  "Clients",
+      "products": "Products",
+      "stock":    "Stock",
+      "bilan":    "Balance sheet"
+    },
+    "statusLabel":     "Status",
+    "loadingStatuses": "Loading…",
+    "noStatusFilter":  "No filter — all statuses will be included.",
+    "statusCount":     "{{count}} status(es) selected.",
+    "dateFrom":        "Date — From",
+    "dateTo":          "Date — To",
+    "formatLabel":     "Format",
+    "xlsx":            "Excel (.xlsx)",
+    "csv":             "CSV",
+    "generateBtn":     "Generate export",
+    "errGenerate":     "Error generating export.",
+    "errNetwork":      "Network error during generation."
+  },
+  "rapports": {
+    "title":    "Reports",
+    "subtitle": "Access detailed reports of your activity",
+    "viewBtn":  "View report",
+    "cards": {
+      "orders": {
+        "title":       "Orders report",
+        "description": "Overview of orders by boutique: volumes, statuses and revenue."
+      },
+      "products": {
+        "title":       "Products report",
+        "description": "Product performance: quantities sold, revenue and return rate."
+      },
+      "livreurs": {
+        "title":       "Carriers report",
+        "description": "Activity by carrier: delivered orders, returns and success rate."
+      },
+      "confirmateurs": {
+        "title":       "Confirmers report",
+        "description": "Activity by confirmer: confirmed, cancelled orders and performance."
+      }
+    }
+  }
+}

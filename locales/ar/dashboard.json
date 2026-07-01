@@ -1,0 +1,23 @@
+{
+  "panels": {
+    "performance": "الأداء",
+    "analyse": "التحليل",
+    "anomalie": "الحالات الشاذة"
+  },
+  "charts": {
+    "ordersCreated": "الطلبات المنشأة",
+    "deliveredVsReturn": "مُسلَّمة / قيد الإرجاع",
+    "confirmedVsCancelled": "مؤكَّدة / ملغاة",
+    "collectedVsReturned": "محصَّلة / مُرتجعة"
+  },
+  "series": {
+    "created": "منشأة",
+    "confirmed": "مؤكَّدة",
+    "cancelled": "ملغاة",
+    "delivered": "مُسلَّمة",
+    "inReturn": "قيد الإرجاع",
+    "collected": "محصَّلة",
+    "returned": "مُرتجعة"
+  },
+  "noOrders": "لا توجد طلبات"
+}

@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Pencil, Trash2, Check, X } from 'lucide-react'
 import {
   PageHeader, Table, Modal, Button, Input, Badge, ConfirmDialog,
@@ -24,6 +25,7 @@ function authHeader() {
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function MarquesPage() {
+  const { t } = useTranslation('brands')
   const [brands,  setBrands]  = useState<Brand[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -66,7 +68,7 @@ export default function MarquesPage() {
   }
 
   async function handleAdd() {
-    if (!newName.trim()) { setFormError('Le nom est requis.'); return }
+    if (!newName.trim()) { setFormError(t('nameRequired')); return }
     setSaving(true)
     setFormError('')
     try {
@@ -77,7 +79,7 @@ export default function MarquesPage() {
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        setFormError((err as { error?: string }).error ?? 'Erreur lors de la sauvegarde.')
+        setFormError((err as { error?: string }).error ?? t('saveError'))
         return
       }
       setModalOpen(false)
@@ -139,7 +141,7 @@ export default function MarquesPage() {
         fetchBrands()
       } else {
         const err = await res.json().catch(() => ({}))
-        setDeleteError((err as { error?: string }).error ?? 'Erreur lors de la suppression.')
+        setDeleteError((err as { error?: string }).error ?? t('deleteError'))
       }
     } finally {
       setDeleting(false)
@@ -150,7 +152,7 @@ export default function MarquesPage() {
 
   const columns: Column<Brand>[] = [
     {
-      key: 'name', label: 'Nom',
+      key: 'name', label: t('cols.name'),
       render: row => {
         if (editId === row.id) {
           return (
@@ -173,7 +175,7 @@ export default function MarquesPage() {
               />
               <button
                 onClick={() => saveEdit(row)}
-                title="Enregistrer"
+                title={t('common:actions.save')}
                 style={{
                   display: 'flex', alignItems: 'center', padding: 4,
                   border: 'none', background: 'none', cursor: 'pointer', color: colors.green,
@@ -183,7 +185,7 @@ export default function MarquesPage() {
               </button>
               <button
                 onClick={cancelEdit}
-                title="Annuler"
+                title={t('common:actions.cancel')}
                 style={{
                   display: 'flex', alignItems: 'center', padding: 4,
                   border: 'none', background: 'none', cursor: 'pointer', color: colors.textLt,
@@ -197,7 +199,7 @@ export default function MarquesPage() {
         return (
           <span
             onClick={() => startEdit(row)}
-            title="Cliquer pour modifier"
+            title={t('editTooltip')}
             style={{
               fontWeight: 500, color: colors.text, cursor: 'pointer',
               borderBottom: `1px dashed ${colors.border}`, paddingBottom: 1,
@@ -209,15 +211,15 @@ export default function MarquesPage() {
       },
     },
     {
-      key: 'product_count', label: 'Produits', width: 110,
+      key: 'product_count', label: t('cols.products'), width: 110,
       render: row => (
         <Badge color={row.product_count > 0 ? 'blue' : 'gray'}>
-          {row.product_count} produit{row.product_count !== 1 ? 's' : ''}
+          {t('productsBadge', { count: row.product_count })}
         </Badge>
       ),
     },
     {
-      key: 'actions', label: 'Actions', width: 165,
+      key: 'actions', label: t('cols.actions'), width: 165,
       render: row => (
         <div style={{ display: 'flex', gap: 6 }}>
           <button
@@ -232,7 +234,7 @@ export default function MarquesPage() {
             onMouseEnter={e => (e.currentTarget.style.background = '#f5f5f5')}
             onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
           >
-            <Pencil size={11} /> Modifier
+            <Pencil size={11} /> {t('common:actions.edit')}
           </button>
           <button
             onClick={() => openDelete(row)}
@@ -245,7 +247,7 @@ export default function MarquesPage() {
             onMouseEnter={e => (e.currentTarget.style.background = '#fde8ea')}
             onMouseLeave={e => (e.currentTarget.style.background = '#fff8f8')}
           >
-            <Trash2 size={11} /> Supprimer
+            <Trash2 size={11} /> {t('common:actions.delete')}
           </button>
         </div>
       ),
@@ -257,11 +259,11 @@ export default function MarquesPage() {
   return (
     <>
       <PageHeader
-        title="Marques"
-        subtitle="Gestion des marques de produits"
+        title={t('title')}
+        subtitle={t('subtitle')}
         actions={
           <Button variant="primary" size="sm" onClick={openAdd}>
-            + Ajouter une marque
+            {t('addBtn')}
           </Button>
         }
       />
@@ -271,14 +273,14 @@ export default function MarquesPage() {
         display: 'flex', flexDirection: 'column', gap: 10,
       }}>
         <span style={{ fontSize: 12, color: colors.textMd, fontFamily: fonts.sans }}>
-          {loading ? '…' : `${brands.length} marque${brands.length !== 1 ? 's' : ''}`}
+          {loading ? '…' : t('count', { count: brands.length })}
         </span>
 
         <Table<Brand>
           columns={columns}
           data={brands}
           loading={loading}
-          emptyText="Aucune marque"
+          emptyText={t('empty')}
         />
       </div>
 
@@ -286,20 +288,20 @@ export default function MarquesPage() {
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        title="Ajouter une marque"
+        title={t('addModalTitle')}
         size="sm"
       >
         <Input
-          label="Nom"
+          label={t('nameLabel')}
           value={newName}
           onChange={setNewName}
-          placeholder="Ex : Nike"
+          placeholder={t('namePlaceholder')}
           required
           error={formError}
         />
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
-          <Button variant="secondary" size="sm" onClick={() => setModalOpen(false)}>Annuler</Button>
-          <Button variant="primary" size="sm" loading={saving} onClick={handleAdd}>Ajouter</Button>
+          <Button variant="secondary" size="sm" onClick={() => setModalOpen(false)}>{t('common:actions.cancel')}</Button>
+          <Button variant="primary" size="sm" loading={saving} onClick={handleAdd}>{t('common:actions.add')}</Button>
         </div>
       </Modal>
 
@@ -308,15 +310,15 @@ export default function MarquesPage() {
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
-        title="Supprimer la marque"
+        title={t('deleteTitle')}
         message={
           deleteError
             ? deleteError
             : (deleteTarget && deleteTarget.product_count > 0
-                ? `Attention : « ${deleteTarget.name} » a ${deleteTarget.product_count} produit(s) associé(s). La suppression sera bloquée tant que des produits y sont rattachés.`
-                : `Supprimer « ${deleteTarget?.name} » ? Cette action est irréversible.`)
+                ? t('deleteWarn', { name: deleteTarget.name, count: deleteTarget.product_count })
+                : t('deleteConfirm', { name: deleteTarget?.name ?? '' }))
         }
-        confirmLabel={deleting ? 'Suppression…' : 'Supprimer'}
+        confirmLabel={deleting ? t('deleting') : t('common:actions.delete')}
         danger
       />
     </>

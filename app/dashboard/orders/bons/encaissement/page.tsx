@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useBoutique } from '@/contexts/BoutiqueContext'
 import { colors, fonts } from '@/lib/tokens'
 import { ChevronDown, ChevronRight, CheckCircle, RotateCcw, Receipt, Loader2 } from 'lucide-react'
@@ -34,6 +35,7 @@ function formatDate(iso: string) {
 
 export default function BonEncaissementPage() {
   const { boutiqueId } = useBoutique()
+  const { t } = useTranslation('orders')
   const [groups,  setGroups]  = useState<CarrierGroup[]>([])
   const [loading, setLoading] = useState(false)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
@@ -62,7 +64,7 @@ export default function BonEncaissementPage() {
           if (!map.has(key)) {
             map.set(key, {
               carrier_id:   row.carrier_id,
-              carrier_name: row.carrier_name || 'Sans livreur',
+              carrier_name: row.carrier_name || '',
               receipts:     [],
               total:        0,
             })
@@ -77,7 +79,7 @@ export default function BonEncaissementPage() {
           const next: Record<string, boolean> = {}
           grps.forEach(g => {
             const key = g.carrier_id ?? '__none__'
-            next[key] = prev[key] !== false // default open
+            next[key] = prev[key] !== false
           })
           return next
         })
@@ -137,14 +139,12 @@ export default function BonEncaissementPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Receipt size={18} color={colors.primary} strokeWidth={1.8} />
           <h1 style={{ fontSize: 17, fontWeight: 700, color: colors.text, margin: 0 }}>
-            Bon d&apos;encaissement
+            {t('bonEncaissement.title')}
           </h1>
         </div>
         {!loading && countPending > 0 && (
-          <span style={{
-            fontSize: 12, color: colors.textMd,
-          }}>
-            {countPending} commande{countPending > 1 ? 's' : ''} · {fmt(totalPending)} à encaisser
+          <span style={{ fontSize: 12, color: colors.textMd }}>
+            {t('bonEncaissement.subtitle', { count: countPending, amount: fmt(totalPending) })}
           </span>
         )}
       </div>
@@ -154,7 +154,7 @@ export default function BonEncaissementPage() {
       {loading && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: colors.textLt, fontSize: 13, padding: '40px 0' }}>
           <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
-          Chargement…
+          {t('loading')}
         </div>
       )}
 
@@ -165,7 +165,7 @@ export default function BonEncaissementPage() {
           color: colors.textLt, fontSize: 14,
         }}>
           <Receipt size={32} color={colors.border} style={{ marginBottom: 12 }} />
-          <div>Aucun bon d&apos;encaissement en attente</div>
+          <div>{t('bonEncaissement.empty')}</div>
         </div>
       )}
 
@@ -205,10 +205,10 @@ export default function BonEncaissementPage() {
                 }
               </span>
               <span style={{ fontWeight: 600, fontSize: 13.5, color: colors.text, flex: 1 }}>
-                {group.carrier_name}
+                {group.carrier_name || t('bonEncaissement.noCarrier')}
               </span>
               <span style={{ fontSize: 12, color: colors.textMd, marginRight: 16 }}>
-                {group.receipts.length} commande{group.receipts.length > 1 ? 's' : ''}
+                {t('bonEncaissement.receipts', { count: group.receipts.length })}
               </span>
               <span style={{
                 fontWeight: 700, fontSize: 14, color: colors.primary,
@@ -237,7 +237,7 @@ export default function BonEncaissementPage() {
                 }}
               >
                 <CheckCircle size={13} strokeWidth={2} />
-                {isConfirming ? 'Confirmation…' : 'Confirmer le bon'}
+                {isConfirming ? t('bonEncaissement.confirmingBtn') : t('bonEncaissement.confirmBtn')}
               </button>
             </div>
 
@@ -254,10 +254,10 @@ export default function BonEncaissementPage() {
                   borderBottom: `1px solid ${colors.border}`,
                   background: '#FEFEFE',
                 }}>
-                  <span>Référence</span>
-                  <span>Client</span>
-                  <span style={{ textAlign: 'right' }}>Montant</span>
-                  <span style={{ textAlign: 'right' }}>Actions</span>
+                  <span>{t('bonEncaissement.colRef')}</span>
+                  <span>{t('bonEncaissement.colClient')}</span>
+                  <span style={{ textAlign: 'right' }}>{t('bonEncaissement.colAmount')}</span>
+                  <span style={{ textAlign: 'right' }}>{t('bonEncaissement.colActions')}</span>
                 </div>
 
                 {group.receipts.map((row, idx) => (
@@ -294,7 +294,7 @@ export default function BonEncaissementPage() {
                       <button
                         onClick={() => goBack(row)}
                         disabled={!!goingBack[row.id]}
-                        title="Retour en livraison"
+                        title={t('bonEncaissement.backDeliveryTitle')}
                         style={{
                           display: 'flex', alignItems: 'center', gap: 5,
                           padding: '5px 10px', borderRadius: 5,
@@ -314,7 +314,7 @@ export default function BonEncaissementPage() {
                         }}
                       >
                         <RotateCcw size={11} strokeWidth={2} />
-                        {goingBack[row.id] ? '…' : 'Retour livraison'}
+                        {goingBack[row.id] ? '…' : t('bonEncaissement.backDelivery')}
                       </button>
                     </div>
                   </div>

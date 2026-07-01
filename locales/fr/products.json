@@ -1,0 +1,51 @@
+{
+  "title": "Produits",
+  "import": "Importer",
+  "addProduct": "+ Ajouter un produit",
+  "searchPlaceholder": "Rechercher par nom ou SKU…",
+  "boutiquePlaceholder": "Boutique",
+  "count_one": "{{count}} produit",
+  "count_other": "{{count}} produits",
+  "status": {
+    "all": "Tous les statuts",
+    "active": "Actif",
+    "inactive": "Inactif"
+  },
+  "table": {
+    "name": "Nom",
+    "sku": "SKU",
+    "price": "Prix de vente",
+    "stock": "Stock",
+    "brand": "Marque",
+    "status": "Statut",
+    "actions": "Actions"
+  },
+  "empty": "Aucun produit trouvé",
+  "trash": {
+    "title": "Mettre à la corbeille",
+    "message": "Déplacer « {{name}} » à la corbeille ? Vous pourrez le restaurer depuis la corbeille.",
+    "moving": "Déplacement…"
+  },
+  "options": {
+    "title": "Options & attributs",
+    "subtitle": "Gérez les types d'attributs (Couleur, Taille…) et leurs valeurs.",
+    "newAttr": "Nouvel attribut",
+    "attrNameLabel": "Nom de l'attribut",
+    "attrNamePh": "Ex : Couleur, Taille, Matière…",
+    "create": "Créer",
+    "loading": "Chargement…",
+    "empty": "Aucun attribut défini.",
+    "emptyHint": "Créez vos premiers types d'attributs ci-dessus pour générer des variantes de produit.",
+    "nameRequired": "Le nom est requis",
+    "error": "Erreur",
+    "deleteValue": "Supprimer cette valeur",
+    "valuePh": "Nouvelle valeur…",
+    "add": "Ajouter",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "rename": "Renommer",
+    "delete": "Supprimer",
+    "noValues": "Aucune valeur pour l'instant.",
+    "deleteConfirm": "Supprimer \"{{name}}\" et toutes ses valeurs ?"
+  }
+}

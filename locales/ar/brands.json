@@ -1,0 +1,22 @@
+{
+  "title": "العلامات التجارية",
+  "subtitle": "إدارة علامات المنتجات التجارية",
+  "addBtn": "+ إضافة علامة تجارية",
+  "count_one": "علامة تجارية واحدة",
+  "count_other": "{{count}} علامة تجارية",
+  "cols": { "name": "الاسم", "products": "المنتجات", "actions": "الإجراءات" },
+  "productsBadge_one": "منتج واحد",
+  "productsBadge_other": "{{count}} منتج",
+  "empty": "لا توجد علامات تجارية",
+  "editTooltip": "انقر للتعديل",
+  "addModalTitle": "إضافة علامة تجارية",
+  "nameLabel": "الاسم",
+  "namePlaceholder": "مثال: Nike",
+  "nameRequired": "الاسم مطلوب.",
+  "saveError": "خطأ أثناء الحفظ.",
+  "deleteError": "خطأ أثناء الحذف.",
+  "deleteTitle": "حذف العلامة التجارية",
+  "deleteWarn": "تنبيه: «{{name}}» مرتبطة بـ {{count}} منتج. سيتم منع الحذف طالما توجد منتجات مرتبطة بها.",
+  "deleteConfirm": "حذف «{{name}}»؟ هذا الإجراء لا رجعة فيه.",
+  "deleting": "جارٍ الحذف…"
+}

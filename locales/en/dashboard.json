@@ -1,0 +1,23 @@
+{
+  "panels": {
+    "performance": "Performance",
+    "analyse": "Analytics",
+    "anomalie": "Anomaly"
+  },
+  "charts": {
+    "ordersCreated": "Orders created",
+    "deliveredVsReturn": "Delivered / In return",
+    "confirmedVsCancelled": "Confirmed / Cancelled",
+    "collectedVsReturned": "Collected / Returned"
+  },
+  "series": {
+    "created": "Created",
+    "confirmed": "Confirmed",
+    "cancelled": "Cancelled",
+    "delivered": "Delivered",
+    "inReturn": "In return",
+    "collected": "Collected",
+    "returned": "Returned"
+  },
+  "noOrders": "No orders"
+}

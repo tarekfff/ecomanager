@@ -1,20 +1,12 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { PageHeader } from '@/components/ui'
 import StatsFilters, { type StatsFiltersValue } from '@/components/stats/StatsFilters'
 import StatsTable, { type StatsRow } from '@/components/stats/StatsTable'
 import StatsChart from '@/components/stats/StatsChart'
 import { colors, fonts } from '@/lib/tokens'
-
-const DIMENSIONS = [
-  { value: 'wilaya',    label: 'Wilaya' },
-  { value: 'commune',   label: 'Commune' },
-  { value: 'carrier',   label: 'Livreur' },
-  { value: 'product',   label: 'Produit' },
-  { value: 'variant',   label: 'Variante' },
-  { value: 'confirmer', label: 'Confirmateur' },
-]
 
 const todayStr = () => new Date().toISOString().slice(0, 10)
 const firstOfMonth = () => {
@@ -26,6 +18,7 @@ function authHeader(): HeadersInit {
 }
 
 export default function StatsBoutiquePage() {
+  const { t } = useTranslation('stats')
   const [boutiques, setBoutiques] = useState<{ id: string; name: string }[]>([])
   const [dimension, setDimension] = useState('wilaya')
   const [filters, setFilters] = useState<StatsFiltersValue>({
@@ -40,13 +33,19 @@ export default function StatsBoutiquePage() {
   const [rows, setRows]       = useState<StatsRow[]>([])
   const [loading, setLoading] = useState(false)
 
+  const DIMENSIONS = [
+    { value: 'wilaya',    label: t('dims.wilaya')    },
+    { value: 'commune',   label: t('dims.commune')   },
+    { value: 'carrier',   label: t('dims.carrier')   },
+    { value: 'product',   label: t('dims.product')   },
+    { value: 'variant',   label: t('dims.variant')   },
+    { value: 'confirmer', label: t('dims.confirmer') },
+  ]
+
   useEffect(() => {
     fetch('/api/boutiques', { headers: authHeader() })
       .then(r => r.json())
-      .then(d => {
-        if (Array.isArray(d)) setBoutiques(d)
-        else if (d && !d.error) setBoutiques([])  // handle unexpected format gracefully
-      })
+      .then(d => { if (Array.isArray(d)) setBoutiques(d) })
       .catch(() => {})
   }, [])
 
@@ -74,11 +73,10 @@ export default function StatsBoutiquePage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: colors.bg, fontFamily: fonts.sans }}>
-      <PageHeader title="Stats par boutique" subtitle="Performance des commandes selon différentes dimensions" />
+      <PageHeader title={t('boutique.title')} subtitle={t('boutique.subtitle')} />
       <StatsFilters value={filters} onChange={setFilters} boutiques={boutiques} />
 
-      {/* Dimension picker */}
-      <DimBar dimensions={DIMENSIONS} value={dimension} onChange={setDimension} />
+      <DimBar dimensions={DIMENSIONS} value={dimension} onChange={setDimension} sortByLabel={t('sortBy')} />
 
       <div style={{ flex: 1, overflow: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
         <StatsTable
@@ -95,10 +93,11 @@ export default function StatsBoutiquePage() {
   )
 }
 
-function DimBar({ dimensions, value, onChange }: {
-  dimensions: { value: string; label: string }[]
-  value:      string
-  onChange:   (v: string) => void
+function DimBar({ dimensions, value, onChange, sortByLabel }: {
+  dimensions:   { value: string; label: string }[]
+  value:        string
+  onChange:     (v: string) => void
+  sortByLabel:  string
 }) {
   return (
     <div style={{
@@ -109,7 +108,7 @@ function DimBar({ dimensions, value, onChange }: {
       alignItems: 'center',
       gap: 8,
     }}>
-      <span style={{ fontSize: 12, color: colors.textMd, fontWeight: 500, marginRight: 4 }}>Trier par</span>
+      <span style={{ fontSize: 12, color: colors.textMd, fontWeight: 500, marginRight: 4 }}>{sortByLabel}</span>
       {dimensions.map(d => (
         <button
           key={d.value}

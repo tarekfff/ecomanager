@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Pencil, Trash2, Users } from 'lucide-react'
 import {
   PageHeader, Table, Pagination, Modal, Button,
@@ -53,6 +54,7 @@ const EMPTY_FORM: ClientForm = {
 // ── Sub-components ─────────────────────────────────────────────────────────
 
 function ActionBtns({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+  const { t } = useTranslation('common')
   return (
     <div style={{ display: 'flex', gap: 6 }}>
       <button
@@ -67,7 +69,7 @@ function ActionBtns({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => 
         onMouseEnter={e => (e.currentTarget.style.background = '#f5f5f5')}
         onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
       >
-        <Pencil size={11} /> Modifier
+        <Pencil size={11} /> {t('actions.edit')}
       </button>
       <button
         onClick={onDelete}
@@ -80,7 +82,7 @@ function ActionBtns({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => 
         onMouseEnter={e => (e.currentTarget.style.background = '#fde8ea')}
         onMouseLeave={e => (e.currentTarget.style.background = '#fff8f8')}
       >
-        <Trash2 size={11} /> Supprimer
+        <Trash2 size={11} /> {t('actions.delete')}
       </button>
     </div>
   )
@@ -90,6 +92,7 @@ function ActionBtns({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => 
 
 export default function ClientsPage() {
   const toast = useToast()
+  const { t } = useTranslation('clients')
 
   // List state
   const [clients,      setClients]      = useState<Client[]>([])
@@ -158,9 +161,9 @@ export default function ClientsPage() {
         if (Array.isArray(data.clients)) setClients(data.clients)
         if (typeof data.total === 'number') setTotal(data.total)
       })
-      .catch(e => toast.error(errorMessage(e, 'Impossible de charger les clients.')))
+      .catch(e => toast.error(errorMessage(e, t('errors.loadError'))))
       .finally(() => setLoading(false))
-  }, [page, dbSearch, toast])
+  }, [page, dbSearch, toast, t])
 
   useEffect(() => { fetchClients() }, [fetchClients])
 
@@ -205,8 +208,8 @@ export default function ClientsPage() {
   // ── Save (POST for add, PUT for edit) ─────────────────────────────────────
 
   async function handleSave() {
-    if (!form.full_name.trim()) { setFormError('Le nom complet est requis.'); return }
-    if (!form.phone.trim())     { setFormError('Le téléphone est requis.');   return }
+    if (!form.full_name.trim()) { setFormError(t('errors.nameRequired'));  return }
+    if (!form.phone.trim())     { setFormError(t('errors.phoneRequired')); return }
 
     setSaving(true)
     setFormError('')
@@ -223,11 +226,11 @@ export default function ClientsPage() {
       if (editClient) await apiPut(`/api/clients/${editClient.id}`, body)
       else            await apiPost('/api/clients', body)
 
-      toast.success(editClient ? 'Client mis à jour.' : 'Client ajouté.')
+      toast.success(editClient ? t('toast.updated') : t('toast.added'))
       setModalOpen(false)
       fetchClients()
     } catch (e) {
-      const msg = errorMessage(e, 'Erreur lors de la sauvegarde.')
+      const msg = errorMessage(e, t('errors.saveError'))
       setFormError(msg)
       toast.error(msg)
     } finally {
@@ -242,11 +245,11 @@ export default function ClientsPage() {
     setDeleting(true)
     try {
       await apiDelete(`/api/clients/${deleteTarget.id}`)
-      toast.success('Client supprimé.')
+      toast.success(t('toast.deleted'))
       setDeleteTarget(null)
       fetchClients()
     } catch (e) {
-      toast.error(errorMessage(e, 'Impossible de supprimer ce client.'))
+      toast.error(errorMessage(e, t('errors.deleteError')))
     } finally {
       setDeleting(false)
     }
@@ -256,12 +259,12 @@ export default function ClientsPage() {
 
   const columns: Column<Client>[] = [
     {
-      key: 'full_name', label: 'Nom complet',
+      key: 'full_name', label: t('table.full_name'),
       render: row => <span style={{ fontWeight: 500, color: colors.text }}>{row.full_name}</span>,
     },
-    { key: 'phone', label: 'Téléphone', width: 135 },
+    { key: 'phone', label: t('table.phone'), width: 135 },
     {
-      key: 'wilaya_name', label: 'Wilaya', width: 140,
+      key: 'wilaya_name', label: t('table.wilaya'), width: 140,
       render: row => (
         <span style={{ color: row.wilaya_name ? colors.textMd : colors.textLt, fontSize: 12 }}>
           {row.wilaya_name ?? '—'}
@@ -269,19 +272,19 @@ export default function ClientsPage() {
       ),
     },
     {
-      key: 'orders_delivered', label: 'Livrés', width: 75,
+      key: 'orders_delivered', label: t('table.delivered'), width: 75,
       render: row => <Badge color="green">{row.orders_delivered}</Badge>,
     },
     {
-      key: 'orders_returned', label: 'Retournés', width: 90,
+      key: 'orders_returned', label: t('table.returned'), width: 90,
       render: row => <Badge color="red">{row.orders_returned}</Badge>,
     },
     {
-      key: 'orders_cancelled', label: 'Annulés', width: 80,
+      key: 'orders_cancelled', label: t('table.cancelled'), width: 80,
       render: row => <Badge color="orange">{row.orders_cancelled}</Badge>,
     },
     {
-      key: 'actions', label: 'Actions', width: 165,
+      key: 'actions', label: t('table.actions'), width: 165,
       render: row => (
         <ActionBtns onEdit={() => openEdit(row)} onDelete={() => setDeleteTarget(row)} />
       ),
@@ -298,10 +301,10 @@ export default function ClientsPage() {
   const communeOptions = communes.map(c => ({ value: String(c.id), label: c.name }))
 
   const communePlaceholder = communesLoading
-    ? 'Chargement…'
+    ? t('common:loading')
     : form.wilaya_id
-      ? 'Sélectionner une commune'
-      : 'Sélectionnez d\'abord une wilaya'
+      ? t('form.communePlaceholder')
+      : t('form.communePlaceholderFirst')
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -309,11 +312,11 @@ export default function ClientsPage() {
     <>
       {/* Header */}
       <PageHeader
-        title="Clients"
-        subtitle="Gestion de la base clients"
+        title={t('title')}
+        subtitle={t('subtitle')}
         actions={
           <Button variant="primary" size="sm" onClick={openAdd}>
-            + Ajouter un client
+            {t('addClient')}
           </Button>
         }
       />
@@ -329,10 +332,10 @@ export default function ClientsPage() {
           <SearchInput
             value={search}
             onChange={handleSearchChange}
-            placeholder="Rechercher par nom ou téléphone…"
+            placeholder={t('searchPlaceholder')}
           />
           <span style={{ fontSize: 12, color: colors.textMd, fontFamily: fonts.sans }}>
-            {loading ? '…' : `${total} client${total !== 1 ? 's' : ''}`}
+            {loading ? '…' : t('count', { count: total })}
           </span>
         </div>
 
@@ -345,15 +348,15 @@ export default function ClientsPage() {
             dbSearch ? (
               <EmptyState
                 icon={Users}
-                title="Aucun client trouvé"
-                message={`Aucun résultat pour « ${dbSearch} ».`}
+                title={t('empty.title')}
+                message={t('empty.noResults', { q: dbSearch })}
               />
             ) : (
               <EmptyState
                 icon={Users}
-                title="Aucun client trouvé"
-                message="Commencez par ajouter votre premier client à la base."
-                actionLabel="Ajouter le premier client"
+                title={t('empty.title')}
+                message={t('empty.message')}
+                actionLabel={t('empty.action')}
                 onAction={openAdd}
               />
             )
@@ -370,7 +373,7 @@ export default function ClientsPage() {
       <Modal
         open={modalOpen}
         onClose={closeModal}
-        title={editClient ? 'Modifier le client' : 'Ajouter un client'}
+        title={editClient ? t('modal.editTitle') : t('modal.addTitle')}
         size="md"
       >
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
@@ -378,50 +381,50 @@ export default function ClientsPage() {
           {/* Full-width: name */}
           <div style={{ gridColumn: '1 / -1' }}>
             <Input
-              label="Nom complet"
+              label={t('form.fullName')}
               value={form.full_name}
               onChange={setField('full_name')}
-              placeholder="Ex : Ahmed Benali"
+              placeholder={t('form.namePlaceholder')}
               required
             />
           </div>
 
           {/* Phone row */}
           <Input
-            label="Téléphone"
+            label={t('form.phone')}
             value={form.phone}
             onChange={setField('phone')}
             placeholder="0555 00 00 00"
             required
           />
           <Input
-            label="Téléphone 2"
+            label={t('form.phone2')}
             value={form.phone2}
             onChange={setField('phone2')}
-            placeholder="Optionnel"
+            placeholder={t('form.optional')}
           />
 
           {/* Email */}
           <Input
-            label="Email"
+            label={t('form.email')}
             type="email"
             value={form.email}
             onChange={setField('email')}
-            placeholder="client@example.com"
+            placeholder={t('form.emailPlaceholder')}
           />
 
           {/* Wilaya */}
           <Select
-            label="Wilaya"
+            label={t('form.wilaya')}
             value={form.wilaya_id}
             onChange={handleWilayaChange}
             options={wilayaOptions}
-            placeholder="Sélectionner une wilaya"
+            placeholder={t('form.wilayaPlaceholder')}
           />
 
           {/* Commune — cascades from Wilaya */}
           <Select
-            label="Commune"
+            label={t('form.commune')}
             value={form.commune_id}
             onChange={setField('commune_id')}
             options={communeOptions}
@@ -435,10 +438,10 @@ export default function ClientsPage() {
           {/* Full-width: address */}
           <div style={{ gridColumn: '1 / -1' }}>
             <Input
-              label="Adresse"
+              label={t('form.address')}
               value={form.address}
               onChange={setField('address')}
-              placeholder="Ex : Rue 12, Cité Ennasr"
+              placeholder={t('form.addressPlaceholder')}
             />
           </div>
         </div>
@@ -450,9 +453,9 @@ export default function ClientsPage() {
         )}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
-          <Button variant="secondary" size="sm" onClick={closeModal}>Annuler</Button>
+          <Button variant="secondary" size="sm" onClick={closeModal}>{t('common:actions.cancel')}</Button>
           <Button variant="primary" size="sm" loading={saving} onClick={handleSave}>
-            {editClient ? 'Enregistrer' : 'Ajouter'}
+            {editClient ? t('form.save') : t('form.add')}
           </Button>
         </div>
       </Modal>
@@ -462,9 +465,9 @@ export default function ClientsPage() {
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
-        title="Supprimer le client"
-        message={`Supprimer « ${deleteTarget?.full_name} » ? Cette action est irréversible et peut échouer si le client possède des commandes.`}
-        confirmLabel={deleting ? 'Suppression…' : 'Supprimer'}
+        title={t('delete.title')}
+        message={t('delete.message', { name: deleteTarget?.full_name ?? '' })}
+        confirmLabel={deleting ? t('delete.deleting') : t('common:actions.delete')}
         danger
       />
     </>

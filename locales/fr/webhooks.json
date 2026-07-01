@@ -1,0 +1,94 @@
+{
+  "title":    "Webhooks",
+  "subtitle": "Notifications HTTP déclenchées par les événements de commande",
+  "setupNoest": "Configurer NOEST",
+  "addWebhook": "+ Ajouter un webhook",
+  "count_one":   "{{count}} webhook",
+  "count_other": "{{count}} webhooks",
+  "empty": "Aucun webhook",
+  "editTitle": "Modifier le webhook",
+  "addTitle":  "Ajouter un webhook",
+  "save":    "Enregistrer",
+  "add":     "Ajouter",
+  "cancel":  "Annuler",
+  "active":  "Actif",
+  "inactive":"Inactif",
+  "form": {
+    "name":       "Nom",
+    "namePh":     "Ex : Notification Slack",
+    "event":      "Événement",
+    "eventPh":    "Sélectionner un événement…",
+    "url":        "URL",
+    "urlPh":      "https://exemple.com/webhook",
+    "secret":     "Code secret",
+    "boutiques":  "Boutiques",
+    "boutiqueHint": "(aucune = toutes)",
+    "noBoutiques":  "Aucune boutique disponible"
+  },
+  "eventGroups": {
+    "lifecycle":    "Cycle de vie",
+    "statusChanges":"Changements de statut",
+    "modifications":"Modifications"
+  },
+  "errors": {
+    "nameRequired":  "Le nom est requis.",
+    "eventRequired": "L'événement est requis.",
+    "urlRequired":   "L'URL est requise.",
+    "saveFailed":    "Erreur lors de la sauvegarde.",
+    "deleteFailed":  "Erreur lors de la suppression."
+  },
+  "delete": {
+    "title":    "Supprimer le webhook",
+    "message":  "Supprimer « {{name}} » ? Cette action est irréversible.",
+    "confirm":  "Supprimer",
+    "deleting": "Suppression…"
+  },
+  "table": {
+    "name":        "Nom",
+    "event":       "Événement",
+    "url":         "URL",
+    "boutiques":   "Boutiques",
+    "allBoutiques":"Toutes",
+    "active":      "Actif",
+    "actions":     "Actions"
+  },
+  "actions": {
+    "edit":   "Modifier",
+    "logs":   "Logs",
+    "delete": "Supprimer"
+  },
+  "noest": {
+    "error":             "Erreur lors de la configuration NOEST.",
+    "created":           "Webhook NOEST créé.",
+    "alreadyConfigured": "Webhook NOEST déjà configuré.",
+    "pingOk":     "Connexion NOEST OK ({{wilayas}} wilayas).",
+    "pingFailed": "⚠ Connexion NOEST échouée (HTTP {{status}}). Vérifiez NOEST_API_TOKEN / NOEST_USER_GUID."
+  },
+  "logsPage": {
+    "title":         "Logs — {{name}}",
+    "titleFallback": "Logs du webhook",
+    "subtitle":      "{{event}}",
+    "subtitleFallback": "Historique des envois",
+    "viewPayload":   "Voir payload",
+    "empty":         "Aucun log",
+    "detailTitle":   "Détail du log",
+    "back":          "Retour",
+    "cols": {
+      "date":    "Date",
+      "event":   "Événement",
+      "order":   "Commande",
+      "http":    "HTTP",
+      "attempt": "Tentative",
+      "duration":"Durée",
+      "actions": "Actions"
+    },
+    "meta": {
+      "date":    "Date :",
+      "event":   "Événement :",
+      "order":   "Commande :",
+      "http":    "HTTP :",
+      "attempt": "Tentative :",
+      "duration":"Durée :"
+    }
+  }
+}

@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from 'react-i18next'
 import { colors, fonts } from '@/lib/tokens'
 
 interface PaginationProps {
@@ -10,6 +11,7 @@ interface PaginationProps {
 }
 
 export default function Pagination({ page, total, limit, onChange }: PaginationProps) {
+  const { t } = useTranslation('common')
   const totalPages = Math.max(1, Math.ceil(total / limit))
   const from = total === 0 ? 0 : (page - 1) * limit + 1
   const to = Math.min(page * limit, total)
@@ -27,12 +29,12 @@ export default function Pagination({ page, total, limit, onChange }: PaginationP
       color: colors.textMd,
     }}>
       <span>
-        Affichage {from}–{to} sur {total} résultats
+        {t('pagination.showing', { from, to, total })}
       </span>
 
       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
         <PageBtn
-          label="Précédent"
+          label={t('pagination.prev')}
           disabled={page <= 1}
           onClick={() => onChange(page - 1)}
           active={false}
@@ -53,7 +55,7 @@ export default function Pagination({ page, total, limit, onChange }: PaginationP
         )}
 
         <PageBtn
-          label="Suivant"
+          label={t('pagination.next')}
           disabled={page >= totalPages}
           onClick={() => onChange(page + 1)}
           active={false}

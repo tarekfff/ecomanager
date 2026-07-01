@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslation } from 'react-i18next'
 import { AlertTriangle } from 'lucide-react'
 import { PageHeader, Table } from '@/components/ui'
 import type { Column } from '@/components/ui'
@@ -27,6 +28,7 @@ function authHdr() {
 
 export default function AlertesPage() {
   const router = useRouter()
+  const { t } = useTranslation('stock')
   const [items,   setItems]   = useState<StockAlert[]>([])
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState('')
@@ -38,9 +40,9 @@ export default function AlertesPage() {
       .then(r => r.json())
       .then(d => {
         if (Array.isArray(d)) setItems(d)
-        else setError(d.error ?? 'Erreur lors du chargement.')
+        else setError(d.error ?? t('alertes.errLoad'))
       })
-      .catch(() => setError('Erreur réseau.'))
+      .catch(() => setError(t('alertes.errNetwork')))
       .finally(() => setLoading(false))
   }, [])
 
@@ -48,11 +50,11 @@ export default function AlertesPage() {
 
   const columns: Column<StockAlert>[] = [
     {
-      key: 'product_name', label: 'Produit',
+      key: 'product_name', label: t('alertes.cols.product'),
       render: r => <span style={{ fontWeight: 500 }}>{r.product_name}</span>,
     },
     {
-      key: 'sku', label: 'SKU', width: 130,
+      key: 'sku', label: t('alertes.cols.sku'), width: 130,
       render: r => (
         <span style={{ fontFamily: 'monospace', fontSize: 12, color: colors.textMd }}>
           {r.sku ?? '—'}
@@ -60,7 +62,7 @@ export default function AlertesPage() {
       ),
     },
     {
-      key: 'current_qty', label: 'Stock actuel', width: 120,
+      key: 'current_qty', label: t('alertes.cols.currentQty'), width: 120,
       render: r => (
         <span style={{ fontWeight: 700, color: colors.red, fontSize: 13 }}>
           {r.current_qty}
@@ -68,7 +70,7 @@ export default function AlertesPage() {
       ),
     },
     {
-      key: 'stock_alert_min', label: 'Stock minimum', width: 130,
+      key: 'stock_alert_min', label: t('alertes.cols.minQty'), width: 130,
       render: r => (
         <span style={{ color: colors.textMd, fontSize: 13 }}>
           {r.stock_alert_min}
@@ -76,7 +78,7 @@ export default function AlertesPage() {
       ),
     },
     {
-      key: '_ecart', label: 'Écart', width: 100,
+      key: '_ecart', label: t('alertes.cols.gap'), width: 100,
       render: r => {
         const diff = r.current_qty - r.stock_alert_min
         return (
@@ -87,7 +89,7 @@ export default function AlertesPage() {
       },
     },
     {
-      key: '_action', label: 'Action', width: 130,
+      key: '_action', label: t('alertes.cols.action'), width: 130,
       render: r => (
         <button
           onClick={() => router.push(`/dashboard/stock/ajustement?product_id=${r.product_id}`)}
@@ -101,7 +103,7 @@ export default function AlertesPage() {
           onMouseEnter={e => (e.currentTarget.style.background = colors.primary) && (e.currentTarget.style.color = '#fff') as unknown as boolean}
           onMouseLeave={e => { e.currentTarget.style.background = colors.primaryLt; e.currentTarget.style.color = colors.primary }}
         >
-          Ajuster
+          {t('alertes.adjustBtn')}
         </button>
       ),
     },
@@ -110,8 +112,8 @@ export default function AlertesPage() {
   return (
     <>
       <PageHeader
-        title="Alertes de stock"
-        subtitle="Produits dont le stock est en dessous du seuil minimum configuré."
+        title={t('alertes.title')}
+        subtitle={t('alertes.subtitle')}
       />
 
       {error && (
@@ -134,10 +136,10 @@ export default function AlertesPage() {
             <AlertTriangle size={32} strokeWidth={1.5} style={{ display: 'inline-block' }} />
           </div>
           <div style={{ fontSize: 14, fontWeight: 600, color: colors.text }}>
-            Aucune alerte de stock
+            {t('alertes.empty')}
           </div>
           <div style={{ fontSize: 13, color: colors.textMd, marginTop: 4 }}>
-            Tous les produits sont au-dessus de leur seuil minimum.
+            {t('alertes.emptyDesc')}
           </div>
         </div>
       )}
@@ -148,13 +150,13 @@ export default function AlertesPage() {
             columns={columns}
             data={items}
             loading={loading}
-            emptyText="Aucune alerte de stock."
+            emptyText={t('alertes.emptyTable')}
           />
           {!loading && (
             <div style={{
               marginTop: 10, fontSize: 12, color: colors.textMd, fontFamily: fonts.sans,
             }}>
-              {items.length} produit{items.length !== 1 ? 's' : ''} en alerte
+              {t('alertes.count', { count: items.length })}
             </div>
           )}
         </div>

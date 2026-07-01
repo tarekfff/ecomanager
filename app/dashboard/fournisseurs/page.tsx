@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Pencil, Trash2 } from 'lucide-react'
 import {
   PageHeader, Table, Modal, Button, Input, ConfirmDialog,
@@ -35,6 +36,7 @@ function authHeader() {
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function FournisseursPage() {
+  const { t } = useTranslation('suppliers')
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [loading,   setLoading]   = useState(false)
 
@@ -89,7 +91,7 @@ export default function FournisseursPage() {
   // ── Save ──────────────────────────────────────────────────────────────────
 
   async function handleSave() {
-    if (!form.name.trim()) { setFormError('Le nom est requis.'); return }
+    if (!form.name.trim()) { setFormError(t('nameRequired')); return }
     setSaving(true)
     setFormError('')
     try {
@@ -109,7 +111,7 @@ export default function FournisseursPage() {
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        setFormError((err as { error?: string }).error ?? 'Erreur lors de la sauvegarde.')
+        setFormError((err as { error?: string }).error ?? t('saveError'))
         return
       }
       setModalOpen(false)
@@ -139,7 +141,7 @@ export default function FournisseursPage() {
         fetchSuppliers()
       } else {
         const err = await res.json().catch(() => ({}))
-        setDeleteError((err as { error?: string }).error ?? 'Erreur lors de la suppression.')
+        setDeleteError((err as { error?: string }).error ?? t('deleteError'))
       }
     } finally {
       setDeleting(false)
@@ -150,11 +152,11 @@ export default function FournisseursPage() {
 
   const columns: Column<Supplier>[] = [
     {
-      key: 'name', label: 'Nom',
+      key: 'name', label: t('common:fields.name'),
       render: row => <span style={{ fontWeight: 500, color: colors.text }}>{row.name}</span>,
     },
     {
-      key: 'phone', label: 'Téléphone', width: 140,
+      key: 'phone', label: t('common:fields.phone'), width: 140,
       render: row => (
         <span style={{ color: row.phone ? colors.textMd : colors.textLt, fontSize: 12 }}>
           {row.phone ?? '—'}
@@ -162,7 +164,7 @@ export default function FournisseursPage() {
       ),
     },
     {
-      key: 'email', label: 'Email', width: 200,
+      key: 'email', label: t('common:fields.email'), width: 200,
       render: row => (
         <span style={{ color: row.email ? colors.textMd : colors.textLt, fontSize: 12 }}>
           {row.email ?? '—'}
@@ -170,7 +172,7 @@ export default function FournisseursPage() {
       ),
     },
     {
-      key: 'address', label: 'Adresse',
+      key: 'address', label: t('common:fields.address'),
       render: row => (
         <span style={{ color: row.address ? colors.textMd : colors.textLt, fontSize: 12 }}>
           {row.address ?? '—'}
@@ -178,7 +180,7 @@ export default function FournisseursPage() {
       ),
     },
     {
-      key: 'actions', label: 'Actions', width: 165,
+      key: 'actions', label: t('common:fields.actions'), width: 165,
       render: row => (
         <div style={{ display: 'flex', gap: 6 }}>
           <button
@@ -193,7 +195,7 @@ export default function FournisseursPage() {
             onMouseEnter={e => (e.currentTarget.style.background = '#f5f5f5')}
             onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
           >
-            <Pencil size={11} /> Modifier
+            <Pencil size={11} /> {t('common:actions.edit')}
           </button>
           <button
             onClick={() => openDelete(row)}
@@ -206,7 +208,7 @@ export default function FournisseursPage() {
             onMouseEnter={e => (e.currentTarget.style.background = '#fde8ea')}
             onMouseLeave={e => (e.currentTarget.style.background = '#fff8f8')}
           >
-            <Trash2 size={11} /> Supprimer
+            <Trash2 size={11} /> {t('common:actions.delete')}
           </button>
         </div>
       ),
@@ -218,11 +220,11 @@ export default function FournisseursPage() {
   return (
     <>
       <PageHeader
-        title="Fournisseurs"
-        subtitle="Gestion des fournisseurs"
+        title={t('title')}
+        subtitle={t('subtitle')}
         actions={
           <Button variant="primary" size="sm" onClick={openAdd}>
-            + Ajouter un fournisseur
+            {t('addBtn')}
           </Button>
         }
       />
@@ -232,14 +234,14 @@ export default function FournisseursPage() {
         display: 'flex', flexDirection: 'column', gap: 10,
       }}>
         <span style={{ fontSize: 12, color: colors.textMd, fontFamily: fonts.sans }}>
-          {loading ? '…' : `${suppliers.length} fournisseur${suppliers.length !== 1 ? 's' : ''}`}
+          {loading ? '…' : t('count', { count: suppliers.length })}
         </span>
 
         <Table<Supplier>
           columns={columns}
           data={suppliers}
           loading={loading}
-          emptyText="Aucun fournisseur"
+          emptyText={t('empty')}
         />
       </div>
 
@@ -247,30 +249,30 @@ export default function FournisseursPage() {
       <Modal
         open={modalOpen}
         onClose={closeModal}
-        title={editItem ? 'Modifier le fournisseur' : 'Ajouter un fournisseur'}
+        title={editItem ? t('editModalTitle') : t('addModalTitle')}
         size="md"
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <Input
-            label="Nom"
+            label={t('common:fields.name')}
             value={form.name}
             onChange={v => setForm(f => ({ ...f, name: v }))}
-            placeholder="Ex : Grossiste Alger"
+            placeholder={t('namePlaceholder')}
             required
           />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <Input
-              label="Téléphone"
+              label={t('common:fields.phone')}
               value={form.phone}
               onChange={v => setForm(f => ({ ...f, phone: v }))}
-              placeholder="0555 00 00 00"
+              placeholder={t('phonePlaceholder')}
             />
             <Input
-              label="Email"
+              label={t('common:fields.email')}
               type="email"
               value={form.email}
               onChange={v => setForm(f => ({ ...f, email: v }))}
-              placeholder="contact@exemple.com"
+              placeholder={t('emailPlaceholder')}
             />
           </div>
 
@@ -279,12 +281,12 @@ export default function FournisseursPage() {
               fontSize: 12.5, color: colors.textMd, marginBottom: 4, fontWeight: 500,
               fontFamily: fonts.sans,
             }}>
-              Adresse
+              {t('common:fields.address')}
             </label>
             <textarea
               value={form.address}
               onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
-              placeholder="Adresse complète…"
+              placeholder={t('addressPlaceholder')}
               rows={3}
               style={{
                 width: '100%', border: `1px solid ${colors.border}`, borderRadius: 4,
@@ -303,9 +305,9 @@ export default function FournisseursPage() {
         )}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
-          <Button variant="secondary" size="sm" onClick={closeModal}>Annuler</Button>
+          <Button variant="secondary" size="sm" onClick={closeModal}>{t('common:actions.cancel')}</Button>
           <Button variant="primary" size="sm" loading={saving} onClick={handleSave}>
-            {editItem ? 'Enregistrer' : 'Ajouter'}
+            {editItem ? t('common:actions.save') : t('common:actions.add')}
           </Button>
         </div>
       </Modal>
@@ -315,13 +317,13 @@ export default function FournisseursPage() {
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
-        title="Supprimer le fournisseur"
+        title={t('deleteTitle')}
         message={
           deleteError
             ? deleteError
-            : `Supprimer « ${deleteTarget?.name} » ? Cette action est irréversible.`
+            : t('deleteConfirm', { name: deleteTarget?.name ?? '' })
         }
-        confirmLabel={deleting ? 'Suppression…' : 'Supprimer'}
+        confirmLabel={deleting ? t('deleting') : t('common:actions.delete')}
         danger
       />
     </>

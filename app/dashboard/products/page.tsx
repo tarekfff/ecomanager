@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslation } from 'react-i18next'
 import { Pencil, Trash2, Package } from 'lucide-react'
 import {
   PageHeader, Table, Pagination, Button,
@@ -30,11 +31,6 @@ interface Boutique { id: string; name: string }
 
 const LIMIT = 25
 
-const STATUS_OPTIONS = [
-  { value: 'true',  label: 'Actif' },
-  { value: 'false', label: 'Inactif' },
-]
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function authHeader() {
@@ -50,6 +46,12 @@ function formatPrice(n: number) {
 export default function ProductsPage() {
   const router              = useRouter()
   const { boutiqueId }      = useBoutique()
+  const { t }               = useTranslation('products')
+
+  const STATUS_OPTIONS = [
+    { value: 'true',  label: t('status.active') },
+    { value: 'false', label: t('status.inactive') },
+  ]
 
   const [products,        setProducts]        = useState<Product[]>([])
   const [total,           setTotal]           = useState(0)
@@ -146,7 +148,7 @@ export default function ProductsPage() {
       ),
     },
     {
-      key: 'name', label: 'Nom',
+      key: 'name', label: t('table.name'),
       render: row => (
         <span style={{ fontWeight: 500, color: colors.text, fontFamily: fonts.sans }}>
           {row.name}
@@ -154,7 +156,7 @@ export default function ProductsPage() {
       ),
     },
     {
-      key: 'sku', label: 'SKU', width: 140,
+      key: 'sku', label: t('table.sku'), width: 140,
       render: row => (
         <span style={{ color: colors.textMd, fontSize: 12, fontFamily: 'monospace' }}>
           {row.sku ?? '—'}
@@ -162,7 +164,7 @@ export default function ProductsPage() {
       ),
     },
     {
-      key: 'price', label: 'Prix de vente', width: 140,
+      key: 'price', label: t('table.price'), width: 140,
       render: row => (
         <span style={{ fontWeight: 500, color: colors.text, fontFamily: fonts.sans }}>
           {formatPrice(row.price)}
@@ -170,7 +172,7 @@ export default function ProductsPage() {
       ),
     },
     {
-      key: 'stock_total', label: 'Stock', width: 90,
+      key: 'stock_total', label: t('table.stock'), width: 90,
       render: row => (
         <span style={{
           fontWeight: 600, fontFamily: fonts.sans,
@@ -181,7 +183,7 @@ export default function ProductsPage() {
       ),
     },
     {
-      key: 'brand_name', label: 'Marque', width: 140,
+      key: 'brand_name', label: t('table.brand'), width: 140,
       render: row => (
         <span style={{
           fontSize: 12, fontFamily: fonts.sans,
@@ -192,15 +194,15 @@ export default function ProductsPage() {
       ),
     },
     {
-      key: 'is_active', label: 'Statut', width: 90,
+      key: 'is_active', label: t('table.status'), width: 90,
       render: row => (
         <Badge color={row.is_active ? 'green' : 'red'}>
-          {row.is_active ? 'Actif' : 'Inactif'}
+          {row.is_active ? t('status.active') : t('status.inactive')}
         </Badge>
       ),
     },
     {
-      key: 'actions', label: 'Actions', width: 120,
+      key: 'actions', label: t('table.actions'), width: 120,
       render: row => (
         <div style={{ display: 'flex', gap: 6 }}>
           <button
@@ -215,7 +217,7 @@ export default function ProductsPage() {
             onMouseEnter={e => (e.currentTarget.style.background = '#f5f5f5')}
             onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
           >
-            <Pencil size={11} /> Modifier
+            <Pencil size={11} /> {t('common:actions.edit')}
           </button>
           <button
             onClick={() => setDeleteTarget(row)}
@@ -225,7 +227,7 @@ export default function ProductsPage() {
               border: '1px solid #f5c6cb', background: '#fff8f8',
               color: colors.red, cursor: 'pointer',
             }}
-            title="Mettre à la corbeille"
+            title={t('trash.title')}
             onMouseEnter={e => (e.currentTarget.style.background = '#fde8ea')}
             onMouseLeave={e => (e.currentTarget.style.background = '#fff8f8')}
           >
@@ -243,7 +245,7 @@ export default function ProductsPage() {
   return (
     <>
       <PageHeader
-        title="Produits"
+        title={t('title')}
         actions={
           <div style={{ display: 'flex', gap: 8 }}>
             <Button
@@ -251,14 +253,14 @@ export default function ProductsPage() {
               size="sm"
               onClick={() => router.push('/dashboard/products/import')}
             >
-              Importer
+              {t('import')}
             </Button>
             <Button
               variant="primary"
               size="sm"
               onClick={() => router.push('/dashboard/products/new')}
             >
-              + Ajouter un produit
+              {t('addProduct')}
             </Button>
           </div>
         }
@@ -274,14 +276,14 @@ export default function ProductsPage() {
           <SearchInput
             value={search}
             onChange={handleSearchChange}
-            placeholder="Rechercher par nom ou SKU…"
+            placeholder={t('searchPlaceholder')}
           />
           <div style={{ width: 160, flexShrink: 0 }}>
             <Select
               value={statusFilter}
               onChange={handleStatusChange}
               options={STATUS_OPTIONS}
-              placeholder="Tous les statuts"
+              placeholder={t('status.all')}
             />
           </div>
           {boutiques.length > 1 && (
@@ -290,7 +292,7 @@ export default function ProductsPage() {
                 value={boutiqueFilter}
                 onChange={handleBoutiqueChange}
                 options={boutiqueOptions}
-                placeholder="Boutique"
+                placeholder={t('boutiquePlaceholder')}
               />
             </div>
           )}
@@ -298,7 +300,7 @@ export default function ProductsPage() {
             fontSize: 12, color: colors.textMd,
             fontFamily: fonts.sans, marginLeft: 'auto', flexShrink: 0,
           }}>
-            {loading ? '…' : `${total} produit${total !== 1 ? 's' : ''}`}
+            {loading ? '…' : t('count', { count: total })}
           </span>
         </div>
 
@@ -306,7 +308,7 @@ export default function ProductsPage() {
           columns={columns}
           data={products}
           loading={loading}
-          emptyText="Aucun produit trouvé"
+          emptyText={t('empty')}
         />
 
         {total > LIMIT && (
@@ -323,9 +325,9 @@ export default function ProductsPage() {
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
-        title="Mettre à la corbeille"
-        message={`Déplacer « ${deleteTarget?.name} » à la corbeille ? Vous pourrez le restaurer depuis la corbeille.`}
-        confirmLabel={deleting ? 'Déplacement…' : 'Mettre à la corbeille'}
+        title={t('trash.title')}
+        message={t('trash.message', { name: deleteTarget?.name ?? '' })}
+        confirmLabel={deleting ? t('trash.moving') : t('trash.title')}
         danger
       />
     </>

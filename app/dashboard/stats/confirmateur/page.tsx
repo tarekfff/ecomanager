@@ -1,20 +1,12 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { PageHeader } from '@/components/ui'
 import StatsFilters, { type StatsFiltersValue } from '@/components/stats/StatsFilters'
 import StatsTable, { type StatsRow } from '@/components/stats/StatsTable'
 import StatsChart from '@/components/stats/StatsChart'
 import { colors, fonts } from '@/lib/tokens'
-
-const DIMENSIONS = [
-  { value: 'product',   label: 'Produit' },
-  { value: 'variant',   label: 'Variante' },
-  { value: 'carrier',   label: 'Livreur' },
-  { value: 'wilaya',    label: 'Wilaya' },
-  { value: 'commune',   label: 'Commune' },
-  { value: 'boutique',  label: 'Boutique' },
-]
 
 interface AppUser { id: string; name: string; email: string }
 
@@ -26,6 +18,7 @@ function authHeader(): HeadersInit {
 }
 
 export default function StatsConfirmateurPage() {
+  const { t } = useTranslation('stats')
   const [boutiques,   setBoutiques]   = useState<{ id: string; name: string }[]>([])
   const [users,       setUsers]       = useState<AppUser[]>([])
   const [confirmerId, setConfirmerId] = useState('')
@@ -42,6 +35,15 @@ export default function StatsConfirmateurPage() {
   })
   const [rows, setRows]       = useState<StatsRow[]>([])
   const [loading, setLoading] = useState(false)
+
+  const DIMENSIONS = [
+    { value: 'product',   label: t('dims.product')   },
+    { value: 'variant',   label: t('dims.variant')   },
+    { value: 'carrier',   label: t('dims.carrier')   },
+    { value: 'wilaya',    label: t('dims.wilaya')    },
+    { value: 'commune',   label: t('dims.commune')   },
+    { value: 'boutique',  label: t('dims.boutique')  },
+  ]
 
   useEffect(() => {
     fetch('/api/boutiques', { headers: authHeader() })
@@ -81,10 +83,9 @@ export default function StatsConfirmateurPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: colors.bg, fontFamily: fonts.sans }}>
-      <PageHeader title="Stats par confirmateur" subtitle="Performance par agent de confirmation" />
+      <PageHeader title={t('confirmateur.title')} subtitle={t('confirmateur.subtitle')} />
       <StatsFilters value={filters} onChange={setFilters} boutiques={boutiques} />
 
-      {/* Extra filters + dimension */}
       <div style={{
         background: '#fff',
         borderBottom: `1px solid ${colors.border}`,
@@ -96,7 +97,7 @@ export default function StatsConfirmateurPage() {
       }}>
         <div style={{ minWidth: 240 }}>
           <label style={lbl}>
-            Confirmateur {loadingU && <span style={{ color: colors.textLt, fontWeight: 400 }}>— chargement…</span>}
+            {t('confirmateur.filterLabel')} {loadingU && <span style={{ color: colors.textLt, fontWeight: 400 }}>— {t('loading')}</span>}
           </label>
           <select
             value={confirmerId}
@@ -104,7 +105,7 @@ export default function StatsConfirmateurPage() {
             style={{ ...sel, minWidth: 240 }}
             disabled={loadingU}
           >
-            <option value="">Tous les confirmateurs ({users.length})</option>
+            <option value="">{t('confirmateur.allConfirmers', { count: users.length })}</option>
             {users.map(u => (
               <option key={u.id} value={u.id}>{u.name}</option>
             ))}
@@ -112,7 +113,7 @@ export default function StatsConfirmateurPage() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 12, color: colors.textMd, fontWeight: 500 }}>Trier par</span>
+          <span style={{ fontSize: 12, color: colors.textMd, fontWeight: 500 }}>{t('sortBy')}</span>
           {DIMENSIONS.map(d => (
             <DimBtn key={d.value} label={d.label} active={dimension === d.value} onClick={() => setDimension(d.value)} />
           ))}

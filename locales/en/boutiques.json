@@ -1,0 +1,28 @@
+{
+  "title": "Stores",
+  "subtitle": "Manage your stores and their settings",
+  "addBtn": "New store",
+  "empty": "No store configured",
+  "cols": {
+    "prefix": "Prefix",
+    "domain": "Domain",
+    "users": "Users",
+    "orders": "Orders",
+    "status": "Status"
+  },
+  "addModalTitle": "New store",
+  "editModalTitle": "Edit store",
+  "namePlaceholder": "e.g. Algiers Store",
+  "prefixLabel": "Prefix",
+  "prefixPlaceholder": "e.g. CMD",
+  "prefixHint": "2–6 characters, uppercase only. Reference example:",
+  "prefixWarn": "Warning: changing the prefix does not affect references of orders already created.",
+  "domainLabel": "Domain (optional)",
+  "domainPlaceholder": "e.g. store.dz",
+  "activeLabel": "Store active",
+  "createBtn": "Create",
+  "nameRequired": "Name is required",
+  "prefixRequired": "Prefix is required",
+  "prefixRange": "Between 2 and 6 characters",
+  "genericError": "Error"
+}

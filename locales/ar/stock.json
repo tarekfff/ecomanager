@@ -1,0 +1,57 @@
+{
+  "ajustement": {
+    "title": "تعديل المخزون",
+    "subtitle": "إضافة أو سحب أو تصحيح مخزون منتج.",
+    "steps": ["الاختيار", "التفاصيل"],
+    "ops": { "add": "إضافة", "remove": "سحب", "correct": "تصحيح" },
+    "targets": { "new_batch": "دفعة جديدة", "existing_batch": "دفعة موجودة", "global": "مخزون إجمالي" },
+    "warehouseLabel": "المستودع", "warehousePh": "اختر مستودعاً…",
+    "productLabel": "المنتج", "productPh": "ابحث عن منتج…",
+    "variantLabel": "المتغير", "variantPh": "اختر متغيراً…",
+    "operationLabel": "العملية", "targetLabel": "الهدف",
+    "batchLabel": "الدفعة", "batchPh": "اختر دفعة…",
+    "noBatch": "لا توجد دفعات متاحة في هذا المستودع",
+    "batchNumberLabel": "رقم الدفعة (اختياري)", "batchNumberPh": "مثال: LOT-2025-01",
+    "unitCostLabel": "سعر الشراء الوحدوي (دج)", "expiryLabel": "تاريخ انتهاء الصلاحية",
+    "qtyLabel": "الكمية", "qtyTargetLabel": "الكمية المستهدفة (المخزون الإجمالي المطلوب)",
+    "commentLabel": "تعليق", "commentPh": "سبب التعديل…",
+    "cancelBtn": "إلغاء", "submitBtn": "حفظ التعديل", "submitting": "جارٍ الحفظ…",
+    "errWarehouse": "يرجى اختيار مستودع", "errProduct": "يرجى اختيار منتج",
+    "errVariant": "يرجى اختيار متغير", "errQty": "كمية غير صالحة",
+    "errBatch": "يرجى اختيار دفعة", "errAdjust": "خطأ أثناء التعديل",
+    "errNetwork": "خطأ في الشبكة", "successTitle": "تم التعديل",
+    "newAdjustBtn": "تعديل جديد", "backToStock": "العودة إلى المخزون",
+    "currentQty": "المخزون الحالي", "noVariant": "— بدون متغير —"
+  },
+  "alertes": {
+    "title": "تنبيهات المخزون",
+    "subtitle": "المنتجات التي يقل مخزونها عن الحد الأدنى المحدد.",
+    "cols": { "product": "المنتج", "sku": "SKU", "currentQty": "المخزون الحالي", "minQty": "الحد الأدنى", "gap": "الفارق", "action": "الإجراء" },
+    "adjustBtn": "تعديل", "empty": "لا توجد تنبيهات مخزون",
+    "emptyDesc": "جميع المنتجات فوق حدها الأدنى.",
+    "emptyTable": "لا توجد تنبيهات مخزون.",
+    "count_one": "منتج واحد في حالة تنبيه", "count_other": "{{count}} منتج في حالة تنبيه",
+    "errLoad": "خطأ أثناء التحميل.", "errNetwork": "خطأ في الشبكة."
+  },
+  "lots": {
+    "title": "دفعات المخزون",
+    "subtitle": "جميع الدفعات النشطة مع كمياتها وتواريخ انتهاء صلاحيتها.",
+    "cols": { "product": "المنتج", "variant": "المتغير", "warehouse": "المستودع", "batchNo": "رقم الدفعة", "qty": "الكمية", "unitCost": "سعر الشراء", "expiry": "تاريخ الانتهاء" },
+    "expiringSoon": "⚠ قريباً", "expired": "✕ منتهي",
+    "legendSoon": "⚠ تنتهي خلال ≤ 30 يوماً", "legendExpired": "✕ منتهية الصلاحية",
+    "searchPh": "بحث…", "warehouseAll": "الكل", "filterBtn": "تصفية", "resetBtn": "إعادة ضبط",
+    "productLabel": "المنتج", "warehouseLabel": "المستودع", "empty": "لم يُعثر على أي دفعة."
+  },
+  "mouvements": {
+    "title": "حركات المخزون",
+    "subtitle": "سجل جميع تعديلات المخزون.",
+    "cols": { "date": "التاريخ", "product": "المنتج", "warehouse": "المستودع", "operation": "العملية", "target": "الهدف", "qty": "الكمية", "unitCost": "سعر الشراء", "batch": "الدفعة", "comment": "تعليق", "user": "المستخدم" },
+    "ops": { "add": "إضافة", "remove": "سحب", "correct": "تصحيح" },
+    "targets": { "new_batch": "دفعة جديدة", "global": "مخزون إجمالي", "existing_batch": "دفعة موجودة" },
+    "productLabel": "المنتج", "warehouseLabel": "المستودع", "operationLabel": "العملية",
+    "allWarehouses": "الكل", "allOps": "الكل",
+    "dateFrom": "من", "dateTo": "إلى",
+    "searchPh": "بحث…", "filterBtn": "تصفية", "resetBtn": "إعادة ضبط",
+    "empty": "لم يُعثر على أي حركة مخزون.", "variantPrefix": "متغير:"
+  }
+}

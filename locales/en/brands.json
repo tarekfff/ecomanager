@@ -1,0 +1,22 @@
+{
+  "title": "Brands",
+  "subtitle": "Manage product brands",
+  "addBtn": "+ Add a brand",
+  "count_one": "{{count}} brand",
+  "count_other": "{{count}} brands",
+  "cols": { "name": "Name", "products": "Products", "actions": "Actions" },
+  "productsBadge_one": "{{count}} product",
+  "productsBadge_other": "{{count}} products",
+  "empty": "No brands",
+  "editTooltip": "Click to edit",
+  "addModalTitle": "Add a brand",
+  "nameLabel": "Name",
+  "namePlaceholder": "e.g. Nike",
+  "nameRequired": "Name is required.",
+  "saveError": "Error while saving.",
+  "deleteError": "Error while deleting.",
+  "deleteTitle": "Delete brand",
+  "deleteWarn": "Warning: “{{name}}” has {{count}} associated product(s). Deletion will be blocked while products are still attached.",
+  "deleteConfirm": "Delete “{{name}}”? This action is irreversible.",
+  "deleting": "Deleting…"
+}

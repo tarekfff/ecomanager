@@ -1,0 +1,26 @@
+{
+  "actions": {
+    "add": "إضافة",
+    "edit": "تعديل",
+    "delete": "حذف",
+    "cancel": "إلغاء",
+    "save": "حفظ",
+    "confirm": "تأكيد",
+    "search": "بحث",
+    "close": "إغلاق"
+  },
+  "fields": {
+    "name": "الاسم",
+    "phone": "الهاتف",
+    "email": "البريد الإلكتروني",
+    "address": "العنوان",
+    "actions": "الإجراءات"
+  },
+  "empty": "—",
+  "loading": "جارٍ التحميل…",
+  "pagination": {
+    "showing": "عرض {{from}}–{{to}} من {{total}} نتيجة",
+    "prev": "السابق",
+    "next": "التالي"
+  }
+}

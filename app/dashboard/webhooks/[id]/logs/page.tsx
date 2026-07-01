@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, use } from 'react'
 import Link from 'next/link'
+import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Eye } from 'lucide-react'
 import {
   PageHeader, Table, Modal, Button, Badge, Pagination,
@@ -68,6 +69,7 @@ function prettyJson(value: unknown): string {
 
 export default function WebhookLogsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
+  const { t } = useTranslation('webhooks')
 
   const [logs,    setLogs]    = useState<WebhookLog[]>([])
   const [total,   setTotal]   = useState(0)
@@ -97,21 +99,21 @@ export default function WebhookLogsPage({ params }: { params: Promise<{ id: stri
 
   const columns: Column<WebhookLog>[] = [
     {
-      key: 'created_at', label: 'Date', width: 150,
+      key: 'created_at', label: t('logsPage.cols.date'), width: 150,
       render: row => <span style={{ color: colors.textMd, fontSize: 12 }}>{formatDate(row.created_at)}</span>,
     },
     {
-      key: 'event', label: 'Événement', width: 200,
+      key: 'event', label: t('logsPage.cols.event'), width: 200,
       render: row => <Badge color="purple">{row.event}</Badge>,
     },
     {
-      key: 'order_ref', label: 'Commande', width: 130,
+      key: 'order_ref', label: t('logsPage.cols.order'), width: 130,
       render: row => row.order_ref
         ? <span style={{ fontWeight: 500, color: colors.text }}>{row.order_ref}</span>
         : <span style={{ color: colors.textLt }}>—</span>,
     },
     {
-      key: 'http_status', label: 'HTTP', width: 90,
+      key: 'http_status', label: t('logsPage.cols.http'), width: 90,
       render: row => (
         <Badge color={statusColor(row.http_status)}>
           {row.http_status ?? '—'}
@@ -119,15 +121,15 @@ export default function WebhookLogsPage({ params }: { params: Promise<{ id: stri
       ),
     },
     {
-      key: 'attempt', label: 'Tentative', width: 90,
+      key: 'attempt', label: t('logsPage.cols.attempt'), width: 90,
       render: row => <span style={{ color: colors.textMd }}>{row.attempt ?? '—'}</span>,
     },
     {
-      key: 'duration_ms', label: 'Durée', width: 90,
+      key: 'duration_ms', label: t('logsPage.cols.duration'), width: 90,
       render: row => <span style={{ color: colors.textMd }}>{row.duration_ms != null ? `${row.duration_ms} ms` : '—'}</span>,
     },
     {
-      key: 'actions', label: 'Actions', width: 130,
+      key: 'actions', label: t('logsPage.cols.actions'), width: 130,
       render: row => (
         <button
           onClick={() => setDetail(row)}
@@ -140,7 +142,7 @@ export default function WebhookLogsPage({ params }: { params: Promise<{ id: stri
           onMouseEnter={e => (e.currentTarget.style.background = '#f5f5f5')}
           onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
         >
-          <Eye size={11} /> Voir payload
+          <Eye size={11} /> {t('logsPage.viewPayload')}
         </button>
       ),
     },
@@ -151,12 +153,12 @@ export default function WebhookLogsPage({ params }: { params: Promise<{ id: stri
   return (
     <>
       <PageHeader
-        title={meta ? `Logs — ${meta.name}` : 'Logs du webhook'}
-        subtitle={meta ? meta.event : 'Historique des envois'}
+        title={meta ? t('logsPage.title', { name: meta.name }) : t('logsPage.titleFallback')}
+        subtitle={meta ? meta.event : t('logsPage.subtitleFallback')}
         actions={
           <Link href="/dashboard/webhooks" style={{ textDecoration: 'none' }}>
             <Button variant="secondary" size="sm">
-              <ArrowLeft size={13} /> Retour
+              <ArrowLeft size={13} /> {t('logsPage.back')}
             </Button>
           </Link>
         }
@@ -170,7 +172,7 @@ export default function WebhookLogsPage({ params }: { params: Promise<{ id: stri
           columns={columns}
           data={logs}
           loading={loading}
-          emptyText="Aucun log"
+          emptyText={t('logsPage.empty')}
         />
 
         {total > LIMIT && (
@@ -182,18 +184,18 @@ export default function WebhookLogsPage({ params }: { params: Promise<{ id: stri
       <Modal
         open={!!detail}
         onClose={() => setDetail(null)}
-        title="Détail du log"
+        title={t('logsPage.detailTitle')}
         size="lg"
       >
         {detail && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, fontFamily: fonts.sans }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: 12.5, color: colors.textMd }}>
-              <span><strong style={{ color: colors.text }}>Date :</strong> {formatDate(detail.created_at)}</span>
-              <span><strong style={{ color: colors.text }}>Événement :</strong> {detail.event}</span>
-              {detail.order_ref && <span><strong style={{ color: colors.text }}>Commande :</strong> {detail.order_ref}</span>}
-              <span><strong style={{ color: colors.text }}>HTTP :</strong> {detail.http_status ?? '—'}</span>
-              <span><strong style={{ color: colors.text }}>Tentative :</strong> {detail.attempt ?? '—'}</span>
-              <span><strong style={{ color: colors.text }}>Durée :</strong> {detail.duration_ms != null ? `${detail.duration_ms} ms` : '—'}</span>
+              <span><strong style={{ color: colors.text }}>{t('logsPage.meta.date')}</strong> {formatDate(detail.created_at)}</span>
+              <span><strong style={{ color: colors.text }}>{t('logsPage.meta.event')}</strong> {detail.event}</span>
+              {detail.order_ref && <span><strong style={{ color: colors.text }}>{t('logsPage.meta.order')}</strong> {detail.order_ref}</span>}
+              <span><strong style={{ color: colors.text }}>{t('logsPage.meta.http')}</strong> {detail.http_status ?? '—'}</span>
+              <span><strong style={{ color: colors.text }}>{t('logsPage.meta.attempt')}</strong> {detail.attempt ?? '—'}</span>
+              <span><strong style={{ color: colors.text }}>{t('logsPage.meta.duration')}</strong> {detail.duration_ms != null ? `${detail.duration_ms} ms` : '—'}</span>
             </div>
 
             <JsonBlock label="Request payload" value={detail.request_payload} />
