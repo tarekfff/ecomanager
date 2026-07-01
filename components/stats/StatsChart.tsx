@@ -1,3 +1,5 @@
+// StatsChart.tsx
+
 'use client'
 
 import {
@@ -5,7 +7,7 @@ import {
   Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
 import { colors, fonts } from '@/lib/tokens'
-import { STATUS_COLS, type StatsRow } from './StatsTable'
+import { STATUS_COLS_CONFIG, type StatsRow } from './StatsTable'
 
 interface StatsChartProps {
   rows:        StatsRow[]
@@ -15,6 +17,12 @@ interface StatsChartProps {
 export default function StatsChart({ rows, displayMode }: StatsChartProps) {
   const top10 = rows.slice(0, 10)
   if (top10.length === 0) return null
+
+  // Use STATUS_COLS_CONFIG directly
+  const STATUS_COLS = STATUS_COLS_CONFIG.map(c => ({
+    ...c,
+    label: c.slug, // Will be shown as tooltip labels
+  }))
 
   const chartData = top10.map(row => {
     const entry: Record<string, string | number> = {

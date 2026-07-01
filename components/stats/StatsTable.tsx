@@ -1,3 +1,5 @@
+// StatsTable.tsx
+
 'use client'
 
 import { useTranslation } from 'react-i18next'
@@ -17,7 +19,7 @@ interface StatsTableProps {
   dimensionLabel: string
 }
 
-const STATUS_COLS_CONFIG = [
+export const STATUS_COLS_CONFIG = [
   { slug: 'en_confirmation', color: '#4472C4', bg: '#EEF3FB' },
   { slug: 'en_preparation',  color: '#9966CC', bg: '#F3EEF8' },
   { slug: 'en_dispatch',     color: '#B89200', bg: '#FEFAE8' },
@@ -31,6 +33,12 @@ const STATUS_COLS_CONFIG = [
 
 export type StatusSlug = (typeof STATUS_COLS_CONFIG)[number]['slug']
 
+// Create a separate export for the mapped version that can be used by StatsChart
+export const STATUS_COLS = STATUS_COLS_CONFIG.map(c => ({
+  ...c,
+  label: c.slug, // Default label, will be replaced by translation if needed
+}))
+
 function fmtCell(val: number, rowTotal: number, displayMode: 'number' | 'percent'): string {
   if (val === 0) return ''
   if (displayMode === 'percent') {
@@ -43,7 +51,8 @@ function fmtCell(val: number, rowTotal: number, displayMode: 'number' | 'percent
 export default function StatsTable({ rows, loading, displayMode, dimensionLabel }: StatsTableProps) {
   const { t } = useTranslation('stats')
 
-  const STATUS_COLS = STATUS_COLS_CONFIG.map(c => ({
+  // Use the mapped version with translations
+  const STATUS_COLS_TRANSLATED = STATUS_COLS_CONFIG.map(c => ({
     ...c,
     label: t(`statusCols.${c.slug}`),
   }))
@@ -72,7 +81,7 @@ export default function StatsTable({ rows, loading, displayMode, dimensionLabel 
         <thead>
           <tr style={{ background: '#f5f5f5' }}>
             <th style={{ ...thBase, textAlign: 'left', minWidth: 160 }}>{dimensionLabel}</th>
-            {STATUS_COLS.map(s => (
+            {STATUS_COLS_TRANSLATED.map(s => (
               <th key={s.slug} style={{ ...thBase, color: s.color, minWidth: 96 }}>
                 {s.label}
               </th>
@@ -92,7 +101,7 @@ export default function StatsTable({ rows, loading, displayMode, dimensionLabel 
                 <td style={{ ...tdBase(isLast), fontWeight: 500, color: colors.text }}>
                   {row.dimLabel || '—'}
                 </td>
-                {STATUS_COLS.map(s => {
+                {STATUS_COLS_TRANSLATED.map(s => {
                   const val = row.counts[s.slug] ?? 0
                   const txt = fmtCell(val, row.total, displayMode)
                   return (
