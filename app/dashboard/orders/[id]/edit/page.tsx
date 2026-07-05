@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import { useTranslation } from 'react-i18next'
 import { Search, X, Plus, Minus, ArrowLeft, Save, AlertCircle, Package } from 'lucide-react'
 import { PageHeader, Button, Input, Select } from '@/components/ui'
 import { colors, fonts } from '@/lib/tokens'
@@ -84,14 +85,6 @@ const sectionLabel: React.CSSProperties = {
   marginBottom:  2,
 }
 
-const REFERRER_OPTIONS = [
-  { value: '',           label: '— Aucune source —' },
-  { value: 'Facebook',  label: 'Facebook'  },
-  { value: 'Instagram', label: 'Instagram' },
-  { value: 'TikTok',   label: 'TikTok'    },
-  { value: 'Autre',    label: 'Autre'      },
-]
-
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
 function QtyStepper({ value, onChange }: { value: number; onChange: (v: number) => void }) {
@@ -127,6 +120,7 @@ function QtyStepper({ value, onChange }: { value: number; onChange: (v: number) 
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 export default function EditOrderPage() {
+  const { t }           = useTranslation('orders')
   const router          = useRouter()
   const { id: orderId } = useParams<{ id: string }>()
 
@@ -152,15 +146,15 @@ export default function EditOrderPage() {
   const [communesLoading, setCommunesLoading] = useState(false)
 
   // ── Product search ─────────────────────────────────────────────────────────
-  const [productSearch,  setProductSearch]  = useState('')
-  const [searchResults,  setSearchResults]  = useState<ProductSearchResult[]>([])
-  const [searchLoading,  setSearchLoading]  = useState(false)
-  const [showDropdown,   setShowDropdown]   = useState(false)
+  const [productSearch,   setProductSearch]   = useState('')
+  const [searchResults,   setSearchResults]   = useState<ProductSearchResult[]>([])
+  const [searchLoading,   setSearchLoading]   = useState(false)
+  const [showDropdown,    setShowDropdown]     = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<ProductDetail | null>(null)
   const [selectedVariant, setSelectedVariant] = useState('')
   const [addQty,          setAddQty]          = useState(1)
   const [addPrice,        setAddPrice]        = useState('')
-  const [boutiquId,       setBoutiqueId]      = useState('')
+  const [boutiqueId,      setBoutiqueId]      = useState('')
 
   // ── Cart ───────────────────────────────────────────────────────────────────
   const [cart, setCart] = useState<CartItem[]>([])
@@ -171,14 +165,24 @@ export default function EditOrderPage() {
   const [discount,       setDiscount]       = useState('0')
 
   // ── Submit ─────────────────────────────────────────────────────────────────
-  const [submitting,   setSubmitting]   = useState(false)
-  const [submitError,  setSubmitError]  = useState('')
+  const [submitting,  setSubmitting]  = useState(false)
+  const [submitError, setSubmitError] = useState('')
 
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const dropdownRef    = useRef<HTMLDivElement>(null)
 
   const subtotal = cart.reduce((s, it) => s + it.unit_price * it.quantity, 0)
   const total    = subtotal + (Number(deliveryFee) || 0) - (Number(discount) || 0)
+
+  // ── Referrer options (translated) ─────────────────────────────────────────
+  const referrerOptions = [
+    { value: '',          label: t('editOrder.referrerOptions.none')      },
+    { value: 'Facebook',  label: t('editOrder.referrerOptions.facebook')  },
+    { value: 'Instagram', label: t('editOrder.referrerOptions.instagram') },
+    { value: 'TikTok',    label: t('editOrder.referrerOptions.tiktok')    },
+    { value: 'Boutic OR', label: t('editOrder.referrerOptions.boutic')    },
+    { value: 'Autre',     label: t('editOrder.referrerOptions.other')     },
+  ]
 
   // ── Load order on mount ────────────────────────────────────────────────────
 
@@ -193,7 +197,6 @@ export default function EditOrderPage() {
         setReference(o.reference ?? '')
         setBoutiqueId(o.boutique_id ?? '')
 
-        // Client fields — prefer order-level phone, fall back to client record
         setClientPhone(o.phone ?? o.client?.phone ?? '')
         setClientPhone2(o.phone2 ?? o.client?.phone2 ?? '')
         setClientName(o.client?.full_name ?? '')
@@ -204,12 +207,10 @@ export default function EditOrderPage() {
         setClientReferrer(o.referrer ?? '')
         setClientRemark(o.remark ?? '')
 
-        // Delivery
         setDeliveryMethod(o.delivery_method ?? 'domicile')
         setDeliveryFee(String(o.delivery_fee ?? 0))
         setDiscount(String(o.discount ?? 0))
 
-        // Items → cart
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const cartItems = (o.items ?? []).map((it: any) => ({
           key:          newKey(),
@@ -223,8 +224,9 @@ export default function EditOrderPage() {
         }))
         setCart(cartItems)
       })
-      .catch(() => setLoadError('Erreur de chargement'))
+      .catch(() => setLoadError(t('editOrder.loadError')))
       .finally(() => setLoading(false))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId])
 
   // ── Load wilayas once ──────────────────────────────────────────────────────
@@ -251,14 +253,14 @@ export default function EditOrderPage() {
   // ── Product search debounce ────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!productSearch.trim() || !boutiquId) {
+    if (!productSearch.trim() || !boutiqueId) {
       setSearchResults([]); setShowDropdown(false); return
     }
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
     searchTimerRef.current = setTimeout(async () => {
       setSearchLoading(true)
       try {
-        const qs  = new URLSearchParams({ search: productSearch, boutique_id: boutiquId, limit: '10' })
+        const qs  = new URLSearchParams({ search: productSearch, boutique_id: boutiqueId, limit: '10' })
         const res = await fetch(`/api/products?${qs}`, { headers: authHeader() })
         const d   = await res.json() as { items?: ProductSearchResult[] }
         setSearchResults(d.items ?? [])
@@ -266,7 +268,7 @@ export default function EditOrderPage() {
       } catch { setSearchResults([]) }
       finally  { setSearchLoading(false) }
     }, 250)
-  }, [productSearch, boutiquId])
+  }, [productSearch, boutiqueId])
 
   // ── Close dropdown on outside click ───────────────────────────────────────
 
@@ -297,8 +299,8 @@ export default function EditOrderPage() {
 
   function addToCart(product: ProductDetail, variantId: string | null, qty: number, price: number) {
     if (clientWilaya) {
-      const fees    = product.product_delivery_fees ?? []
-      const wNum    = parseInt(clientWilaya)
+      const fees     = product.product_delivery_fees ?? []
+      const wNum     = parseInt(clientWilaya)
       const specific = fees.find(f => f.wilaya_id === wNum)
       const fallback = fees.find(f => f.wilaya_id === null)
       const fee      = specific ?? fallback
@@ -327,17 +329,17 @@ export default function EditOrderPage() {
     setSelectedProduct(null)
   }
 
-  const updateCartQty   = useCallback((key: string, qty: number)     => setCart(p => p.map(it => it.key === key ? { ...it, quantity: qty }                   : it)), [])
-  const updateCartPrice = useCallback((key: string, price: string)   => setCart(p => p.map(it => it.key === key ? { ...it, unit_price: Number(price) || it.unit_price } : it)), [])
-  const removeFromCart  = useCallback((key: string)                   => setCart(p => p.filter(it => it.key !== key)), [])
+  const updateCartQty   = useCallback((key: string, qty: number)   => setCart(p => p.map(it => it.key === key ? { ...it, quantity: qty }                           : it)), [])
+  const updateCartPrice = useCallback((key: string, price: string) => setCart(p => p.map(it => it.key === key ? { ...it, unit_price: Number(price) || it.unit_price } : it)), [])
+  const removeFromCart  = useCallback((key: string)                 => setCart(p => p.filter(it => it.key !== key)), [])
 
   // ── Submit ─────────────────────────────────────────────────────────────────
 
   async function handleSubmit() {
     setSubmitError('')
-    if (!clientPhone.trim()) { setSubmitError('Le téléphone client est requis.'); return }
-    if (!clientName.trim())  { setSubmitError('Le nom client est requis.'); return }
-    if (cart.length === 0)   { setSubmitError('Ajoutez au moins un article.'); return }
+    if (!clientPhone.trim()) { setSubmitError(t('editOrder.errors.noPhone'));    return }
+    if (!clientName.trim())  { setSubmitError(t('editOrder.errors.noName'));     return }
+    if (cart.length === 0)   { setSubmitError(t('editOrder.errors.emptyCart'));  return }
 
     setSubmitting(true)
     try {
@@ -347,13 +349,13 @@ export default function EditOrderPage() {
         body: JSON.stringify({
           full_name:       clientName.trim(),
           phone:           clientPhone.trim(),
-          phone2:          clientPhone2.trim()   || null,
-          email:           clientEmail.trim()    || null,
+          phone2:          clientPhone2.trim()  || null,
+          email:           clientEmail.trim()   || null,
           wilaya_id:       clientWilaya  ? parseInt(clientWilaya)  : null,
           commune_id:      clientCommune ? parseInt(clientCommune) : null,
-          address:         clientAddress.trim()  || null,
+          address:         clientAddress.trim() || null,
           referrer:        clientReferrer || null,
-          remark:          clientRemark.trim()   || null,
+          remark:          clientRemark.trim()  || null,
           delivery_method: deliveryMethod,
           delivery_fee:    Number(deliveryFee) || 0,
           discount:        Number(discount)    || 0,
@@ -369,10 +371,10 @@ export default function EditOrderPage() {
         }),
       })
       const data = await res.json()
-      if (!res.ok) { setSubmitError(data.error ?? 'Erreur de mise à jour'); return }
+      if (!res.ok) { setSubmitError(data.error ?? t('editOrder.errors.updateFailed')); return }
       router.back()
     } catch {
-      setSubmitError('Erreur réseau. Veuillez réessayer.')
+      setSubmitError(t('editOrder.errors.network'))
     } finally {
       setSubmitting(false)
     }
@@ -382,7 +384,7 @@ export default function EditOrderPage() {
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: colors.textLt, fontFamily: fonts.sans }}>
-      Chargement…
+      {t('editOrder.loading')}
     </div>
   )
 
@@ -398,16 +400,16 @@ export default function EditOrderPage() {
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: fonts.sans }}>
 
       <PageHeader
-        title={`Modifier la commande ${reference}`}
-        subtitle="Modifiez les informations client, les articles et les frais de livraison."
+        title={t('editOrder.title', { ref: reference })}
+        subtitle={t('editOrder.subtitle')}
         actions={
           <div style={{ display: 'flex', gap: 8 }}>
             <Button variant="secondary" size="sm" onClick={() => router.back()}>
-              <ArrowLeft size={14} style={{ marginRight: 4 }} /> Annuler
+              <ArrowLeft size={14} style={{ marginRight: 4 }} /> {t('editOrder.cancel')}
             </Button>
             <Button size="sm" onClick={handleSubmit} disabled={submitting}>
               <Save size={14} style={{ marginRight: 4 }} />
-              {submitting ? 'Enregistrement…' : 'Enregistrer'}
+              {submitting ? t('editOrder.saving') : t('editOrder.save')}
             </Button>
           </div>
         }
@@ -430,79 +432,97 @@ export default function EditOrderPage() {
           {/* ── Column 1 — Client info ─────────────────────────────────────── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={card}>
-              <div style={sectionLabel}>Informations client</div>
+              <div style={sectionLabel}>{t('editOrder.section.client')}</div>
 
               <div>
-                <label style={{ fontSize: 12, color: colors.textMd, marginBottom: 4, display: 'block' }}>Téléphone *</label>
-                <Input value={clientPhone} onChange={v => setClientPhone(v)} placeholder="05XX XX XX XX" />
+                <label style={{ fontSize: 12, color: colors.textMd, marginBottom: 4, display: 'block' }}>
+                  {t('editOrder.client.phone')}
+                </label>
+                <Input value={clientPhone} onChange={v => setClientPhone(v)} placeholder={t('editOrder.client.phonePh')} />
               </div>
 
               <div>
-                <label style={{ fontSize: 12, color: colors.textMd, marginBottom: 4, display: 'block' }}>Nom complet *</label>
-                <Input value={clientName} onChange={v => setClientName(v)} placeholder="Prénom Nom" />
+                <label style={{ fontSize: 12, color: colors.textMd, marginBottom: 4, display: 'block' }}>
+                  {t('editOrder.client.name')}
+                </label>
+                <Input value={clientName} onChange={v => setClientName(v)} placeholder={t('editOrder.client.namePh')} />
               </div>
 
               <div>
-                <label style={{ fontSize: 12, color: colors.textMd, marginBottom: 4, display: 'block' }}>Téléphone 2</label>
-                <Input value={clientPhone2} onChange={v => setClientPhone2(v)} placeholder="Optionnel" />
+                <label style={{ fontSize: 12, color: colors.textMd, marginBottom: 4, display: 'block' }}>
+                  {t('editOrder.client.phone2')}
+                </label>
+                <Input value={clientPhone2} onChange={v => setClientPhone2(v)} placeholder="" />
               </div>
 
               <div>
-                <label style={{ fontSize: 12, color: colors.textMd, marginBottom: 4, display: 'block' }}>Email</label>
-                <Input value={clientEmail} onChange={v => setClientEmail(v)} placeholder="email@exemple.com" />
+                <label style={{ fontSize: 12, color: colors.textMd, marginBottom: 4, display: 'block' }}>
+                  {t('editOrder.client.email')}
+                </label>
+                <Input value={clientEmail} onChange={v => setClientEmail(v)} placeholder={t('editOrder.client.emailPh')} />
               </div>
             </div>
 
             <div style={card}>
-              <div style={sectionLabel}>Adresse de livraison</div>
+              <div style={sectionLabel}>{t('editOrder.section.address')}</div>
 
               <div>
-                <label style={{ fontSize: 12, color: colors.textMd, marginBottom: 4, display: 'block' }}>Wilaya</label>
+                <label style={{ fontSize: 12, color: colors.textMd, marginBottom: 4, display: 'block' }}>
+                  {t('editOrder.address.wilaya')}
+                </label>
                 <Select
                   value={clientWilaya}
                   onChange={v => { setClientWilaya(v); setClientCommune('') }}
                   options={[
-                    { value: '', label: '— Sélectionner —' },
+                    { value: '', label: t('editOrder.address.wilayaSelect') },
                     ...wilayas.map(w => ({ value: String(w.id), label: `${w.id} - ${w.name}` })),
                   ]}
                 />
               </div>
 
               <div>
-                <label style={{ fontSize: 12, color: colors.textMd, marginBottom: 4, display: 'block' }}>Commune</label>
+                <label style={{ fontSize: 12, color: colors.textMd, marginBottom: 4, display: 'block' }}>
+                  {t('editOrder.address.commune')}
+                </label>
                 <Select
                   value={clientCommune}
                   onChange={v => setClientCommune(v)}
                   disabled={!clientWilaya || communesLoading}
                   options={[
-                    { value: '', label: communesLoading ? 'Chargement…' : '— Sélectionner —' },
+                    { value: '', label: communesLoading ? t('editOrder.address.communeLoading') : t('editOrder.address.communeSelect') },
                     ...communes.map(c => ({ value: String(c.id), label: c.name })),
                   ]}
                 />
               </div>
 
               <div>
-                <label style={{ fontSize: 12, color: colors.textMd, marginBottom: 4, display: 'block' }}>Adresse</label>
-                <Input value={clientAddress} onChange={v => setClientAddress(v)} placeholder="Rue, quartier…" />
+                <label style={{ fontSize: 12, color: colors.textMd, marginBottom: 4, display: 'block' }}>
+                  {t('editOrder.address.address')}
+                </label>
+                <Input value={clientAddress} onChange={v => setClientAddress(v)} placeholder={t('editOrder.address.addressPh')} />
               </div>
             </div>
 
             <div style={card}>
-              <div style={sectionLabel}>Remarques</div>
+              <div style={sectionLabel}>{t('editOrder.section.remarks')}</div>
               <div>
-                <label style={{ fontSize: 12, color: colors.textMd, marginBottom: 4, display: 'block' }}>Source</label>
+                <label style={{ fontSize: 12, color: colors.textMd, marginBottom: 4, display: 'block' }}>
+                  {t('editOrder.remarks.source')}
+                </label>
                 <Select
                   value={clientReferrer}
                   onChange={v => setClientReferrer(v)}
-                  options={REFERRER_OPTIONS}
+                  options={referrerOptions}
                 />
               </div>
               <div>
-                <label style={{ fontSize: 12, color: colors.textMd, marginBottom: 4, display: 'block' }}>Remarque</label>
+                <label style={{ fontSize: 12, color: colors.textMd, marginBottom: 4, display: 'block' }}>
+                  {t('editOrder.remarks.remark')}
+                </label>
                 <textarea
                   value={clientRemark}
                   onChange={e => setClientRemark(e.target.value)}
-                  placeholder="Note interne…"
+                  placeholder={t('editOrder.remarks.remarkPh')}
                   rows={3}
                   style={{
                     width: '100%', boxSizing: 'border-box',
@@ -518,7 +538,7 @@ export default function EditOrderPage() {
           {/* ── Column 2 — Articles ────────────────────────────────────────── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={card}>
-              <div style={sectionLabel}>Articles</div>
+              <div style={sectionLabel}>{t('editOrder.section.items')}</div>
 
               {/* Product search */}
               <div ref={dropdownRef} style={{ position: 'relative' }}>
@@ -527,7 +547,7 @@ export default function EditOrderPage() {
                   <input
                     value={productSearch}
                     onChange={e => setProductSearch(e.target.value)}
-                    placeholder="Rechercher un produit…"
+                    placeholder={t('editOrder.product.searchPh')}
                     style={{
                       width: '100%', boxSizing: 'border-box',
                       padding: '7px 10px 7px 30px', fontSize: 13, fontFamily: fonts.sans,
@@ -564,7 +584,7 @@ export default function EditOrderPage() {
                           <div style={{ fontSize: 11, color: colors.textLt }}>{p.sku} · {fmt(p.price)}</div>
                         </div>
                         <span style={{ fontSize: 11, color: p.stock_total > 0 ? '#38A169' : '#E53E3E', flexShrink: 0 }}>
-                          Stock: {p.stock_total}
+                          {t('editOrder.product.stock')}: {p.stock_total}
                         </span>
                       </button>
                     ))}
@@ -584,7 +604,7 @@ export default function EditOrderPage() {
                       if (v?.price) setAddPrice(String(v.price))
                     }}
                     options={[
-                      { value: '', label: '— Choisir une variante —' },
+                      { value: '', label: t('editOrder.product.variantPh') },
                       ...selectedProduct.product_variants.filter(v => v.is_active).map(v => ({
                         value: v.id, label: `${v.sku}${v.price ? ' · ' + fmt(v.price) : ''}`,
                       })),
@@ -592,20 +612,24 @@ export default function EditOrderPage() {
                   />
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <div style={{ flex: 1 }}>
-                      <label style={{ fontSize: 11, color: colors.textLt, display: 'block', marginBottom: 3 }}>Qté</label>
+                      <label style={{ fontSize: 11, color: colors.textLt, display: 'block', marginBottom: 3 }}>
+                        {t('editOrder.product.qty')}
+                      </label>
                       <QtyStepper value={addQty} onChange={setAddQty} />
                     </div>
                     <div style={{ flex: 2 }}>
-                      <label style={{ fontSize: 11, color: colors.textLt, display: 'block', marginBottom: 3 }}>Prix unitaire (DA)</label>
+                      <label style={{ fontSize: 11, color: colors.textLt, display: 'block', marginBottom: 3 }}>
+                        {t('editOrder.product.unitPrice')}
+                      </label>
                       <Input value={addPrice} onChange={v => setAddPrice(v)} type="number" />
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <Button size="sm" onClick={confirmVariantAdd} disabled={!selectedVariant}>
-                      <Plus size={13} style={{ marginRight: 4 }} /> Ajouter
+                      <Plus size={13} style={{ marginRight: 4 }} /> {t('editOrder.product.add')}
                     </Button>
                     <Button variant="secondary" size="sm" onClick={() => setSelectedProduct(null)}>
-                      Annuler
+                      {t('editOrder.product.cancel')}
                     </Button>
                   </div>
                 </div>
@@ -614,14 +638,20 @@ export default function EditOrderPage() {
               {/* Cart table */}
               {cart.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '24px 0', color: colors.textLt, fontSize: 13 }}>
-                  Aucun article — recherchez un produit ci-dessus
+                  {t('editOrder.product.emptyCart')}
                 </div>
               ) : (
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr style={{ borderBottom: `1px solid ${colors.border}` }}>
-                      {['Produit', 'Qté', 'Prix unit.', 'Total', ''].map(h => (
-                        <th key={h} style={{ padding: '6px 8px', textAlign: 'left', fontSize: 11, color: colors.textLt, fontWeight: 600 }}>{h}</th>
+                      {[
+                        t('editOrder.product.colProduct'),
+                        t('editOrder.product.colQty'),
+                        t('editOrder.product.colUnitPrice'),
+                        t('editOrder.product.colTotal'),
+                        '',
+                      ].map((h, i) => (
+                        <th key={i} style={{ padding: '6px 8px', textAlign: 'left', fontSize: 11, color: colors.textLt, fontWeight: 600 }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -669,7 +699,7 @@ export default function EditOrderPage() {
           {/* ── Column 3 — Livraison + Récap ──────────────────────────────── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={card}>
-              <div style={sectionLabel}>Livraison</div>
+              <div style={sectionLabel}>{t('editOrder.section.delivery')}</div>
 
               <div style={{ display: 'flex', gap: 8 }}>
                 {(['domicile', 'stopdesk'] as const).map(m => (
@@ -685,29 +715,33 @@ export default function EditOrderPage() {
                       transition: 'all .12s',
                     }}
                   >
-                    {m === 'domicile' ? 'À domicile' : 'Stop desk'}
+                    {m === 'domicile' ? t('editOrder.delivery.domicile') : t('editOrder.delivery.stopdesk')}
                   </button>
                 ))}
               </div>
 
               <div>
-                <label style={{ fontSize: 12, color: colors.textMd, marginBottom: 4, display: 'block' }}>Frais de livraison (DA)</label>
+                <label style={{ fontSize: 12, color: colors.textMd, marginBottom: 4, display: 'block' }}>
+                  {t('editOrder.delivery.fee')}
+                </label>
                 <Input value={deliveryFee} onChange={v => setDeliveryFee(v)} type="number" />
               </div>
 
               <div>
-                <label style={{ fontSize: 12, color: colors.textMd, marginBottom: 4, display: 'block' }}>Remise (DA)</label>
+                <label style={{ fontSize: 12, color: colors.textMd, marginBottom: 4, display: 'block' }}>
+                  {t('editOrder.delivery.discount')}
+                </label>
                 <Input value={discount} onChange={v => setDiscount(v)} type="number" />
               </div>
             </div>
 
             <div style={card}>
-              <div style={sectionLabel}>Récapitulatif</div>
+              <div style={sectionLabel}>{t('editOrder.section.recap')}</div>
 
               {[
-                { label: 'Sous-total',       value: fmt(subtotal) },
-                { label: 'Frais livraison',  value: `+ ${fmt(Number(deliveryFee) || 0)}` },
-                { label: 'Remise',           value: `- ${fmt(Number(discount)    || 0)}` },
+                { label: t('editOrder.recap.subtotal'),    value: fmt(subtotal) },
+                { label: t('editOrder.recap.deliveryFee'), value: `+ ${fmt(Number(deliveryFee) || 0)}` },
+                { label: t('editOrder.recap.discount'),    value: `- ${fmt(Number(discount)    || 0)}` },
               ].map(({ label, value }) => (
                 <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: colors.textMd }}>
                   <span>{label}</span><span>{value}</span>
@@ -715,7 +749,7 @@ export default function EditOrderPage() {
               ))}
 
               <div style={{ borderTop: `1px solid ${colors.border}`, paddingTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>Total</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>{t('editOrder.recap.total')}</span>
                 <span style={{ fontSize: 17, fontWeight: 700, color: colors.primary }}>{fmt(total)}</span>
               </div>
             </div>
@@ -723,7 +757,7 @@ export default function EditOrderPage() {
             <div style={{ display: 'flex' }}>
               <Button onClick={handleSubmit} disabled={submitting}>
                 <Save size={14} />
-                {submitting ? 'Enregistrement…' : 'Enregistrer les modifications'}
+                {submitting ? t('editOrder.saving') : t('editOrder.saveBtn')}
               </Button>
             </div>
           </div>

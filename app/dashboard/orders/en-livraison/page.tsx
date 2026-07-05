@@ -267,7 +267,7 @@ export default function EnLivraisonPage() {
         }
         actions={
           <Button variant="primary" size="sm" onClick={() => router.push('/dashboard/orders/new')}>
-            {t('newOrder')}
+            {t('newOrderBtn')}
           </Button>
         }
       />

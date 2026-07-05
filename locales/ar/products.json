@@ -1,6 +1,100 @@
 {
   "title": "المنتجات",
-  "import": "استيراد",
+  "importBtn": "استيراد",
+  "import": {
+    "title": "استيراد المنتجات",
+    "subtitle": "استيراد المنتجات من ملف XLS أو XLSX أو CSV",
+    "backToList": "قائمة المنتجات",
+    "steps": {
+      "file": "الملف",
+      "mapping": "المطابقة",
+      "importing": "الاستيراد",
+      "result": "النتيجة"
+    },
+    "fields": {
+      "name": "اسم المنتج",
+      "sku": "SKU",
+      "price": "السعر (دج)",
+      "brand": "العلامة",
+      "comparePrice": "السعر المشطوب (دج)",
+      "barcode": "الباركود",
+      "isActive": "نشط (نعم / لا)",
+      "weightG": "الوزن (غ)",
+      "confirmerNotes": "ملاحظات المؤكد"
+    },
+    "boutique": {
+      "label": "المتجر الهدف",
+      "hint": "سيتم تعيين المنتجات المستوردة لهذا المتجر وستظهر في قائمة منتجاته.",
+      "noAssign": "— بدون تعيين —"
+    },
+    "upload": {
+      "hint": "استورد منتجاتك من ملف Excel أو CSV. سيتم ربط الأعمدة يدوياً.",
+      "dropTitle": "اسحب وأفلت ملفك هنا",
+      "dropHint": "أو انقر لتصفح ملفاتك",
+      "browse": "تصفح",
+      "downloadTemplate": "تحميل النموذج",
+      "templateTitle": "لست متأكداً من التنسيق المطلوب؟",
+      "templateHint": "حمّل نموذج Excel — يحتوي على الأعمدة الصحيحة و3 صفوف مثال. <strong>اسم المنتج</strong> و<strong>SKU</strong> و<strong>السعر</strong> حقول إلزامية. العلامات غير الموجودة ستُنشأ تلقائياً.",
+      "templateBtn": "النموذج .xlsx",
+      "fileSelected": "الملف المحدد"
+    },
+    "mapping": {
+      "previewLabel": "معاينة",
+      "totalRows_zero": "{{count}} صف إجمالاً",
+      "totalRows_one": "صف واحد إجمالاً",
+      "totalRows_two": "صفان إجمالاً",
+      "totalRows_few": "{{count}} صفوف إجمالاً",
+      "totalRows_many": "{{count}} صفاً إجمالاً",
+      "totalRows_other": "{{count}} صف إجمالاً",
+      "title": "مطابقة الأعمدة",
+      "hint": "اربط كل حقل بالعمود المقابل في ملفك. الحقول المميزة بـ * إلزامية.",
+      "ignore": "— تجاهل هذا الحقل —",
+      "back": "رجوع",
+      "importBtn_zero": "استيراد {{count}} منتج",
+      "importBtn_one": "استيراد منتج واحد",
+      "importBtn_two": "استيراد منتجين",
+      "importBtn_few": "استيراد {{count}} منتجات",
+      "importBtn_many": "استيراد {{count}} منتجاً",
+      "importBtn_other": "استيراد {{count}} منتج",
+      "requiredField": "يرجى ربط الحقل الإلزامي: \"{{field}}\""
+    },
+    "importing": {
+      "title": "الاستيراد جارٍ…",
+      "hint_zero": "إدراج {{count}} منتج. يرجى الانتظار.",
+      "hint_one": "إدراج منتج واحد. يرجى الانتظار.",
+      "hint_two": "إدراج منتجين. يرجى الانتظار.",
+      "hint_few": "إدراج {{count}} منتجات. يرجى الانتظار.",
+      "hint_many": "إدراج {{count}} منتجاً. يرجى الانتظار.",
+      "hint_other": "إدراج {{count}} منتج. يرجى الانتظار."
+    },
+    "result": {
+      "importedLabel_zero": "منتج مستورد",
+      "importedLabel_one": "منتج مستورد",
+      "importedLabel_two": "منتجان مستوردان",
+      "importedLabel_few": "منتجات مستوردة",
+      "importedLabel_many": "منتجاً مستورداً",
+      "importedLabel_other": "منتج مستورد",
+      "errorsLabel_zero": "خطأ",
+      "errorsLabel_one": "خطأ",
+      "errorsLabel_two": "خطآن",
+      "errorsLabel_few": "أخطاء",
+      "errorsLabel_many": "خطأ",
+      "errorsLabel_other": "خطأ",
+      "withBoutique": "تم تعيين المنتجات للمتجر المحدد وهي مرئية في قائمة المنتجات.",
+      "noBoutique": "لم يُحدد متجر — المنتجات غير معيّنة لأي متجر بعد. عدّل كل منتج لتعيينه.",
+      "errorsToggle": "تفاصيل الأخطاء ({{count}})",
+      "networkRow": "شبكة",
+      "lineLabel": "سطر {{row}}",
+      "backToList": "العودة إلى القائمة",
+      "newImport": "استيراد جديد"
+    },
+    "errors": {
+      "emptyFile": "الملف فارغ أو لا يحتوي على بيانات",
+      "noColumns": "لم يتم اكتشاف أي أعمدة في الملف",
+      "readFailed": "تعذّر قراءة الملف.",
+      "network": "خطأ في الشبكة"
+    }
+  },
   "addProduct": "+ إضافة منتج",
   "searchPlaceholder": "البحث بالاسم أو SKU…",
   "boutiquePlaceholder": "المتجر",
@@ -51,5 +145,22 @@
     "delete": "حذف",
     "noValues": "لا توجد قيم بعد.",
     "deleteConfirm": "حذف «{{name}}» وجميع قيمها؟"
+  },
+  "newProduct": {
+    "title": "منتج جديد",
+    "subtitle": "أدخل المعلومات أدناه لإنشاء منتج.",
+    "backToList": "← العودة إلى القائمة",
+    "submitLabel": "إنشاء المنتج",
+    "createError": "خطأ أثناء الإنشاء."
+  },
+  "editProduct": {
+    "fallbackTitle": "تعديل المنتج",
+    "subtitle": "تعديل معلومات المنتج.",
+    "backToList": "← العودة إلى القائمة",
+    "submitLabel": "حفظ التعديلات",
+    "updateError": "خطأ أثناء التحديث.",
+    "loading": "جارٍ التحميل…",
+    "notFound": "المنتج غير موجود.",
+    "backBtn": "العودة إلى القائمة"
   }
 }

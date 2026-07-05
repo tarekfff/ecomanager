@@ -1,6 +1,80 @@
 {
   "title": "Produits",
-  "import": "Importer",
+  "importBtn": "Importer",
+  "import": {
+    "title": "Import de produits",
+    "subtitle": "Importer des produits depuis un fichier XLS, XLSX ou CSV",
+    "backToList": "Liste des produits",
+    "steps": {
+      "file": "Fichier",
+      "mapping": "Correspondance",
+      "importing": "Import",
+      "result": "Résultat"
+    },
+    "fields": {
+      "name": "Nom du produit",
+      "sku": "SKU",
+      "price": "Prix (DA)",
+      "brand": "Marque",
+      "comparePrice": "Prix barré (DA)",
+      "barcode": "Code-barres",
+      "isActive": "Actif (Oui / Non)",
+      "weightG": "Poids (g)",
+      "confirmerNotes": "Notes confirmateur"
+    },
+    "boutique": {
+      "label": "Boutique cible",
+      "hint": "Les produits importés seront assignés à cette boutique et apparaîtront dans sa liste de produits.",
+      "noAssign": "— Aucune (ne pas assigner) —"
+    },
+    "upload": {
+      "hint": "Importez vos produits depuis un fichier Excel ou CSV. Les colonnes seront associées manuellement.",
+      "dropTitle": "Glissez-déposez votre fichier ici",
+      "dropHint": "ou cliquez pour parcourir vos fichiers",
+      "browse": "Parcourir",
+      "downloadTemplate": "Télécharger le modèle",
+      "templateTitle": "Vous ne savez pas quel format utiliser ?",
+      "templateHint": "Téléchargez le modèle Excel — il contient les bonnes colonnes et 3 lignes d'exemple. Les colonnes <strong>Nom du produit</strong>, <strong>SKU</strong> et <strong>Prix</strong> sont obligatoires. Les marques inexistantes seront créées automatiquement.",
+      "templateBtn": "Modèle .xlsx",
+      "fileSelected": "Fichier sélectionné"
+    },
+    "mapping": {
+      "previewLabel": "Aperçu",
+      "totalRows_one": "{{count}} ligne au total",
+      "totalRows_other": "{{count}} lignes au total",
+      "title": "Correspondance des colonnes",
+      "hint": "Associez chaque champ à la colonne correspondante de votre fichier. Les champs marqués * sont obligatoires.",
+      "ignore": "— Ignorer ce champ —",
+      "back": "Retour",
+      "importBtn_one": "Importer {{count}} produit",
+      "importBtn_other": "Importer {{count}} produits",
+      "requiredField": "Veuillez mapper le champ requis : \"{{field}}\""
+    },
+    "importing": {
+      "title": "Import en cours…",
+      "hint_one": "Insertion de {{count}} produit. Veuillez patienter.",
+      "hint_other": "Insertion de {{count}} produits. Veuillez patienter."
+    },
+    "result": {
+      "importedLabel_one": "produit importé",
+      "importedLabel_other": "produits importés",
+      "errorsLabel_one": "erreur",
+      "errorsLabel_other": "erreurs",
+      "withBoutique": "Les produits ont été assignés à la boutique sélectionnée et sont visibles dans la liste des produits.",
+      "noBoutique": "Aucune boutique sélectionnée — les produits ne sont pas encore assignés à une boutique. Éditez chaque produit pour les assigner.",
+      "errorsToggle": "Détail des erreurs ({{count}})",
+      "networkRow": "Réseau",
+      "lineLabel": "Ligne {{row}}",
+      "backToList": "Retour à la liste",
+      "newImport": "Nouvel import"
+    },
+    "errors": {
+      "emptyFile": "Fichier vide ou sans données",
+      "noColumns": "Aucune colonne détectée dans le fichier",
+      "readFailed": "Impossible de lire le fichier.",
+      "network": "Erreur réseau"
+    }
+  },
   "addProduct": "+ Ajouter un produit",
   "searchPlaceholder": "Rechercher par nom ou SKU…",
   "boutiquePlaceholder": "Boutique",
@@ -47,5 +121,22 @@
     "delete": "Supprimer",
     "noValues": "Aucune valeur pour l'instant.",
     "deleteConfirm": "Supprimer \"{{name}}\" et toutes ses valeurs ?"
+  },
+  "newProduct": {
+    "title": "Nouveau produit",
+    "subtitle": "Remplissez les informations ci-dessous pour créer un produit.",
+    "backToList": "← Retour à la liste",
+    "submitLabel": "Créer le produit",
+    "createError": "Erreur lors de la création."
+  },
+  "editProduct": {
+    "fallbackTitle": "Modifier le produit",
+    "subtitle": "Modifier les informations du produit.",
+    "backToList": "← Retour à la liste",
+    "submitLabel": "Enregistrer les modifications",
+    "updateError": "Erreur lors de la mise à jour.",
+    "loading": "Chargement…",
+    "notFound": "Produit introuvable.",
+    "backBtn": "Retour à la liste"
   }
 }

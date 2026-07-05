@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { useTranslation } from 'react-i18next'
 import { PageHeader, Button } from '@/components/ui'
 import ProductForm, { type ProductPayload } from '@/components/products/ProductForm'
 import { colors, fonts } from '@/lib/tokens'
@@ -10,13 +11,14 @@ function authHeader() {
 }
 
 export default function EditProductPage() {
-  const router          = useRouter()
-  const { id }          = useParams() as { id: string }
+  const { t }  = useTranslation('products')
+  const router = useRouter()
+  const { id } = useParams() as { id: string }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [productData,   setProductData]   = useState<any>(null)
-  const [loading,       setLoading]       = useState(true)
-  const [notFound,      setNotFound]      = useState(false)
+  const [productData, setProductData] = useState<any>(null)
+  const [loading,     setLoading]     = useState(true)
+  const [notFound,    setNotFound]    = useState(false)
 
   useEffect(() => {
     fetch(`/api/products/${id}`, { headers: authHeader() })
@@ -36,7 +38,7 @@ export default function EditProductPage() {
       body:    JSON.stringify(payload),
     })
     const data = await res.json() as { id?: string; error?: string; field?: string }
-    if (!res.ok) return { error: data.error ?? 'Erreur lors de la mise à jour.', field: data.field }
+    if (!res.ok) return { error: data.error ?? t('editProduct.updateError'), field: data.field }
     router.push('/dashboard/products')
     return {}
   }
@@ -47,7 +49,7 @@ export default function EditProductPage() {
         flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
         color: colors.textLt, fontFamily: fonts.sans, fontSize: 13,
       }}>
-        Chargement…
+        {t('editProduct.loading')}
       </div>
     )
   }
@@ -59,9 +61,9 @@ export default function EditProductPage() {
         alignItems: 'center', justifyContent: 'center', gap: 12,
         fontFamily: fonts.sans,
       }}>
-        <p style={{ fontSize: 14, color: colors.red }}>Produit introuvable.</p>
+        <p style={{ fontSize: 14, color: colors.red }}>{t('editProduct.notFound')}</p>
         <Button variant="secondary" size="sm" onClick={() => router.push('/dashboard/products')}>
-          Retour à la liste
+          {t('editProduct.backBtn')}
         </Button>
       </div>
     )
@@ -70,18 +72,18 @@ export default function EditProductPage() {
   return (
     <>
       <PageHeader
-        title={productData?.name ?? 'Modifier le produit'}
-        subtitle="Modifier les informations du produit."
+        title={productData?.name ?? t('editProduct.fallbackTitle')}
+        subtitle={t('editProduct.subtitle')}
         actions={
           <Button variant="secondary" size="sm" onClick={() => router.push('/dashboard/products')}>
-            ← Retour à la liste
+            {t('editProduct.backToList')}
           </Button>
         }
       />
       <ProductForm
         initialData={productData}
         onSubmit={handleSubmit}
-        submitLabel="Enregistrer les modifications"
+        submitLabel={t('editProduct.submitLabel')}
       />
     </>
   )

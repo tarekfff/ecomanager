@@ -10,7 +10,6 @@
     "allCarriers": "All carriers",
     "allBoutiques": "All companies"
   },
-  "newOrder": "+ New order",
   "noBoutique": "Select a store in the navigation bar.",
   "loading": "Loading…",
   "newBanner_one": "{{count}} new order received — Click to refresh",
@@ -255,5 +254,262 @@
     "networkError": "Network error",
     "liveTrigger": "Live trigger active",
     "dailySync": "Daily sync (fallback)"
+  },
+  "googleSheetImport": {
+    "title": "Google Sheet Import",
+    "subtitle": "Import orders from a Google Sheets spreadsheet",
+    "back": "Back",
+    "steps": {
+      "google": "Google Login",
+      "file": "File selection",
+      "mapping": "Column mapping",
+      "import": "Import"
+    },
+    "fields": {
+      "orderRef": "Order #",
+      "clientName": "Client",
+      "phone": "Phone",
+      "email": "Email",
+      "phone2": "Phone 2",
+      "wilaya": "Wilaya",
+      "commune": "Commune",
+      "address": "Address",
+      "remark": "Remark",
+      "deliveryMethod": "Delivery method",
+      "productSku": "Product (SKU)",
+      "quantity": "Quantity",
+      "unitPrice": "Unit price",
+      "ipAddress": "IP address",
+      "referrer": "Referrer"
+    },
+    "step1": {
+      "title": "Google Login",
+      "hint": "Grant read-only access to your Google Sheets to import orders.",
+      "connectBtn": "Connect my Google account"
+    },
+    "step2": {
+      "title": "File selection",
+      "connectedAs": "Connected as",
+      "disconnect": "Disconnect",
+      "chooseFile": "Choose a Google Sheets file",
+      "loadingFiles": "Loading your files…",
+      "retry": "Retry",
+      "searchFile": "Search a file…",
+      "tab": "Tab (sheet)",
+      "loadingTabs": "Loading tabs…",
+      "separator": "SKU separator",
+      "loadSheet": "Load sheet",
+      "loading": "Loading…"
+    },
+    "step3": {
+      "preview": "Preview (first 3 rows)",
+      "mapping": "Column mapping",
+      "mappingHint": "Map each order field to a column in your sheet.",
+      "fieldCol": "Field",
+      "sheetCol": "Sheet column",
+      "ignore": "— Ignore —",
+      "back": "Back",
+      "importBtn": "Start import →"
+    },
+    "step4": {
+      "importing": "Importing…",
+      "importingHint": "Reading the sheet and creating orders",
+      "resultTitle": "Import result",
+      "importedLabel": "Imported",
+      "skippedLabel": "Skipped",
+      "failedLabel": "Failed",
+      "totalLabel": "Total",
+      "successMsg_one": "{{count}} order created successfully.",
+      "successMsg_other": "{{count}} orders created successfully.",
+      "errorsToggle_one": "{{count}} error",
+      "errorsToggle_other": "{{count}} errors",
+      "lineLabel": "Row {{row}}",
+      "autoSyncTitle": "Enable automatic sync",
+      "autoSyncHint": "Save this connection to automatically import new rows every 15 min.",
+      "reconnectWarning": "⚠ Reconnect your Google account to enable this option.",
+      "connectionNamePh": "Connection name (e.g.: Main store)",
+      "saving": "Saving…",
+      "save": "Save",
+      "savedMsg": "Connection saved! Automatic sync enabled.",
+      "manageSources": "Manage sources →",
+      "newImport": "New import",
+      "viewOrders": "View orders →"
+    },
+    "errors": {
+      "accessDenied": "Access denied by Google.",
+      "authError": "Authentication error ({{code}}).",
+      "noFile": "Select a Google Sheets file.",
+      "notConnected": "Connect to Google first.",
+      "listFilesFailed": "Unable to list files.",
+      "network": "Network error.",
+      "sessionExpired": "Google session expired. Please reconnect.",
+      "loadFailed": "Unable to load the sheet.",
+      "requiredField": "Please map the required field: \"{{field}}\"",
+      "noBoutique": "Select a store.",
+      "saveFailed": "Error saving."
+    }
+  },
+  "newOrderBtn": "+ New order",
+  "newOrder": {
+    "title": "New order",
+    "subtitle": "Create a manual order",
+    "back": "← Back",
+    "noBoutiqueWarn": "Select a store in the navigation bar before creating an order.",
+    "section": {
+      "client": "Customer",
+      "items": "Items",
+      "delivery": "Delivery",
+      "recap": "Summary"
+    },
+    "client": {
+      "phone": "Phone *",
+      "searchTitle": "Search customer by phone",
+      "name": "Full name *",
+      "phone2": "Phone 2",
+      "phone2Ph": "Optional",
+      "email": "Email",
+      "wilaya": "Wilaya",
+      "wilayaPh": "Select a wilaya",
+      "commune": "Commune",
+      "communePh": "Select a commune",
+      "communeLoading": "Loading…",
+      "communeWilayaFirst": "Select a wilaya first",
+      "address": "Address",
+      "addressPh": "Street, neighborhood…",
+      "referrer": "Referrer",
+      "referrerPh": "Customer source",
+      "remark": "Remark",
+      "remarkPh": "Internal notes about the order…",
+      "found": "✓ Existing customer — fields pre-filled"
+    },
+    "product": {
+      "searchPh": "Search a product by name or SKU…",
+      "searchNoBoutique": "Select a store first",
+      "noResults": "No product found",
+      "stock": "Stock",
+      "variantLabel": "Variant *",
+      "variantPh": "Choose",
+      "unitPrice": "Unit price",
+      "qty": "Qty",
+      "addBtn": "Add",
+      "emptyCart": "No items added",
+      "colProduct": "Product",
+      "colVariant": "Variant",
+      "colQty": "Qty",
+      "colUnitPrice": "Unit price",
+      "colTotal": "Total",
+      "subtotal": "Subtotal"
+    },
+    "delivery": {
+      "method": "Delivery method",
+      "domicile": "Home delivery",
+      "stopdesk": "Stop Desk",
+      "fee": "Delivery fee (DA)",
+      "discount": "Discount (DA)"
+    },
+    "recap": {
+      "subtotal": "Subtotal",
+      "deliveryFee": "Delivery fee",
+      "discount": "Discount",
+      "total": "Total",
+      "submit": "Create order"
+    },
+    "errors": {
+      "noBoutique": "No store selected in the navigation bar.",
+      "noPhone": "Customer phone is required.",
+      "noName": "Customer name is required.",
+      "emptyCart": "Add at least one item to the order.",
+      "createFailed": "Error creating the order."
+    },
+    "referrerOptions": {
+      "facebook": "Facebook",
+      "instagram": "Instagram",
+      "tiktok": "TikTok",
+      "boutic": "Boutic",
+      "other": "Other"
+    }
+  },
+  "editOrder": {
+    "title": "Edit order {{ref}}",
+    "subtitle": "Edit customer information, items, and delivery fees.",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving…",
+    "saveBtn": "Save changes",
+    "loading": "Loading…",
+    "loadError": "Load error",
+    "section": {
+      "client": "Customer information",
+      "address": "Delivery address",
+      "remarks": "Remarks",
+      "items": "Items",
+      "delivery": "Delivery",
+      "recap": "Summary"
+    },
+    "client": {
+      "phone": "Phone *",
+      "phonePh": "05XX XX XX XX",
+      "name": "Full name *",
+      "namePh": "First Last",
+      "phone2": "Phone 2",
+      "email": "Email",
+      "emailPh": "email@example.com"
+    },
+    "address": {
+      "wilaya": "Wilaya",
+      "wilayaSelect": "— Select —",
+      "commune": "Commune",
+      "communeLoading": "Loading…",
+      "communeSelect": "— Select —",
+      "address": "Address",
+      "addressPh": "Street, neighborhood…"
+    },
+    "remarks": {
+      "source": "Source",
+      "sourceNone": "— No source —",
+      "remark": "Remark",
+      "remarkPh": "Internal note…"
+    },
+    "product": {
+      "searchPh": "Search a product…",
+      "variantPh": "— Choose a variant —",
+      "qty": "Qty",
+      "unitPrice": "Unit price (DA)",
+      "add": "Add",
+      "cancel": "Cancel",
+      "emptyCart": "No items — search a product above",
+      "colProduct": "Product",
+      "colQty": "Qty",
+      "colUnitPrice": "Unit price",
+      "colTotal": "Total",
+      "stock": "Stock"
+    },
+    "delivery": {
+      "domicile": "Home delivery",
+      "stopdesk": "Stop desk",
+      "fee": "Delivery fee (DA)",
+      "discount": "Discount (DA)"
+    },
+    "recap": {
+      "subtotal": "Subtotal",
+      "deliveryFee": "Delivery fee",
+      "discount": "Discount",
+      "total": "Total"
+    },
+    "errors": {
+      "noPhone": "Customer phone is required.",
+      "noName": "Customer name is required.",
+      "emptyCart": "Add at least one item.",
+      "updateFailed": "Update error",
+      "network": "Network error. Please try again."
+    },
+    "referrerOptions": {
+      "none": "— No source —",
+      "facebook": "Facebook",
+      "instagram": "Instagram",
+      "tiktok": "TikTok",
+      "boutic": "Boutic",
+      "other": "Other"
+    }
   }
 }

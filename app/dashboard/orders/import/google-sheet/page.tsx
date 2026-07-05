@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useTranslation } from 'react-i18next'
 import {
   CheckCircle, XCircle, ChevronDown, ChevronUp,
   AlertCircle, ArrowLeft, RefreshCw, Loader2,
@@ -53,25 +54,24 @@ const EMPTY_MAPPING: Mapping = {
   product_sku: '', quantity: '', unit_price: '', ip_address: '', referrer: '',
 }
 
-const MAPPING_FIELDS: MappingFieldDef[] = [
-  { key: 'order_ref',       label: 'N° commande',       required: false },
-  { key: 'client_name',     label: 'Client',             required: true  },
-  { key: 'phone',           label: 'Téléphone',          required: true  },
-  { key: 'email',           label: 'Email',              required: false },
-  { key: 'phone2',          label: 'Tél 2',              required: false },
-  { key: 'wilaya',          label: 'Wilaya',             required: true  },
-  { key: 'commune',         label: 'Commune',            required: true  },
-  { key: 'address',         label: 'Adresse',            required: false },
-  { key: 'remark',          label: 'Remarque',           required: false },
-  { key: 'delivery_method', label: 'Méthode livraison',  required: false },
-  { key: 'product_sku',     label: 'Produit (SKU)',      required: true  },
-  { key: 'quantity',        label: 'Quantité',           required: true  },
-  { key: 'unit_price',      label: 'Prix unitaire',      required: false },
-  { key: 'ip_address',      label: 'Adresse IP',         required: false },
-  { key: 'referrer',        label: 'Référent',           required: false },
+// Keys used to generate translated field defs inside the component
+const MAPPING_FIELD_KEYS: { key: keyof Mapping; labelKey: string; required: boolean }[] = [
+  { key: 'order_ref',       labelKey: 'orderRef',        required: false },
+  { key: 'client_name',     labelKey: 'clientName',      required: true  },
+  { key: 'phone',           labelKey: 'phone',           required: true  },
+  { key: 'email',           labelKey: 'email',           required: false },
+  { key: 'phone2',          labelKey: 'phone2',          required: false },
+  { key: 'wilaya',          labelKey: 'wilaya',          required: true  },
+  { key: 'commune',         labelKey: 'commune',         required: true  },
+  { key: 'address',         labelKey: 'address',         required: false },
+  { key: 'remark',          labelKey: 'remark',          required: false },
+  { key: 'delivery_method', labelKey: 'deliveryMethod',  required: false },
+  { key: 'product_sku',     labelKey: 'productSku',      required: true  },
+  { key: 'quantity',        labelKey: 'quantity',        required: true  },
+  { key: 'unit_price',      labelKey: 'unitPrice',       required: false },
+  { key: 'ip_address',      labelKey: 'ipAddress',       required: false },
+  { key: 'referrer',        labelKey: 'referrer',        required: false },
 ]
-
-const STEP_LABELS = ['Connexion Google', 'Sélection fichier', 'Mapping colonnes', 'Import']
 
 const DEFAULT_SEPARATOR = '|'
 
@@ -116,10 +116,10 @@ function authHeader() {
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-function StepIndicator({ step }: { step: Step }) {
+function StepIndicator({ step, labels }: { step: Step; labels: string[] }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', marginBottom: 28, fontFamily: fonts.sans }}>
-      {STEP_LABELS.map((label, i) => {
+      {labels.map((label, i) => {
         const n      = (i + 1) as Step
         const done   = step > n
         const active = step === n
@@ -175,6 +175,7 @@ function FieldRow({ label, required, children }: { label: string; required?: boo
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function GoogleSheetImportPage() {
+  const { t } = useTranslation('orders')
   const router       = useRouter()
   const searchParams = useSearchParams()
   const { boutiqueId } = useBoutique()
@@ -186,8 +187,8 @@ export default function GoogleSheetImportPage() {
   const [googleError,       setGoogleError]      = useState('')
 
   // Step 2 — file picker
-  const [sheetInput,     setSheetInput]     = useState('')   // sheet ID (selected or typed fallback)
-  const [sheetName,      setSheetName]      = useState('')   // tab name
+  const [sheetInput,     setSheetInput]     = useState('')
+  const [sheetName,      setSheetName]      = useState('')
   const [separator,      setSeparator]      = useState(DEFAULT_SEPARATOR)
   const [loadError,      setLoadError]      = useState('')
   const [loadLoading,    setLoadLoading]    = useState(false)
@@ -216,13 +217,26 @@ export default function GoogleSheetImportPage() {
   const [sourceSaved,  setSourceSaved]  = useState(false)
   const [saveError,    setSaveError]    = useState('')
 
+  // Translated labels (computed inside component so they react to language changes)
+  const stepLabels = [
+    t('googleSheetImport.steps.google'),
+    t('googleSheetImport.steps.file'),
+    t('googleSheetImport.steps.mapping'),
+    t('googleSheetImport.steps.import'),
+  ]
+
+  const mappingFields: MappingFieldDef[] = MAPPING_FIELD_KEYS.map(f => ({
+    key:      f.key,
+    label:    t(`googleSheetImport.fields.${f.labelKey}`),
+    required: f.required,
+  }))
+
   // ── Pick up OAuth result from URL params ──────────────────────────────────
 
   useEffect(() => {
     const token = searchParams.get('google_token')
     const email = searchParams.get('google_email')
     const err   = searchParams.get('google_error')
-
     const refreshToken = searchParams.get('google_refresh_token')
 
     if (token) {
@@ -231,20 +245,20 @@ export default function GoogleSheetImportPage() {
       if (refreshToken) setGoogleRefreshToken(refreshToken)
       setStep(2)
       fetchDriveFiles(token)
-      // Clean URL
       router.replace('/dashboard/orders/import/google-sheet')
     }
     if (err) {
       setGoogleError(
-        err === 'access_denied' ? 'Accès refusé par Google.' : `Erreur d'authentification (${err}).`
+        err === 'access_denied'
+          ? t('googleSheetImport.errors.accessDenied')
+          : t('googleSheetImport.errors.authError', { code: err })
       )
       router.replace('/dashboard/orders/import/google-sheet')
     }
 
-    // Restore persisted tokens from localStorage
-    const saved         = localStorage.getItem('google_oauth_token')
-    const savedRefresh  = localStorage.getItem('google_oauth_refresh_token')
-    const savedEmail    = localStorage.getItem('google_oauth_email')
+    const saved        = localStorage.getItem('google_oauth_token')
+    const savedRefresh = localStorage.getItem('google_oauth_refresh_token')
+    const savedEmail   = localStorage.getItem('google_oauth_email')
     if (!token && saved) {
       setGoogleToken(saved)
       setGoogleEmail(savedEmail ?? '')
@@ -255,7 +269,6 @@ export default function GoogleSheetImportPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Persist tokens when set via OAuth redirect
   useEffect(() => {
     if (googleToken) {
       localStorage.setItem('google_oauth_token', googleToken)
@@ -285,7 +298,7 @@ export default function GoogleSheetImportPage() {
     setStep(1)
   }
 
-  // ── Step 2 — fetch Drive files when entering step 2 ──────────────────────
+  // ── Step 2 — fetch Drive files ────────────────────────────────────────────
 
   const fetchDriveFiles = useCallback(async (token: string) => {
     setDriveLoading(true)
@@ -295,13 +308,14 @@ export default function GoogleSheetImportPage() {
         headers: authHeader(),
       })
       const data = await res.json()
-      if (!res.ok) { setDriveError(data.error ?? 'Impossible de lister les fichiers.'); return }
+      if (!res.ok) { setDriveError(data.error ?? t('googleSheetImport.errors.listFilesFailed')); return }
       setDriveFiles(data.files ?? [])
     } catch {
-      setDriveError('Erreur réseau.')
+      setDriveError(t('googleSheetImport.errors.network'))
     } finally {
       setDriveLoading(false)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function handleSelectFile(file: { id: string; name: string }) {
@@ -327,8 +341,8 @@ export default function GoogleSheetImportPage() {
   // ── Step 2 — load sheet ───────────────────────────────────────────────────
 
   const handleLoadSheet = useCallback(async () => {
-    if (!sheetInput.trim()) { setLoadError('Sélectionnez une feuille Google Sheets.'); return }
-    if (!googleToken)        { setLoadError('Connectez-vous à Google d\'abord.'); return }
+    if (!sheetInput.trim()) { setLoadError(t('googleSheetImport.errors.noFile')); return }
+    if (!googleToken)        { setLoadError(t('googleSheetImport.errors.notConnected')); return }
 
     setLoadError('')
     setLoadLoading(true)
@@ -345,11 +359,10 @@ export default function GoogleSheetImportPage() {
 
       if (!res.ok || data.error) {
         if (data.error?.includes('401') || data.error?.includes('invalid_token')) {
-          // Token expired — clear and re-authenticate
           handleDisconnect()
-          setLoadError('Session Google expirée. Veuillez vous reconnecter.')
+          setLoadError(t('googleSheetImport.errors.sessionExpired'))
         } else {
-          setLoadError(data.error ?? 'Impossible de charger la feuille.')
+          setLoadError(data.error ?? t('googleSheetImport.errors.loadFailed'))
         }
         return
       }
@@ -360,23 +373,23 @@ export default function GoogleSheetImportPage() {
       setMappingError('')
       setStep(3)
     } catch {
-      setLoadError('Erreur réseau.')
+      setLoadError(t('googleSheetImport.errors.network'))
     } finally {
       setLoadLoading(false)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sheetInput, sheetName, googleToken])
 
   // ── Step 3 → 4 — import ──────────────────────────────────────────────────
 
   async function handleImport() {
-    const required = MAPPING_FIELDS.filter(f => f.required)
-    for (const f of required) {
+    for (const f of mappingFields.filter(f => f.required)) {
       if (!mapping[f.key]) {
-        setMappingError(`Veuillez mapper le champ requis : "${f.label}"`)
+        setMappingError(t('googleSheetImport.errors.requiredField', { field: f.label }))
         return
       }
     }
-    if (!boutiqueId) { setMappingError('Sélectionnez une boutique.'); return }
+    if (!boutiqueId) { setMappingError(t('googleSheetImport.errors.noBoutique')); return }
     setMappingError('')
     setStep(4)
     setImporting(true)
@@ -402,7 +415,7 @@ export default function GoogleSheetImportPage() {
         setResult({ imported: data.imported ?? 0, skipped: data.skipped ?? 0, failed: data.failed ?? 0, errors: data.errors ?? [] })
       }
     } catch {
-      setResult({ imported: 0, skipped: 0, failed: 1, errors: [{ row: 0, reason: 'Erreur réseau' }] })
+      setResult({ imported: 0, skipped: 0, failed: 1, errors: [{ row: 0, reason: t('googleSheetImport.errors.network') }] })
     } finally {
       setImporting(false)
     }
@@ -411,8 +424,8 @@ export default function GoogleSheetImportPage() {
   // ── Save source for auto-sync ─────────────────────────────────────────────
 
   async function handleSaveSource() {
-    if (!boutiqueId) { setSaveError('Sélectionnez une boutique.'); return }
-    if (!googleRefreshToken) { setSaveError('Token de rafraîchissement manquant. Reconnectez votre compte Google.'); return }
+    if (!boutiqueId)        { setSaveError(t('googleSheetImport.errors.noBoutique')); return }
+    if (!googleRefreshToken) { setSaveError(t('googleSheetImport.errors.saveFailed')); return }
     setSaveError('')
     setSourceSaving(true)
     try {
@@ -434,10 +447,10 @@ export default function GoogleSheetImportPage() {
         setSourceSaved(true)
       } else {
         const d = await res.json()
-        setSaveError(d.error ?? 'Erreur lors de la sauvegarde.')
+        setSaveError(d.error ?? t('googleSheetImport.errors.saveFailed'))
       }
     } catch {
-      setSaveError('Erreur réseau.')
+      setSaveError(t('googleSheetImport.errors.network'))
     } finally {
       setSourceSaving(false)
     }
@@ -460,7 +473,7 @@ export default function GoogleSheetImportPage() {
   }
 
   const colOptions = [
-    <option key="" value="">— Ignorer —</option>,
+    <option key="" value="">{t('googleSheetImport.step3.ignore')}</option>,
     ...headers.map(h => <option key={h} value={h}>{h}</option>),
   ]
 
@@ -469,12 +482,12 @@ export default function GoogleSheetImportPage() {
   return (
     <>
       <PageHeader
-        title="Import Google Sheet"
-        subtitle="Importer des commandes depuis une feuille Google Sheets"
+        title={t('googleSheetImport.title')}
+        subtitle={t('googleSheetImport.subtitle')}
         actions={
           <Button variant="ghost" size="sm" onClick={() => router.back()}>
             <ArrowLeft size={14} style={{ marginRight: 4 }} />
-            Retour
+            {t('googleSheetImport.back')}
           </Button>
         }
       />
@@ -484,16 +497,16 @@ export default function GoogleSheetImportPage() {
         fontFamily: fonts.sans, background: colors.bg,
       }}>
         <div style={{ maxWidth: 780, margin: '0 auto' }}>
-          <StepIndicator step={step} />
+          <StepIndicator step={step} labels={stepLabels} />
 
-          {/* ── Step 1 — Connexion Google ────────────────────────────────── */}
+          {/* ── Step 1 — Google Login ────────────────────────────────────── */}
           {step === 1 && (
             <Card>
               <h2 style={{ fontSize: 15, fontWeight: 600, color: colors.text, margin: '0 0 6px' }}>
-                Connexion Google
+                {t('googleSheetImport.step1.title')}
               </h2>
               <p style={{ fontSize: 13, color: colors.textMd, margin: '0 0 24px' }}>
-                Autorisez l&apos;accès en lecture seule à vos Google Sheets pour importer des commandes.
+                {t('googleSheetImport.step1.hint')}
               </p>
 
               {googleError && (
@@ -529,23 +542,23 @@ export default function GoogleSheetImportPage() {
                   <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
                   <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
                 </svg>
-                Connecter mon compte Google
+                {t('googleSheetImport.step1.connectBtn')}
               </button>
             </Card>
           )}
 
-          {/* ── Step 2 — Sélection fichier ───────────────────────────────── */}
+          {/* ── Step 2 — File selection ───────────────────────────────────── */}
           {step === 2 && (
             <Card>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                 <div>
                   <h2 style={{ fontSize: 15, fontWeight: 600, color: colors.text, margin: 0 }}>
-                    Sélection du fichier
+                    {t('googleSheetImport.step2.title')}
                   </h2>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: colors.green }} />
                     <span style={{ fontSize: 12, color: colors.textMd }}>
-                      Connecté en tant que <strong>{googleEmail}</strong>
+                      {t('googleSheetImport.step2.connectedAs')} <strong>{googleEmail}</strong>
                     </span>
                     <button
                       onClick={handleDisconnect}
@@ -554,7 +567,7 @@ export default function GoogleSheetImportPage() {
                         cursor: 'pointer', textDecoration: 'underline', padding: 0, marginLeft: 4,
                       }}
                     >
-                      Déconnecter
+                      {t('googleSheetImport.step2.disconnect')}
                     </button>
                   </div>
                 </div>
@@ -565,13 +578,13 @@ export default function GoogleSheetImportPage() {
                 {/* ── Drive file list ── */}
                 <div>
                   <label style={{ fontSize: 12, color: colors.textMd, display: 'block', marginBottom: 8, fontWeight: 600 }}>
-                    Choisir une feuille Google Sheets <span style={{ color: colors.red }}>*</span>
+                    {t('googleSheetImport.step2.chooseFile')} <span style={{ color: colors.red }}>*</span>
                   </label>
 
                   {driveLoading && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: colors.textLt, fontSize: 13, padding: '8px 0' }}>
                       <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
-                      Chargement de vos fichiers…
+                      {t('googleSheetImport.step2.loadingFiles')}
                     </div>
                   )}
 
@@ -587,18 +600,17 @@ export default function GoogleSheetImportPage() {
                         onClick={() => fetchDriveFiles(googleToken)}
                         style={{ marginLeft: 'auto', fontSize: 12, color: colors.primary, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
                       >
-                        Réessayer
+                        {t('googleSheetImport.step2.retry')}
                       </button>
                     </div>
                   )}
 
                   {!driveLoading && driveFiles.length > 0 && (
                     <>
-                      {/* Search within list */}
                       <input
                         value={fileSearch}
                         onChange={e => setFileSearch(e.target.value)}
-                        placeholder="Rechercher un fichier…"
+                        placeholder={t('googleSheetImport.step2.searchFile')}
                         style={{ ...inputStyle, marginBottom: 8, fontSize: 12 }}
                         onFocus={e => (e.currentTarget.style.borderColor = colors.primary)}
                         onBlur={e  => (e.currentTarget.style.borderColor = colors.border)}
@@ -630,7 +642,6 @@ export default function GoogleSheetImportPage() {
                                 onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = '#fafafa' }}
                                 onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
                               >
-                                {/* Sheets icon */}
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                                   <rect width="24" height="24" rx="3" fill="#0F9D58" opacity=".15"/>
                                   <rect x="5" y="7" width="14" height="2" rx="1" fill="#0F9D58"/>
@@ -656,11 +667,12 @@ export default function GoogleSheetImportPage() {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, alignItems: 'start' }}>
                     <div>
                       <label style={{ fontSize: 12, color: colors.textMd, display: 'block', marginBottom: 5 }}>
-                        Onglet (feuille)
+                        {t('googleSheetImport.step2.tab')}
                       </label>
                       {tabsLoading ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: colors.textLt, padding: '8px 0' }}>
-                          <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> Chargement des onglets…
+                          <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />
+                          {t('googleSheetImport.step2.loadingTabs')}
                         </div>
                       ) : tabs.length > 1 ? (
                         <select
@@ -668,7 +680,7 @@ export default function GoogleSheetImportPage() {
                           onChange={e => setSheetName(e.target.value)}
                           style={selectStyle}
                         >
-                          {tabs.map(t => <option key={t} value={t}>{t}</option>)}
+                          {tabs.map(tab => <option key={tab} value={tab}>{tab}</option>)}
                         </select>
                       ) : (
                         <input
@@ -683,7 +695,7 @@ export default function GoogleSheetImportPage() {
                     </div>
                     <div>
                       <label style={{ fontSize: 12, color: colors.textMd, display: 'block', marginBottom: 5 }}>
-                        Séparateur SKUs
+                        {t('googleSheetImport.step2.separator')}
                       </label>
                       <input
                         value={separator}
@@ -727,14 +739,14 @@ export default function GoogleSheetImportPage() {
                       ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
                       : <RefreshCw size={14} />
                     }
-                    {loadLoading ? 'Chargement…' : 'Charger la feuille'}
+                    {loadLoading ? t('googleSheetImport.step2.loading') : t('googleSheetImport.step2.loadSheet')}
                   </button>
                 </div>
               </div>
             </Card>
           )}
 
-          {/* ── Step 3 — Mapping colonnes ────────────────────────────────── */}
+          {/* ── Step 3 — Column mapping ───────────────────────────────────── */}
           {step === 3 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
@@ -742,7 +754,7 @@ export default function GoogleSheetImportPage() {
               {preview.length > 0 && (
                 <Card>
                   <h3 style={{ fontSize: 13, fontWeight: 600, color: colors.textMd, margin: '0 0 12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    Aperçu (3 premières lignes)
+                    {t('googleSheetImport.step3.preview')}
                   </h3>
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 500 }}>
@@ -784,27 +796,26 @@ export default function GoogleSheetImportPage() {
               {/* Mapping */}
               <Card>
                 <h3 style={{ fontSize: 13, fontWeight: 600, color: colors.textMd, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  Correspondance des colonnes
+                  {t('googleSheetImport.step3.mapping')}
                 </h3>
                 <p style={{ fontSize: 12, color: colors.textLt, margin: '0 0 16px' }}>
-                  Associez chaque champ de la commande à une colonne de votre feuille.
+                  {t('googleSheetImport.step3.mappingHint')}
                 </p>
 
                 <div>
-                  {/* Header row */}
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 12, padding: '5px 0',
                     borderBottom: `1px solid ${colors.border}`,
                   }}>
                     <div style={{ width: 180, fontSize: 11, fontWeight: 600, color: colors.textLt, textTransform: 'uppercase' }}>
-                      Champ
+                      {t('googleSheetImport.step3.fieldCol')}
                     </div>
                     <div style={{ flex: 1, fontSize: 11, fontWeight: 600, color: colors.textLt, textTransform: 'uppercase' }}>
-                      Colonne dans la feuille
+                      {t('googleSheetImport.step3.sheetCol')}
                     </div>
                   </div>
 
-                  {MAPPING_FIELDS.map(field => (
+                  {mappingFields.map(field => (
                     <FieldRow key={field.key} label={field.label} required={field.required}>
                       <select
                         value={mapping[field.key]}
@@ -839,7 +850,7 @@ export default function GoogleSheetImportPage() {
                       fontFamily: fonts.sans, cursor: 'pointer',
                     }}
                   >
-                    Retour
+                    {t('googleSheetImport.step3.back')}
                   </button>
                   <button
                     onClick={handleImport}
@@ -851,37 +862,37 @@ export default function GoogleSheetImportPage() {
                     onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = colors.primaryDk}
                     onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = colors.primary}
                   >
-                    Lancer l&apos;import →
+                    {t('googleSheetImport.step3.importBtn')}
                   </button>
                 </div>
               </Card>
             </div>
           )}
 
-          {/* ── Step 4 — Import / Résultat ───────────────────────────────── */}
+          {/* ── Step 4 — Import / Result ──────────────────────────────────── */}
           {step === 4 && (
             <Card>
               {importing ? (
                 <div style={{ textAlign: 'center', padding: '40px 0' }}>
                   <Loader2 size={32} color={colors.primary} style={{ animation: 'spin 1s linear infinite', marginBottom: 16 }} />
-                  <div style={{ fontSize: 14, color: colors.textMd }}>Import en cours…</div>
+                  <div style={{ fontSize: 14, color: colors.textMd }}>{t('googleSheetImport.step4.importing')}</div>
                   <div style={{ fontSize: 12, color: colors.textLt, marginTop: 6 }}>
-                    Lecture de la feuille et création des commandes
+                    {t('googleSheetImport.step4.importingHint')}
                   </div>
                 </div>
               ) : result ? (
                 <div>
                   <h2 style={{ fontSize: 15, fontWeight: 600, color: colors.text, margin: '0 0 20px' }}>
-                    Résultat de l&apos;import
+                    {t('googleSheetImport.step4.resultTitle')}
                   </h2>
 
                   {/* Summary cards */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
                     {[
-                      { label: 'Importées',  value: result.imported ?? 0, color: colors.green  },
-                      { label: 'Ignorées',   value: result.skipped  ?? 0, color: colors.blue   },
-                      { label: 'Échouées',   value: result.failed   ?? 0, color: colors.red    },
-                      { label: 'Total',      value: (result.imported ?? 0) + (result.skipped ?? 0) + (result.failed ?? 0), color: colors.textMd },
+                      { label: t('googleSheetImport.step4.importedLabel'), value: result.imported ?? 0, color: colors.green  },
+                      { label: t('googleSheetImport.step4.skippedLabel'),  value: result.skipped  ?? 0, color: colors.blue   },
+                      { label: t('googleSheetImport.step4.failedLabel'),   value: result.failed   ?? 0, color: colors.red    },
+                      { label: t('googleSheetImport.step4.totalLabel'),    value: (result.imported ?? 0) + (result.skipped ?? 0) + (result.failed ?? 0), color: colors.textMd },
                     ].map(({ label, value, color }) => (
                       <div key={label} style={{
                         textAlign: 'center', padding: '16px 8px',
@@ -901,7 +912,7 @@ export default function GoogleSheetImportPage() {
                       borderRadius: 6, padding: '10px 14px', fontSize: 13, color: '#166534',
                     }}>
                       <CheckCircle size={15} />
-                      {result.imported} commande{result.imported > 1 ? 's' : ''} créée{result.imported > 1 ? 's' : ''} avec succès.
+                      {t('googleSheetImport.step4.successMsg', { count: result.imported })}
                     </div>
                   )}
 
@@ -917,7 +928,7 @@ export default function GoogleSheetImportPage() {
                       >
                         <span style={{ fontSize: 13, fontWeight: 600, color: colors.red, display: 'flex', alignItems: 'center', gap: 6 }}>
                           <XCircle size={14} />
-                          {(result.errors ?? []).length} erreur{(result.errors ?? []).length > 1 ? 's' : ''}
+                          {t('googleSheetImport.step4.errorsToggle', { count: (result.errors ?? []).length })}
                         </span>
                         {errorsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                       </button>
@@ -930,7 +941,7 @@ export default function GoogleSheetImportPage() {
                               display: 'flex', gap: 10,
                             }}>
                               <span style={{ color: colors.textLt, flexShrink: 0, minWidth: 52 }}>
-                                Ligne {e.row}
+                                {t('googleSheetImport.step4.lineLabel', { row: e.row })}
                               </span>
                               <span>{e.reason}</span>
                             </div>
@@ -948,13 +959,13 @@ export default function GoogleSheetImportPage() {
                       borderRadius: 8,
                     }}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: '#5B21B6', marginBottom: 4 }}>
-                        Activer la synchronisation automatique
+                        {t('googleSheetImport.step4.autoSyncTitle')}
                       </div>
                       <div style={{ fontSize: 12, color: '#7C3AED', marginBottom: 12 }}>
-                        Sauvegardez cette connexion pour importer automatiquement les nouvelles lignes toutes les 15 min.
+                        {t('googleSheetImport.step4.autoSyncHint')}
                         {!googleRefreshToken && (
                           <span style={{ color: colors.orange, display: 'block', marginTop: 4 }}>
-                            ⚠ Reconnectez votre compte Google pour activer cette option.
+                            {t('googleSheetImport.step4.reconnectWarning')}
                           </span>
                         )}
                       </div>
@@ -962,7 +973,7 @@ export default function GoogleSheetImportPage() {
                         <input
                           value={sourceName}
                           onChange={e => setSourceName(e.target.value)}
-                          placeholder={`Nom de la connexion (ex: Boutique principale)`}
+                          placeholder={t('googleSheetImport.step4.connectionNamePh')}
                           style={{
                             flex: '1 1 200px', border: `1px solid #DDD6FE`, borderRadius: 5,
                             padding: '7px 10px', fontSize: 12.5, fontFamily: fonts.sans,
@@ -982,11 +993,8 @@ export default function GoogleSheetImportPage() {
                             fontFamily: fonts.sans, cursor: sourceSaving || !googleRefreshToken ? 'not-allowed' : 'pointer',
                           }}
                         >
-                          {sourceSaving
-                            ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />
-                            : null
-                          }
-                          {sourceSaving ? 'Sauvegarde…' : 'Sauvegarder'}
+                          {sourceSaving && <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />}
+                          {sourceSaving ? t('googleSheetImport.step4.saving') : t('googleSheetImport.step4.save')}
                         </button>
                       </div>
                       {saveError && (
@@ -1002,7 +1010,7 @@ export default function GoogleSheetImportPage() {
                       borderRadius: 8, padding: '12px 16px', fontSize: 13, color: '#166534',
                     }}>
                       <CheckCircle size={15} />
-                      Connexion sauvegardée ! Sync automatique activé.
+                      {t('googleSheetImport.step4.savedMsg')}
                       <button
                         onClick={() => router.push('/dashboard/orders/import/sources')}
                         style={{
@@ -1011,7 +1019,7 @@ export default function GoogleSheetImportPage() {
                           textDecoration: 'underline', fontFamily: fonts.sans,
                         }}
                       >
-                        Gérer les sources →
+                        {t('googleSheetImport.step4.manageSources')}
                       </button>
                     </div>
                   )}
@@ -1025,7 +1033,7 @@ export default function GoogleSheetImportPage() {
                         fontFamily: fonts.sans, cursor: 'pointer',
                       }}
                     >
-                      Nouvel import
+                      {t('googleSheetImport.step4.newImport')}
                     </button>
                     <button
                       onClick={() => router.push('/dashboard/orders/en-confirmation')}
@@ -1037,7 +1045,7 @@ export default function GoogleSheetImportPage() {
                       onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = colors.primaryDk}
                       onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = colors.primary}
                     >
-                      Voir les commandes →
+                      {t('googleSheetImport.step4.viewOrders')}
                     </button>
                   </div>
                 </div>

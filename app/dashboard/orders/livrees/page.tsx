@@ -232,7 +232,7 @@ export default function LivreesPage() {
         subtitle={total > 0 ? t('livrees.subtitleN', { count: total }) : t('livrees.subtitleDefault')}
         actions={
           <Button variant="primary" size="sm" onClick={() => router.push('/dashboard/orders/new')}>
-            {t('newOrder')}
+            {t('newOrderBtn')}
           </Button>
         }
       />

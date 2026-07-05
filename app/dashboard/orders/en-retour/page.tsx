@@ -230,7 +230,7 @@ export default function EnRetourPage() {
         subtitle={total > 0 ? t('enRetour.subtitleN', { count: total }) : t('enRetour.subtitleDefault')}
         actions={
           <Button variant="primary" size="sm" onClick={() => router.push('/dashboard/orders/new')}>
-            {t('newOrder')}
+            {t('newOrderBtn')}
           </Button>
         }
       />

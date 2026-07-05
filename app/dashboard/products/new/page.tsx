@@ -1,9 +1,11 @@
 'use client'
 import { useRouter } from 'next/navigation'
+import { useTranslation } from 'react-i18next'
 import { PageHeader, Button } from '@/components/ui'
 import ProductForm, { type ProductPayload } from '@/components/products/ProductForm'
 
 export default function NewProductPage() {
+  const { t } = useTranslation('products')
   const router = useRouter()
 
   async function handleSubmit(payload: ProductPayload) {
@@ -16,7 +18,7 @@ export default function NewProductPage() {
       body: JSON.stringify(payload),
     })
     const data = await res.json() as { id?: string; error?: string; field?: string }
-    if (!res.ok) return { error: data.error ?? 'Erreur lors de la création.', field: data.field }
+    if (!res.ok) return { error: data.error ?? t('newProduct.createError'), field: data.field }
     router.push('/dashboard/products')
     return {}
   }
@@ -24,15 +26,15 @@ export default function NewProductPage() {
   return (
     <>
       <PageHeader
-        title="Nouveau produit"
-        subtitle="Remplissez les informations ci-dessous pour créer un produit."
+        title={t('newProduct.title')}
+        subtitle={t('newProduct.subtitle')}
         actions={
           <Button variant="secondary" size="sm" onClick={() => router.push('/dashboard/products')}>
-            ← Retour à la liste
+            {t('newProduct.backToList')}
           </Button>
         }
       />
-      <ProductForm onSubmit={handleSubmit} submitLabel="Créer le produit" />
+      <ProductForm onSubmit={handleSubmit} submitLabel={t('newProduct.submitLabel')} />
     </>
   )
 }

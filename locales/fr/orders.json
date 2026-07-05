@@ -10,7 +10,6 @@
     "allCarriers": "Tous les livreurs",
     "allBoutiques": "Toutes les sociétés"
   },
-  "newOrder": "+ Nouvelle commande",
   "noBoutique": "Sélectionnez une boutique dans la barre de navigation.",
   "loading": "Chargement…",
   "newBanner_one": "{{count}} nouvelle commande reçue — Cliquez pour actualiser",
@@ -255,5 +254,262 @@
     "networkError": "Erreur réseau",
     "liveTrigger": "Déclencheur instantané actif",
     "dailySync": "Sync quotidien (fallback)"
+  },
+  "googleSheetImport": {
+    "title": "Import Google Sheet",
+    "subtitle": "Importer des commandes depuis une feuille Google Sheets",
+    "back": "Retour",
+    "steps": {
+      "google": "Connexion Google",
+      "file": "Sélection fichier",
+      "mapping": "Mapping colonnes",
+      "import": "Import"
+    },
+    "fields": {
+      "orderRef": "N° commande",
+      "clientName": "Client",
+      "phone": "Téléphone",
+      "email": "Email",
+      "phone2": "Tél 2",
+      "wilaya": "Wilaya",
+      "commune": "Commune",
+      "address": "Adresse",
+      "remark": "Remarque",
+      "deliveryMethod": "Méthode livraison",
+      "productSku": "Produit (SKU)",
+      "quantity": "Quantité",
+      "unitPrice": "Prix unitaire",
+      "ipAddress": "Adresse IP",
+      "referrer": "Référent"
+    },
+    "step1": {
+      "title": "Connexion Google",
+      "hint": "Autorisez l'accès en lecture seule à vos Google Sheets pour importer des commandes.",
+      "connectBtn": "Connecter mon compte Google"
+    },
+    "step2": {
+      "title": "Sélection du fichier",
+      "connectedAs": "Connecté en tant que",
+      "disconnect": "Déconnecter",
+      "chooseFile": "Choisir une feuille Google Sheets",
+      "loadingFiles": "Chargement de vos fichiers…",
+      "retry": "Réessayer",
+      "searchFile": "Rechercher un fichier…",
+      "tab": "Onglet (feuille)",
+      "loadingTabs": "Chargement des onglets…",
+      "separator": "Séparateur SKUs",
+      "loadSheet": "Charger la feuille",
+      "loading": "Chargement…"
+    },
+    "step3": {
+      "preview": "Aperçu (3 premières lignes)",
+      "mapping": "Correspondance des colonnes",
+      "mappingHint": "Associez chaque champ de la commande à une colonne de votre feuille.",
+      "fieldCol": "Champ",
+      "sheetCol": "Colonne dans la feuille",
+      "ignore": "— Ignorer —",
+      "back": "Retour",
+      "importBtn": "Lancer l'import →"
+    },
+    "step4": {
+      "importing": "Import en cours…",
+      "importingHint": "Lecture de la feuille et création des commandes",
+      "resultTitle": "Résultat de l'import",
+      "importedLabel": "Importées",
+      "skippedLabel": "Ignorées",
+      "failedLabel": "Échouées",
+      "totalLabel": "Total",
+      "successMsg_one": "{{count}} commande créée avec succès.",
+      "successMsg_other": "{{count}} commandes créées avec succès.",
+      "errorsToggle_one": "{{count}} erreur",
+      "errorsToggle_other": "{{count}} erreurs",
+      "lineLabel": "Ligne {{row}}",
+      "autoSyncTitle": "Activer la synchronisation automatique",
+      "autoSyncHint": "Sauvegardez cette connexion pour importer automatiquement les nouvelles lignes toutes les 15 min.",
+      "reconnectWarning": "⚠ Reconnectez votre compte Google pour activer cette option.",
+      "connectionNamePh": "Nom de la connexion (ex: Boutique principale)",
+      "saving": "Sauvegarde…",
+      "save": "Sauvegarder",
+      "savedMsg": "Connexion sauvegardée ! Sync automatique activé.",
+      "manageSources": "Gérer les sources →",
+      "newImport": "Nouvel import",
+      "viewOrders": "Voir les commandes →"
+    },
+    "errors": {
+      "accessDenied": "Accès refusé par Google.",
+      "authError": "Erreur d'authentification ({{code}}).",
+      "noFile": "Sélectionnez une feuille Google Sheets.",
+      "notConnected": "Connectez-vous à Google d'abord.",
+      "listFilesFailed": "Impossible de lister les fichiers.",
+      "network": "Erreur réseau.",
+      "sessionExpired": "Session Google expirée. Veuillez vous reconnecter.",
+      "loadFailed": "Impossible de charger la feuille.",
+      "requiredField": "Veuillez mapper le champ requis : \"{{field}}\"",
+      "noBoutique": "Sélectionnez une boutique.",
+      "saveFailed": "Erreur lors de la sauvegarde."
+    }
+  },
+  "newOrderBtn": "+ Nouvelle commande",
+  "newOrder": {
+    "title": "Nouvelle commande",
+    "subtitle": "Créez une commande manuelle",
+    "back": "← Retour",
+    "noBoutiqueWarn": "Sélectionnez une boutique dans la barre de navigation avant de créer une commande.",
+    "section": {
+      "client": "Client",
+      "items": "Articles",
+      "delivery": "Livraison",
+      "recap": "Récapitulatif"
+    },
+    "client": {
+      "phone": "Téléphone *",
+      "searchTitle": "Rechercher le client par téléphone",
+      "name": "Nom complet *",
+      "phone2": "Téléphone 2",
+      "phone2Ph": "Optionnel",
+      "email": "Email",
+      "wilaya": "Wilaya",
+      "wilayaPh": "Sélectionner une wilaya",
+      "commune": "Commune",
+      "communePh": "Sélectionner une commune",
+      "communeLoading": "Chargement…",
+      "communeWilayaFirst": "Sélectionnez d'abord une wilaya",
+      "address": "Adresse",
+      "addressPh": "Rue, quartier…",
+      "referrer": "Référent",
+      "referrerPh": "Source du client",
+      "remark": "Remarque",
+      "remarkPh": "Notes internes sur la commande…",
+      "found": "✓ Client existant — champs pré-remplis"
+    },
+    "product": {
+      "searchPh": "Rechercher un produit par nom ou SKU…",
+      "searchNoBoutique": "Sélectionnez d'abord une boutique",
+      "noResults": "Aucun produit trouvé",
+      "stock": "Stock",
+      "variantLabel": "Variante *",
+      "variantPh": "Choisir",
+      "unitPrice": "Prix unitaire",
+      "qty": "Qté",
+      "addBtn": "Ajouter",
+      "emptyCart": "Aucun article ajouté",
+      "colProduct": "Produit",
+      "colVariant": "Variante",
+      "colQty": "Qté",
+      "colUnitPrice": "Prix unit.",
+      "colTotal": "Total",
+      "subtotal": "Sous-total"
+    },
+    "delivery": {
+      "method": "Méthode de livraison",
+      "domicile": "À domicile",
+      "stopdesk": "Stop Desk",
+      "fee": "Frais de livraison (DA)",
+      "discount": "Remise (DA)"
+    },
+    "recap": {
+      "subtotal": "Sous-total",
+      "deliveryFee": "Frais de livraison",
+      "discount": "Remise",
+      "total": "Total",
+      "submit": "Créer la commande"
+    },
+    "errors": {
+      "noBoutique": "Aucune boutique sélectionnée dans la barre de navigation.",
+      "noPhone": "Le téléphone client est requis.",
+      "noName": "Le nom client est requis.",
+      "emptyCart": "Ajoutez au moins un article à la commande.",
+      "createFailed": "Erreur lors de la création."
+    },
+    "referrerOptions": {
+      "facebook": "Facebook",
+      "instagram": "Instagram",
+      "tiktok": "TikTok",
+      "boutic": "Boutic",
+      "other": "Autre"
+    }
+  },
+  "editOrder": {
+    "title": "Modifier la commande {{ref}}",
+    "subtitle": "Modifiez les informations client, les articles et les frais de livraison.",
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "saving": "Enregistrement…",
+    "saveBtn": "Enregistrer les modifications",
+    "loading": "Chargement…",
+    "loadError": "Erreur de chargement",
+    "section": {
+      "client": "Informations client",
+      "address": "Adresse de livraison",
+      "remarks": "Remarques",
+      "items": "Articles",
+      "delivery": "Livraison",
+      "recap": "Récapitulatif"
+    },
+    "client": {
+      "phone": "Téléphone *",
+      "phonePh": "05XX XX XX XX",
+      "name": "Nom complet *",
+      "namePh": "Prénom Nom",
+      "phone2": "Téléphone 2",
+      "email": "Email",
+      "emailPh": "email@exemple.com"
+    },
+    "address": {
+      "wilaya": "Wilaya",
+      "wilayaSelect": "— Sélectionner —",
+      "commune": "Commune",
+      "communeLoading": "Chargement…",
+      "communeSelect": "— Sélectionner —",
+      "address": "Adresse",
+      "addressPh": "Rue, quartier…"
+    },
+    "remarks": {
+      "source": "Source",
+      "sourceNone": "— Aucune source —",
+      "remark": "Remarque",
+      "remarkPh": "Note interne…"
+    },
+    "product": {
+      "searchPh": "Rechercher un produit…",
+      "variantPh": "— Choisir une variante —",
+      "qty": "Qté",
+      "unitPrice": "Prix unitaire (DA)",
+      "add": "Ajouter",
+      "cancel": "Annuler",
+      "emptyCart": "Aucun article — recherchez un produit ci-dessus",
+      "colProduct": "Produit",
+      "colQty": "Qté",
+      "colUnitPrice": "Prix unit.",
+      "colTotal": "Total",
+      "stock": "Stock"
+    },
+    "delivery": {
+      "domicile": "À domicile",
+      "stopdesk": "Stop desk",
+      "fee": "Frais de livraison (DA)",
+      "discount": "Remise (DA)"
+    },
+    "recap": {
+      "subtotal": "Sous-total",
+      "deliveryFee": "Frais livraison",
+      "discount": "Remise",
+      "total": "Total"
+    },
+    "errors": {
+      "noPhone": "Le téléphone client est requis.",
+      "noName": "Le nom client est requis.",
+      "emptyCart": "Ajoutez au moins un article.",
+      "updateFailed": "Erreur de mise à jour",
+      "network": "Erreur réseau. Veuillez réessayer."
+    },
+    "referrerOptions": {
+      "none": "— Aucune source —",
+      "facebook": "Facebook",
+      "instagram": "Instagram",
+      "tiktok": "TikTok",
+      "boutic": "Boutic",
+      "other": "Autre"
+    }
   }
 }

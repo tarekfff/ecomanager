@@ -14,7 +14,6 @@
     "allCarriers": "جميع الناقلين",
     "allBoutiques": "جميع الشركات"
   },
-  "newOrder": "+ طلب جديد",
   "noBoutique": "اختر متجرًا من شريط التنقل.",
   "loading": "تحميل…",
   "newBanner_zero": "لا طلبات جديدة",
@@ -311,5 +310,270 @@
     "networkError": "خطأ في الشبكة",
     "liveTrigger": "المشغل الفوري نشط",
     "dailySync": "مزامنة يومية (احتياطية)"
+  },
+  "googleSheetImport": {
+    "title": "استيراد Google Sheet",
+    "subtitle": "استيراد الطلبات من جدول Google Sheets",
+    "back": "رجوع",
+    "steps": {
+      "google": "الاتصال بـ Google",
+      "file": "اختيار الملف",
+      "mapping": "مطابقة الأعمدة",
+      "import": "الاستيراد"
+    },
+    "fields": {
+      "orderRef": "رقم الطلب",
+      "clientName": "العميل",
+      "phone": "الهاتف",
+      "email": "البريد الإلكتروني",
+      "phone2": "هاتف 2",
+      "wilaya": "الولاية",
+      "commune": "البلدية",
+      "address": "العنوان",
+      "remark": "ملاحظة",
+      "deliveryMethod": "طريقة التوصيل",
+      "productSku": "المنتج (SKU)",
+      "quantity": "الكمية",
+      "unitPrice": "سعر الوحدة",
+      "ipAddress": "عنوان IP",
+      "referrer": "المصدر"
+    },
+    "step1": {
+      "title": "الاتصال بـ Google",
+      "hint": "امنح صلاحية القراءة فقط لـ Google Sheets لاستيراد الطلبات.",
+      "connectBtn": "ربط حساب Google"
+    },
+    "step2": {
+      "title": "اختيار الملف",
+      "connectedAs": "متصل كـ",
+      "disconnect": "قطع الاتصال",
+      "chooseFile": "اختر ملف Google Sheets",
+      "loadingFiles": "جارٍ تحميل ملفاتك…",
+      "retry": "إعادة المحاولة",
+      "searchFile": "البحث عن ملف…",
+      "tab": "علامة التبويب",
+      "loadingTabs": "جارٍ تحميل التبويبات…",
+      "separator": "فاصل SKU",
+      "loadSheet": "تحميل الجدول",
+      "loading": "جارٍ التحميل…"
+    },
+    "step3": {
+      "preview": "معاينة (أول 3 صفوف)",
+      "mapping": "مطابقة الأعمدة",
+      "mappingHint": "طابق كل حقل طلب مع عمود في جدولك.",
+      "fieldCol": "الحقل",
+      "sheetCol": "عمود الجدول",
+      "ignore": "— تجاهل —",
+      "back": "رجوع",
+      "importBtn": "بدء الاستيراد →"
+    },
+    "step4": {
+      "importing": "جارٍ الاستيراد…",
+      "importingHint": "قراءة الجدول وإنشاء الطلبات",
+      "resultTitle": "نتيجة الاستيراد",
+      "importedLabel": "مستوردة",
+      "skippedLabel": "متجاهلة",
+      "failedLabel": "فاشلة",
+      "totalLabel": "المجموع",
+      "successMsg_zero": "{{count}} طلبات تم إنشاؤها بنجاح.",
+      "successMsg_one": "طلب واحد تم إنشاؤه بنجاح.",
+      "successMsg_two": "طلبان تم إنشاؤهما بنجاح.",
+      "successMsg_few": "{{count}} طلبات تم إنشاؤها بنجاح.",
+      "successMsg_many": "{{count}} طلبًا تم إنشاؤه بنجاح.",
+      "successMsg_other": "{{count}} طلب تم إنشاؤه بنجاح.",
+      "errorsToggle_zero": "{{count}} أخطاء",
+      "errorsToggle_one": "خطأ واحد",
+      "errorsToggle_two": "خطآن",
+      "errorsToggle_few": "{{count}} أخطاء",
+      "errorsToggle_many": "{{count}} خطأ",
+      "errorsToggle_other": "{{count}} خطأ",
+      "lineLabel": "سطر {{row}}",
+      "autoSyncTitle": "تفعيل المزامنة التلقائية",
+      "autoSyncHint": "احفظ هذا الاتصال لاستيراد الصفوف الجديدة تلقائيًا كل 15 دقيقة.",
+      "reconnectWarning": "⚠ أعد ربط حساب Google لتفعيل هذا الخيار.",
+      "connectionNamePh": "اسم الاتصال (مثال: المتجر الرئيسي)",
+      "saving": "جارٍ الحفظ…",
+      "save": "حفظ",
+      "savedMsg": "تم حفظ الاتصال! المزامنة التلقائية مفعّلة.",
+      "manageSources": "إدارة المصادر →",
+      "newImport": "استيراد جديد",
+      "viewOrders": "عرض الطلبات →"
+    },
+    "errors": {
+      "accessDenied": "تم رفض الوصول من Google.",
+      "authError": "خطأ في المصادقة ({{code}}).",
+      "noFile": "اختر ملف Google Sheets.",
+      "notConnected": "الرجاء الاتصال بـ Google أولاً.",
+      "listFilesFailed": "تعذّر سرد الملفات.",
+      "network": "خطأ في الشبكة.",
+      "sessionExpired": "انتهت جلسة Google. يرجى إعادة الاتصال.",
+      "loadFailed": "تعذّر تحميل الجدول.",
+      "requiredField": "يرجى تعيين الحقل المطلوب: \"{{field}}\"",
+      "noBoutique": "اختر متجرًا.",
+      "saveFailed": "خطأ أثناء الحفظ."
+    }
+  },
+  "newOrderBtn": "+ طلب جديد",
+  "newOrder": {
+    "title": "طلب جديد",
+    "subtitle": "إنشاء طلب يدوي",
+    "back": "← رجوع",
+    "noBoutiqueWarn": "اختر متجراً من شريط التنقل قبل إنشاء الطلب.",
+    "section": {
+      "client": "العميل",
+      "items": "المنتجات",
+      "delivery": "التوصيل",
+      "recap": "ملخص"
+    },
+    "client": {
+      "phone": "الهاتف *",
+      "searchTitle": "البحث عن العميل بالهاتف",
+      "name": "الاسم الكامل *",
+      "phone2": "هاتف 2",
+      "phone2Ph": "اختياري",
+      "email": "البريد الإلكتروني",
+      "wilaya": "الولاية",
+      "wilayaPh": "اختر ولاية",
+      "commune": "البلدية",
+      "communePh": "اختر بلدية",
+      "communeLoading": "جارٍ التحميل…",
+      "communeWilayaFirst": "اختر ولاية أولاً",
+      "address": "العنوان",
+      "addressPh": "الشارع، الحي…",
+      "referrer": "المصدر",
+      "referrerPh": "مصدر العميل",
+      "remark": "ملاحظة",
+      "remarkPh": "ملاحظات داخلية حول الطلب…",
+      "found": "✓ عميل موجود — تم تعبئة الحقول"
+    },
+    "product": {
+      "searchPh": "ابحث عن منتج بالاسم أو SKU…",
+      "searchNoBoutique": "اختر متجراً أولاً",
+      "noResults": "لا يوجد منتج",
+      "stock": "المخزون",
+      "variantLabel": "المتغير *",
+      "variantPh": "اختر",
+      "unitPrice": "السعر الوحدوي",
+      "qty": "الكمية",
+      "addBtn": "إضافة",
+      "emptyCart": "لم يُضف أي منتج",
+      "colProduct": "المنتج",
+      "colVariant": "المتغير",
+      "colQty": "الكمية",
+      "colUnitPrice": "السعر الوحدوي",
+      "colTotal": "الإجمالي",
+      "subtotal": "المجموع الجزئي"
+    },
+    "delivery": {
+      "method": "طريقة التوصيل",
+      "domicile": "إلى المنزل",
+      "stopdesk": "Stop Desk",
+      "fee": "رسوم التوصيل (دج)",
+      "discount": "الخصم (دج)"
+    },
+    "recap": {
+      "subtotal": "المجموع الجزئي",
+      "deliveryFee": "رسوم التوصيل",
+      "discount": "الخصم",
+      "total": "الإجمالي",
+      "submit": "إنشاء الطلب"
+    },
+    "errors": {
+      "noBoutique": "لم يُحدد متجر في شريط التنقل.",
+      "noPhone": "هاتف العميل مطلوب.",
+      "noName": "اسم العميل مطلوب.",
+      "emptyCart": "أضف منتجاً واحداً على الأقل إلى الطلب.",
+      "createFailed": "خطأ أثناء إنشاء الطلب."
+    },
+    "referrerOptions": {
+      "facebook": "Facebook",
+      "instagram": "Instagram",
+      "tiktok": "TikTok",
+      "boutic": "Boutic",
+      "other": "أخرى"
+    }
+  },
+  "editOrder": {
+    "title": "تعديل الطلب {{ref}}",
+    "subtitle": "تعديل معلومات العميل والمنتجات ورسوم التوصيل.",
+    "cancel": "إلغاء",
+    "save": "حفظ",
+    "saving": "جارٍ الحفظ…",
+    "saveBtn": "حفظ التعديلات",
+    "loading": "جارٍ التحميل…",
+    "loadError": "خطأ في التحميل",
+    "section": {
+      "client": "معلومات العميل",
+      "address": "عنوان التوصيل",
+      "remarks": "ملاحظات",
+      "items": "المنتجات",
+      "delivery": "التوصيل",
+      "recap": "ملخص"
+    },
+    "client": {
+      "phone": "الهاتف *",
+      "phonePh": "05XX XX XX XX",
+      "name": "الاسم الكامل *",
+      "namePh": "الاسم واللقب",
+      "phone2": "هاتف 2",
+      "email": "البريد الإلكتروني",
+      "emailPh": "email@example.com"
+    },
+    "address": {
+      "wilaya": "الولاية",
+      "wilayaSelect": "— اختر —",
+      "commune": "البلدية",
+      "communeLoading": "جارٍ التحميل…",
+      "communeSelect": "— اختر —",
+      "address": "العنوان",
+      "addressPh": "الشارع، الحي…"
+    },
+    "remarks": {
+      "source": "المصدر",
+      "sourceNone": "— بدون مصدر —",
+      "remark": "ملاحظة",
+      "remarkPh": "ملاحظة داخلية…"
+    },
+    "product": {
+      "searchPh": "ابحث عن منتج…",
+      "variantPh": "— اختر متغيراً —",
+      "qty": "الكمية",
+      "unitPrice": "السعر الوحدوي (دج)",
+      "add": "إضافة",
+      "cancel": "إلغاء",
+      "emptyCart": "لا توجد منتجات — ابحث عن منتج أعلاه",
+      "colProduct": "المنتج",
+      "colQty": "الكمية",
+      "colUnitPrice": "السعر الوحدوي",
+      "colTotal": "الإجمالي",
+      "stock": "المخزون"
+    },
+    "delivery": {
+      "domicile": "إلى المنزل",
+      "stopdesk": "Stop desk",
+      "fee": "رسوم التوصيل (دج)",
+      "discount": "الخصم (دج)"
+    },
+    "recap": {
+      "subtotal": "المجموع الجزئي",
+      "deliveryFee": "رسوم التوصيل",
+      "discount": "الخصم",
+      "total": "الإجمالي"
+    },
+    "errors": {
+      "noPhone": "هاتف العميل مطلوب.",
+      "noName": "اسم العميل مطلوب.",
+      "emptyCart": "أضف منتجاً واحداً على الأقل.",
+      "updateFailed": "خطأ في التحديث",
+      "network": "خطأ في الشبكة. يرجى المحاولة مجدداً."
+    },
+    "referrerOptions": {
+      "none": "— بدون مصدر —",
+      "facebook": "Facebook",
+      "instagram": "Instagram",
+      "tiktok": "TikTok",
+      "boutic": "Boutic",
+      "other": "أخرى"
+    }
   }
 }

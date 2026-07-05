@@ -2,6 +2,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import * as XLSX from 'xlsx'
+import { useTranslation } from 'react-i18next'
 import {
   Upload, CheckCircle, XCircle, ChevronDown, ChevronUp,
   AlertCircle, FileSpreadsheet, ArrowLeft, Download,
@@ -47,20 +48,20 @@ const EMPTY_MAPPING: Mapping = {
   barcode: '', is_active: '', weight_g: '', confirmer_notes: '',
 }
 
-const MAPPING_FIELDS: MappingFieldDef[] = [
-  { key: 'name',            label: 'Nom du produit',      required: true  },
-  { key: 'sku',             label: 'SKU',                 required: true  },
-  { key: 'price',           label: 'Prix (DA)',           required: true  },
-  { key: 'brand',           label: 'Marque',              required: false },
-  { key: 'compare_price',   label: 'Prix barré (DA)',     required: false },
-  { key: 'barcode',         label: 'Code-barres',         required: false },
-  { key: 'is_active',       label: 'Actif (Oui / Non)',   required: false },
-  { key: 'weight_g',        label: 'Poids (g)',           required: false },
-  { key: 'confirmer_notes', label: 'Notes confirmateur',  required: false },
+// Keys without labels — labels computed with t() inside the component
+const MAPPING_FIELD_KEYS: { key: keyof Mapping; labelKey: string; required: boolean }[] = [
+  { key: 'name',            labelKey: 'name',           required: true  },
+  { key: 'sku',             labelKey: 'sku',            required: true  },
+  { key: 'price',           labelKey: 'price',          required: true  },
+  { key: 'brand',           labelKey: 'brand',          required: false },
+  { key: 'compare_price',   labelKey: 'comparePrice',   required: false },
+  { key: 'barcode',         labelKey: 'barcode',        required: false },
+  { key: 'is_active',       labelKey: 'isActive',       required: false },
+  { key: 'weight_g',        labelKey: 'weightG',        required: false },
+  { key: 'confirmer_notes', labelKey: 'confirmerNotes', required: false },
 ]
 
-const ACCEPTED       = '.xls,.xlsx,.csv'
-const STEP_LABELS    = ['Fichier', 'Correspondance', 'Import', 'Résultat']
+const ACCEPTED = '.xls,.xlsx,.csv'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -90,16 +91,20 @@ function autoDetect(headers: string[]): Mapping {
   }
 }
 
-async function parseFile(file: File): Promise<{ headers: string[]; rows: string[][] }> {
+async function parseFile(
+  file: File,
+  errEmpty: string,
+  errNoColumns: string,
+): Promise<{ headers: string[]; rows: string[][] }> {
   const ab  = await file.arrayBuffer()
   const wb  = XLSX.read(ab, { type: 'array' })
   const ws  = wb.Sheets[wb.SheetNames[0]]
   const raw = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: false, defval: '' })
 
-  if (!raw || raw.length < 2) throw new Error('Fichier vide ou sans données')
+  if (!raw || raw.length < 2) throw new Error(errEmpty)
 
   const headers = (raw[0] as unknown[]).map(h => String(h ?? '').trim()).filter(Boolean)
-  if (headers.length === 0) throw new Error('Aucune colonne détectée dans le fichier')
+  if (headers.length === 0) throw new Error(errNoColumns)
 
   const rows = (raw.slice(1) as unknown[][])
     .map(row => headers.map((_, i) => String((row as unknown[])[i] ?? '').trim()))
@@ -118,15 +123,8 @@ function downloadTemplate() {
 
   const ws = XLSX.utils.aoa_to_sheet(templateRows)
   ws['!cols'] = [
-    { wch: 24 }, // Nom du produit
-    { wch: 14 }, // SKU
-    { wch: 10 }, // Prix
-    { wch: 14 }, // Marque
-    { wch: 12 }, // Prix barré
-    { wch: 18 }, // Code-barres
-    { wch: 10 }, // Actif
-    { wch: 12 }, // Poids (g)
-    { wch: 40 }, // Notes confirmateur
+    { wch: 24 }, { wch: 14 }, { wch: 10 }, { wch: 14 }, { wch: 12 },
+    { wch: 18 }, { wch: 10 }, { wch: 12 }, { wch: 40 },
   ]
 
   const wb = XLSX.utils.book_new()
@@ -136,12 +134,12 @@ function downloadTemplate() {
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-function StepIndicator({ step }: { step: Step }) {
+function StepIndicator({ step, labels }: { step: Step; labels: string[] }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', marginBottom: 28, fontFamily: fonts.sans }}>
-      {STEP_LABELS.map((label, i) => {
-        const n      = (i + 1) as Step
-        const done   = step > n
+      {labels.map((label, i) => {
+        const n     = (i + 1) as Step
+        const done  = step > n
         const active = step === n
         return (
           <div key={n} style={{ display: 'flex', alignItems: 'center', flex: i < 3 ? 1 : 0 }}>
@@ -190,6 +188,7 @@ function Card({ children }: { children: React.ReactNode }) {
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function ImportProductsPage() {
+  const { t }                          = useTranslation('products')
   const router                         = useRouter()
   const fileInputRef                   = useRef<HTMLInputElement>(null)
   const { boutiqueId: ctxBoutiqueId }  = useBoutique()
@@ -204,9 +203,22 @@ export default function ImportProductsPage() {
   const [mappingError,  setMappingError]  = useState('')
   const [result,        setResult]        = useState<ImportResult | null>(null)
   const [errorsOpen,    setErrorsOpen]    = useState(false)
-
   const [boutiques,     setBoutiques]     = useState<Boutique[]>([])
   const [boutiqueId,    setBoutiqueId]    = useState<string>('')
+
+  // Translated labels (inside component so they re-render on language change)
+  const stepLabels = [
+    t('import.steps.file'),
+    t('import.steps.mapping'),
+    t('import.steps.importing'),
+    t('import.steps.result'),
+  ]
+
+  const mappingFields: MappingFieldDef[] = MAPPING_FIELD_KEYS.map(f => ({
+    key:      f.key,
+    label:    t(`import.fields.${f.labelKey}`),
+    required: f.required,
+  }))
 
   useEffect(() => {
     fetch('/api/boutiques', { headers: authHeader() })
@@ -214,7 +226,6 @@ export default function ImportProductsPage() {
       .then((d: Boutique[]) => {
         if (Array.isArray(d)) {
           setBoutiques(d)
-          // Seed from context
           const ctx = ctxBoutiqueId ?? ''
           setBoutiqueId(d.some(b => b.id === ctx) ? ctx : (d[0]?.id ?? ''))
         }
@@ -229,15 +240,20 @@ export default function ImportProductsPage() {
     setParseError('')
     setFile(f)
     try {
-      const { headers: hdrs, rows: dataRows } = await parseFile(f)
+      const { headers: hdrs, rows: dataRows } = await parseFile(
+        f,
+        t('import.errors.emptyFile'),
+        t('import.errors.noColumns'),
+      )
       setHeaders(hdrs)
       setRows(dataRows)
       setMapping(autoDetect(hdrs))
       setMappingError('')
       setStep(2)
     } catch (err) {
-      setParseError(err instanceof Error ? err.message : 'Impossible de lire le fichier.')
+      setParseError(err instanceof Error ? err.message : t('import.errors.readFailed'))
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function handleDrop(e: React.DragEvent) {
@@ -249,10 +265,9 @@ export default function ImportProductsPage() {
   // ── Import ─────────────────────────────────────────────────────────────────
 
   async function handleImport() {
-    const required = MAPPING_FIELDS.filter(f => f.required)
-    for (const f of required) {
+    for (const f of mappingFields.filter(f => f.required)) {
       if (!mapping[f.key]) {
-        setMappingError(`Veuillez mapper le champ requis : "${f.label}"`)
+        setMappingError(t('import.mapping.requiredField', { field: f.label }))
         return
       }
     }
@@ -291,7 +306,7 @@ export default function ImportProductsPage() {
       const data = await res.json() as ImportResult
       setResult(data)
     } catch {
-      setResult({ imported: 0, failed: rows.length, errors: [{ row: 0, reason: 'Erreur réseau' }] })
+      setResult({ imported: 0, failed: rows.length, errors: [{ row: 0, reason: t('import.errors.network') }] })
     }
     setStep(4)
   }
@@ -299,11 +314,11 @@ export default function ImportProductsPage() {
   // ── Column options ─────────────────────────────────────────────────────────
 
   const colOptions = [
-    <option key="" value="">— Ignorer ce champ —</option>,
+    <option key="" value="">{t('import.mapping.ignore')}</option>,
     ...headers.map(h => <option key={h} value={h}>{h}</option>),
   ]
 
-  // ── Step 1 — Fichier ───────────────────────────────────────────────────────
+  // ── Step 1 — File ──────────────────────────────────────────────────────────
 
   const stepUpload = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -316,10 +331,10 @@ export default function ImportProductsPage() {
             color: colors.textLt, textTransform: 'uppercase',
             letterSpacing: '0.5px', fontFamily: fonts.sans,
           }}>
-            Boutique cible
+            {t('import.boutique.label')}
           </p>
           <p style={{ fontSize: 12.5, color: colors.textMd, marginBottom: 10, fontFamily: fonts.sans }}>
-            Les produits importés seront assignés à cette boutique et apparaîtront dans sa liste de produits.
+            {t('import.boutique.hint')}
           </p>
           <select
             value={boutiqueId}
@@ -331,7 +346,7 @@ export default function ImportProductsPage() {
               cursor: 'pointer', minWidth: 220,
             }}
           >
-            <option value="">— Aucune (ne pas assigner) —</option>
+            <option value="">{t('import.boutique.noAssign')}</option>
             {boutiques.map(b => (
               <option key={b.id} value={b.id}>{b.name}</option>
             ))}
@@ -341,7 +356,7 @@ export default function ImportProductsPage() {
 
       <Card>
         <p style={{ fontSize: 13, color: colors.textMd, marginBottom: 20, fontFamily: fonts.sans }}>
-          Importez vos produits depuis un fichier Excel ou CSV. Les colonnes seront associées manuellement.
+          {t('import.upload.hint')}
         </p>
 
         {/* Drop zone */}
@@ -368,10 +383,10 @@ export default function ImportProductsPage() {
               </div>
             </div>
             <p style={{ fontSize: 14, fontWeight: 600, color: colors.text, marginBottom: 4, fontFamily: fonts.sans }}>
-              Glissez-déposez votre fichier ici
+              {t('import.upload.dropTitle')}
             </p>
             <p style={{ fontSize: 12.5, color: colors.textMd, marginBottom: 16, fontFamily: fonts.sans }}>
-              ou cliquez pour parcourir vos fichiers
+              {t('import.upload.dropHint')}
             </p>
             <span style={{
               display: 'inline-block', fontSize: 11, color: colors.textLt,
@@ -395,10 +410,10 @@ export default function ImportProductsPage() {
         {/* Buttons */}
         <div style={{ marginTop: 16, display: 'flex', justifyContent: 'center', gap: 10 }}>
           <Button variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()}>
-            <Upload size={13} style={{ marginRight: 5 }} /> Parcourir
+            <Upload size={13} style={{ marginRight: 5 }} /> {t('import.upload.browse')}
           </Button>
           <Button variant="secondary" size="sm" onClick={downloadTemplate}>
-            <Download size={13} style={{ marginRight: 5 }} /> Télécharger le modèle
+            <Download size={13} style={{ marginRight: 5 }} /> {t('import.upload.downloadTemplate')}
           </Button>
         </div>
 
@@ -412,13 +427,12 @@ export default function ImportProductsPage() {
           <FileSpreadsheet size={20} color="#4472C4" style={{ flexShrink: 0 }} />
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: 12.5, fontWeight: 600, color: colors.text, margin: 0 }}>
-              Vous ne savez pas quel format utiliser ?
+              {t('import.upload.templateTitle')}
             </p>
-            <p style={{ fontSize: 12, color: colors.textMd, margin: '2px 0 0' }}>
-              Téléchargez le modèle Excel — il contient les bonnes colonnes et 3 lignes d&apos;exemple.
-              Les colonnes <strong>Nom du produit</strong>, <strong>SKU</strong> et <strong>Prix</strong> sont obligatoires.
-              Les marques inexistantes seront créées automatiquement.
-            </p>
+            <p
+              style={{ fontSize: 12, color: colors.textMd, margin: '2px 0 0' }}
+              dangerouslySetInnerHTML={{ __html: t('import.upload.templateHint') }}
+            />
           </div>
           <button
             onClick={downloadTemplate}
@@ -432,13 +446,13 @@ export default function ImportProductsPage() {
             onMouseEnter={e => (e.currentTarget.style.background = '#3360b0')}
             onMouseLeave={e => (e.currentTarget.style.background = '#4472C4')}
           >
-            <Download size={13} /> Modèle .xlsx
+            <Download size={13} /> {t('import.upload.templateBtn')}
           </button>
         </div>
 
         {file && !parseError && (
           <p style={{ fontSize: 12, color: colors.textMd, textAlign: 'center', marginTop: 12, fontFamily: fonts.sans }}>
-            Fichier sélectionné : <strong>{file.name}</strong>
+            {t('import.upload.fileSelected')} : <strong>{file.name}</strong>
           </p>
         )}
 
@@ -456,16 +470,16 @@ export default function ImportProductsPage() {
     </div>
   )
 
-  // ── Step 2 — Correspondance ────────────────────────────────────────────────
+  // ── Step 2 — Mapping ───────────────────────────────────────────────────────
 
-  const stepMapping = (
+  const stepMappingEl = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
       {/* Preview table */}
       <Card>
         <p style={{ fontSize: 12.5, color: colors.textMd, marginBottom: 12, fontFamily: fonts.sans }}>
-          <strong style={{ color: colors.text }}>Aperçu</strong> — 5 premières lignes de «{file?.name}»
-          ({rows.length} ligne{rows.length !== 1 ? 's' : ''} au total)
+          <strong style={{ color: colors.text }}>{t('import.mapping.previewLabel')}</strong>{' '}
+          — {file?.name} ({t('import.mapping.totalRows', { count: rows.length })})
         </p>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11.5, fontFamily: fonts.sans }}>
@@ -504,15 +518,14 @@ export default function ImportProductsPage() {
       {/* Mapping UI */}
       <Card>
         <p style={{ fontSize: 13, fontWeight: 600, color: colors.text, marginBottom: 4, fontFamily: fonts.sans }}>
-          Correspondance des colonnes
+          {t('import.mapping.title')}
         </p>
         <p style={{ fontSize: 12, color: colors.textMd, marginBottom: 18, fontFamily: fonts.sans }}>
-          Associez chaque champ à la colonne correspondante de votre fichier.
-          Les champs marqués <span style={{ color: colors.red }}>*</span> sont obligatoires.
+          {t('import.mapping.hint')}
         </p>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 24px' }}>
-          {MAPPING_FIELDS.map(field => (
+          {mappingFields.map(field => (
             <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <label style={{ fontSize: 12, fontWeight: 500, color: colors.textMd, fontFamily: fonts.sans }}>
                 {field.label}
@@ -547,17 +560,17 @@ export default function ImportProductsPage() {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 22 }}>
           <Button variant="secondary" size="sm" onClick={() => { setStep(1); setFile(null); setHeaders([]); setRows([]) }}>
-            <ArrowLeft size={13} style={{ marginRight: 4 }} /> Retour
+            <ArrowLeft size={13} style={{ marginRight: 4 }} /> {t('import.mapping.back')}
           </Button>
           <Button variant="primary" size="sm" onClick={handleImport}>
-            Importer {rows.length} produit{rows.length !== 1 ? 's' : ''}
+            {t('import.mapping.importBtn', { count: rows.length })}
           </Button>
         </div>
       </Card>
     </div>
   )
 
-  // ── Step 3 — En cours ──────────────────────────────────────────────────────
+  // ── Step 3 — Importing ─────────────────────────────────────────────────────
 
   const stepImporting = (
     <Card>
@@ -570,17 +583,17 @@ export default function ImportProductsPage() {
           animation: 'spin 0.8s linear infinite',
         }} />
         <p style={{ fontSize: 15, fontWeight: 600, color: colors.text, marginBottom: 6 }}>
-          Import en cours…
+          {t('import.importing.title')}
         </p>
         <p style={{ fontSize: 12.5, color: colors.textMd }}>
-          Insertion de {rows.length} produit{rows.length !== 1 ? 's' : ''}. Veuillez patienter.
+          {t('import.importing.hint', { count: rows.length })}
         </p>
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </Card>
   )
 
-  // ── Step 4 — Résultat ──────────────────────────────────────────────────────
+  // ── Step 4 — Result ────────────────────────────────────────────────────────
 
   const stepResult = result && (
     <Card>
@@ -597,7 +610,7 @@ export default function ImportProductsPage() {
               {result.imported}
             </div>
             <div style={{ fontSize: 12, color: colors.textMd, fontFamily: fonts.sans, marginTop: 3 }}>
-              produit{result.imported !== 1 ? 's' : ''} importé{result.imported !== 1 ? 's' : ''}
+              {t('import.result.importedLabel', { count: result.imported })}
             </div>
           </div>
         </div>
@@ -618,13 +631,13 @@ export default function ImportProductsPage() {
               {result.failed}
             </div>
             <div style={{ fontSize: 12, color: colors.textMd, fontFamily: fonts.sans, marginTop: 3 }}>
-              erreur{result.failed !== 1 ? 's' : ''}
+              {t('import.result.errorsLabel', { count: result.failed })}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Info if boutique was selected */}
+      {/* Boutique assignment info */}
       {result.imported > 0 && boutiqueId && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10,
@@ -633,7 +646,7 @@ export default function ImportProductsPage() {
           fontSize: 12.5, fontFamily: fonts.sans, color: colors.textMd,
         }}>
           <CheckCircle size={15} color="#4472C4" />
-          Les produits ont été assignés à la boutique sélectionnée et sont visibles dans la liste des produits.
+          {t('import.result.withBoutique')}
         </div>
       )}
       {result.imported > 0 && !boutiqueId && (
@@ -644,8 +657,7 @@ export default function ImportProductsPage() {
           fontSize: 12.5, fontFamily: fonts.sans, color: '#92400e',
         }}>
           <AlertCircle size={15} color="#d97706" />
-          Aucune boutique sélectionnée — les produits ne sont pas encore assignés à une boutique.
-          Éditez chaque produit pour les assigner.
+          {t('import.result.noBoutique')}
         </div>
       )}
 
@@ -661,7 +673,7 @@ export default function ImportProductsPage() {
               color: colors.textMd,
             }}
           >
-            <span>Détail des erreurs ({result.errors.length})</span>
+            <span>{t('import.result.errorsToggle', { count: result.errors.length })}</span>
             {errorsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
           {errorsOpen && (
@@ -674,7 +686,10 @@ export default function ImportProductsPage() {
                   fontFamily: fonts.sans,
                 }}>
                   <span style={{ fontSize: 11.5, color: colors.textLt, flexShrink: 0, width: 60 }}>
-                    {err.row === 0 ? 'Réseau' : `Ligne ${err.row}`}
+                    {err.row === 0
+                      ? t('import.result.networkRow')
+                      : t('import.result.lineLabel', { row: err.row })
+                    }
                   </span>
                   <span style={{ fontSize: 12, color: colors.red }}>{err.reason}</span>
                 </div>
@@ -686,12 +701,12 @@ export default function ImportProductsPage() {
 
       <div style={{ display: 'flex', gap: 10 }}>
         <Button variant="primary" size="sm" onClick={() => router.push('/dashboard/products')}>
-          Retour à la liste
+          {t('import.result.backToList')}
         </Button>
         <Button variant="secondary" size="sm" onClick={() => {
           setStep(1); setFile(null); setHeaders([]); setRows([]); setResult(null); setErrorsOpen(false)
         }}>
-          Nouvel import
+          {t('import.result.newImport')}
         </Button>
       </div>
     </Card>
@@ -702,11 +717,11 @@ export default function ImportProductsPage() {
   return (
     <>
       <PageHeader
-        title="Import de produits"
-        subtitle="Importer des produits depuis un fichier XLS, XLSX ou CSV"
+        title={t('import.title')}
+        subtitle={t('import.subtitle')}
         actions={
           <Button variant="secondary" size="sm" onClick={() => router.push('/dashboard/products')}>
-            <ArrowLeft size={13} style={{ marginRight: 4 }} /> Liste des produits
+            <ArrowLeft size={13} style={{ marginRight: 4 }} /> {t('import.backToList')}
           </Button>
         }
       />
@@ -716,10 +731,10 @@ export default function ImportProductsPage() {
         display: 'flex', flexDirection: 'column', alignItems: 'center',
       }}>
         <div style={{ width: '100%', maxWidth: 760 }}>
-          <StepIndicator step={step} />
+          <StepIndicator step={step} labels={stepLabels} />
 
           {step === 1 && stepUpload}
-          {step === 2 && stepMapping}
+          {step === 2 && stepMappingEl}
           {step === 3 && stepImporting}
           {step === 4 && stepResult}
         </div>

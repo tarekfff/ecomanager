@@ -277,7 +277,7 @@ export default function ImportSourcesPage() {
                             borderRadius: 20, padding: '3px 8px',
                           }}>
                             <Zap size={10} fill="#7C3AED" />
-                            Déclencheur instantané actif
+                            {t('importSources.liveTrigger')}
                           </span>
                         ) : (
                           <span style={{
@@ -287,7 +287,7 @@ export default function ImportSourcesPage() {
                             borderRadius: 20, padding: '3px 8px',
                           }}>
                             <Zap size={10} />
-                            Sync quotidien (fallback)
+                            {t('importSources.dailySync')}
                           </span>
                         )}
                       </div>

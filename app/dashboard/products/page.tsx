@@ -253,7 +253,7 @@ export default function ProductsPage() {
               size="sm"
               onClick={() => router.push('/dashboard/products/import')}
             >
-              {t('import')}
+              {t('importBtn')}
             </Button>
             <Button
               variant="primary"

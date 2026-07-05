@@ -2,6 +2,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import * as XLSX from 'xlsx'
+import { useTranslation } from 'react-i18next'
 import {
   Upload, CheckCircle, XCircle, ChevronDown, ChevronUp,
   AlertCircle, FileSpreadsheet, ArrowLeft, Download,
@@ -42,19 +43,18 @@ const EMPTY_MAPPING: Mapping = {
   email: '', address: '', phone2: '',
 }
 
-const MAPPING_FIELDS: MappingFieldDef[] = [
-  { key: 'full_name',    label: 'Nom complet',  required: true  },
-  { key: 'phone',        label: 'Téléphone',    required: true  },
-  { key: 'wilaya_name',  label: 'Wilaya',       required: true  },
-  { key: 'commune_name', label: 'Commune',      required: true  },
-  { key: 'email',        label: 'Email',        required: false },
-  { key: 'address',      label: 'Adresse',      required: false },
-  { key: 'phone2',       label: 'Téléphone 2',  required: false },
+// Keys without labels — labels computed with t() inside the component
+const MAPPING_FIELD_KEYS: { key: keyof Mapping; labelKey: string; required: boolean }[] = [
+  { key: 'full_name',    labelKey: 'fullName', required: true  },
+  { key: 'phone',        labelKey: 'phone',    required: true  },
+  { key: 'wilaya_name',  labelKey: 'wilaya',   required: true  },
+  { key: 'commune_name', labelKey: 'commune',  required: true  },
+  { key: 'email',        labelKey: 'email',    required: false },
+  { key: 'address',      labelKey: 'address',  required: false },
+  { key: 'phone2',       labelKey: 'phone2',   required: false },
 ]
 
 const ACCEPTED = '.xls,.xlsx,.csv'
-
-const STEP_LABELS = ['Fichier', 'Correspondance', 'Import', 'Résultat']
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -78,16 +78,20 @@ function autoDetect(headers: string[]): Mapping {
   }
 }
 
-async function parseFile(file: File): Promise<{ headers: string[]; rows: string[][] }> {
+async function parseFile(
+  file: File,
+  errEmpty: string,
+  errNoColumns: string,
+): Promise<{ headers: string[]; rows: string[][] }> {
   const ab  = await file.arrayBuffer()
   const wb  = XLSX.read(ab, { type: 'array' })
   const ws  = wb.Sheets[wb.SheetNames[0]]
   const raw = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: false, defval: '' })
 
-  if (!raw || raw.length < 2) throw new Error('Fichier vide ou sans données')
+  if (!raw || raw.length < 2) throw new Error(errEmpty)
 
   const headers = (raw[0] as unknown[]).map(h => String(h ?? '').trim()).filter(Boolean)
-  if (headers.length === 0) throw new Error('Aucune colonne détectée dans le fichier')
+  if (headers.length === 0) throw new Error(errNoColumns)
 
   const rows = (raw.slice(1) as unknown[][])
     .map(row => headers.map((_, i) => String((row as unknown[])[i] ?? '').trim()))
@@ -98,10 +102,10 @@ async function parseFile(file: File): Promise<{ headers: string[]; rows: string[
 
 // ── Sub-components ─────────────────────────────────────────────────────────
 
-function StepIndicator({ step }: { step: Step }) {
+function StepIndicator({ step, labels }: { step: Step; labels: string[] }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', marginBottom: 28, fontFamily: fonts.sans }}>
-      {STEP_LABELS.map((label, i) => {
+      {labels.map((label, i) => {
         const n     = (i + 1) as Step
         const done  = step > n
         const active = step === n
@@ -152,6 +156,7 @@ function Card({ children }: { children: React.ReactNode }) {
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function ImportClientsPage() {
+  const { t } = useTranslation('clients')
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -166,6 +171,20 @@ export default function ImportClientsPage() {
   const [result,       setResult]       = useState<ImportResult | null>(null)
   const [errorsOpen,   setErrorsOpen]   = useState(false)
 
+  // Translated labels (inside component so they re-render on language change)
+  const stepLabels = [
+    t('import.steps.file'),
+    t('import.steps.mapping'),
+    t('import.steps.importing'),
+    t('import.steps.result'),
+  ]
+
+  const mappingFields: MappingFieldDef[] = MAPPING_FIELD_KEYS.map(f => ({
+    key:      f.key,
+    label:    t(`import.fields.${f.labelKey}`),
+    required: f.required,
+  }))
+
   // ── File handling ─────────────────────────────────────────────────────────
 
   const handleFileSelect = useCallback(async (f: File | null | undefined) => {
@@ -173,15 +192,20 @@ export default function ImportClientsPage() {
     setParseError('')
     setFile(f)
     try {
-      const { headers: hdrs, rows: dataRows } = await parseFile(f)
+      const { headers: hdrs, rows: dataRows } = await parseFile(
+        f,
+        t('import.errors.emptyFile'),
+        t('import.errors.noColumns'),
+      )
       setHeaders(hdrs)
       setRows(dataRows)
       setMapping(autoDetect(hdrs))
       setMappingError('')
       setStep(2)
     } catch (err) {
-      setParseError(err instanceof Error ? err.message : 'Impossible de lire le fichier.')
+      setParseError(err instanceof Error ? err.message : t('import.errors.readFailed'))
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function handleDrop(e: React.DragEvent) {
@@ -194,23 +218,15 @@ export default function ImportClientsPage() {
 
   function downloadTemplate() {
     const templateRows = [
-      // Header row — names match autoDetect variants so mapping is pre-filled
       ['Nom complet', 'Téléphone', 'Téléphone 2', 'Email', 'Wilaya', 'Commune', 'Adresse'],
-      // Example rows with realistic Algerian data
-      ['Ahmed Benali',   '0555 12 34 56', '0661 98 76 54', 'ahmed@example.com',  'Alger',      'Bab Ezzouar', 'Rue des Frères Bouadou, Cité Garidi'],
-      ['Fatima Kaci',    '0770 11 22 33', '',              '',                   'Oran',       'Bir El Djir', ''],
-      ['Mohamed Amrani', '0661 44 55 66', '',              'm.amrani@gmail.com', 'Constantine', 'El Khroub',  'Avenue Zighoud Youcef'],
+      ['Ahmed Benali',   '0555 12 34 56', '0661 98 76 54', 'ahmed@example.com',  'Alger',       'Bab Ezzouar', 'Rue des Frères Bouadou, Cité Garidi'],
+      ['Fatima Kaci',    '0770 11 22 33', '',              '',                   'Oran',        'Bir El Djir', ''],
+      ['Mohamed Amrani', '0661 44 55 66', '',              'm.amrani@gmail.com', 'Constantine', 'El Khroub',   'Avenue Zighoud Youcef'],
     ]
 
     const ws = XLSX.utils.aoa_to_sheet(templateRows)
     ws['!cols'] = [
-      { wch: 22 }, // Nom complet
-      { wch: 16 }, // Téléphone
-      { wch: 16 }, // Téléphone 2
-      { wch: 26 }, // Email
-      { wch: 14 }, // Wilaya
-      { wch: 16 }, // Commune
-      { wch: 36 }, // Adresse
+      { wch: 22 }, { wch: 16 }, { wch: 16 }, { wch: 26 }, { wch: 14 }, { wch: 16 }, { wch: 36 },
     ]
 
     const wb = XLSX.utils.book_new()
@@ -221,11 +237,9 @@ export default function ImportClientsPage() {
   // ── Import ────────────────────────────────────────────────────────────────
 
   async function handleImport() {
-    // Validate required mappings are selected
-    const required = MAPPING_FIELDS.filter(f => f.required)
-    for (const f of required) {
+    for (const f of mappingFields.filter(f => f.required)) {
       if (!mapping[f.key]) {
-        setMappingError(`Veuillez mapper le champ requis : "${f.label}"`)
+        setMappingError(t('import.mapping.requiredField', { field: f.label }))
         return
       }
     }
@@ -262,7 +276,7 @@ export default function ImportClientsPage() {
       const data = await res.json() as ImportResult
       setResult(data)
     } catch {
-      setResult({ imported: 0, failed: rows.length, errors: [{ row: 0, reason: 'Erreur réseau' }] })
+      setResult({ imported: 0, failed: rows.length, errors: [{ row: 0, reason: t('import.errors.network') }] })
     }
     setStep(4)
   }
@@ -270,7 +284,7 @@ export default function ImportClientsPage() {
   // ── Column select options ──────────────────────────────────────────────────
 
   const colOptions = [
-    <option key="" value="">— Ignorer ce champ —</option>,
+    <option key="" value="">{t('import.mapping.ignore')}</option>,
     ...headers.map(h => <option key={h} value={h}>{h}</option>),
   ]
 
@@ -279,7 +293,7 @@ export default function ImportClientsPage() {
   const stepUpload = (
     <Card>
       <p style={{ fontSize: 13, color: colors.textMd, marginBottom: 20, fontFamily: fonts.sans }}>
-        Importez vos clients depuis un fichier Excel ou CSV. Les colonnes seront associées manuellement.
+        {t('import.upload.hint')}
       </p>
 
       {/* Drop zone */}
@@ -306,10 +320,10 @@ export default function ImportClientsPage() {
             </div>
           </div>
           <p style={{ fontSize: 14, fontWeight: 600, color: colors.text, marginBottom: 4, fontFamily: fonts.sans }}>
-            Glissez-déposez votre fichier ici
+            {t('import.upload.dropTitle')}
           </p>
           <p style={{ fontSize: 12.5, color: colors.textMd, marginBottom: 16, fontFamily: fonts.sans }}>
-            ou cliquez pour parcourir vos fichiers
+            {t('import.upload.dropHint')}
           </p>
           <span style={{
             display: 'inline-block', fontSize: 11, color: colors.textLt,
@@ -333,10 +347,10 @@ export default function ImportClientsPage() {
       {/* Buttons row: Browse + Download template */}
       <div style={{ marginTop: 16, display: 'flex', justifyContent: 'center', gap: 10 }}>
         <Button variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()}>
-          <Upload size={13} style={{ marginRight: 5 }} /> Parcourir
+          <Upload size={13} style={{ marginRight: 5 }} /> {t('import.upload.browse')}
         </Button>
         <Button variant="secondary" size="sm" onClick={downloadTemplate}>
-          <Download size={13} style={{ marginRight: 5 }} /> Télécharger le modèle
+          <Download size={13} style={{ marginRight: 5 }} /> {t('import.upload.downloadTemplate')}
         </Button>
       </div>
 
@@ -350,12 +364,12 @@ export default function ImportClientsPage() {
         <FileSpreadsheet size={20} color="#4472C4" style={{ flexShrink: 0 }} />
         <div style={{ flex: 1 }}>
           <p style={{ fontSize: 12.5, fontWeight: 600, color: colors.text, margin: 0 }}>
-            Vous ne savez pas quel format utiliser ?
+            {t('import.upload.templateTitle')}
           </p>
-          <p style={{ fontSize: 12, color: colors.textMd, margin: '2px 0 0' }}>
-            Téléchargez le modèle Excel — il contient les bonnes colonnes et 3 lignes d&apos;exemple.
-            Les colonnes <strong>Nom complet</strong>, <strong>Téléphone</strong>, <strong>Wilaya</strong> et <strong>Commune</strong> sont obligatoires.
-          </p>
+          <p
+            style={{ fontSize: 12, color: colors.textMd, margin: '2px 0 0' }}
+            dangerouslySetInnerHTML={{ __html: t('import.upload.templateHint') }}
+          />
         </div>
         <button
           onClick={downloadTemplate}
@@ -369,13 +383,13 @@ export default function ImportClientsPage() {
           onMouseEnter={e => (e.currentTarget.style.background = '#3360b0')}
           onMouseLeave={e => (e.currentTarget.style.background = '#4472C4')}
         >
-          <Download size={13} /> Modèle .xlsx
+          <Download size={13} /> {t('import.upload.templateBtn')}
         </button>
       </div>
 
       {file && !parseError && (
         <p style={{ fontSize: 12, color: colors.textMd, textAlign: 'center', marginTop: 12, fontFamily: fonts.sans }}>
-          Fichier sélectionné : <strong>{file.name}</strong>
+          {t('import.upload.fileSelected')} : <strong>{file.name}</strong>
         </p>
       )}
 
@@ -392,13 +406,14 @@ export default function ImportClientsPage() {
     </Card>
   )
 
-  const stepMapping = (
+  const stepMappingEl = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
       {/* Preview table */}
       <Card>
         <p style={{ fontSize: 12.5, color: colors.textMd, marginBottom: 12, fontFamily: fonts.sans }}>
-          <strong style={{ color: colors.text }}>Aperçu</strong> — 5 premières lignes de «{file?.name}» ({rows.length} ligne{rows.length !== 1 ? 's' : ''} au total)
+          <strong style={{ color: colors.text }}>{t('import.mapping.previewLabel')}</strong>{' '}
+          — {file?.name} ({t('import.mapping.totalRows', { count: rows.length })})
         </p>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11.5, fontFamily: fonts.sans }}>
@@ -437,18 +452,17 @@ export default function ImportClientsPage() {
       {/* Mapping UI */}
       <Card>
         <p style={{ fontSize: 13, fontWeight: 600, color: colors.text, marginBottom: 4, fontFamily: fonts.sans }}>
-          Correspondance des colonnes
+          {t('import.mapping.title')}
         </p>
         <p style={{ fontSize: 12, color: colors.textMd, marginBottom: 18, fontFamily: fonts.sans }}>
-          Associez chaque champ de l&apos;application à la colonne correspondante dans votre fichier.
-          Les champs marqués d&apos;un <span style={{ color: colors.red }}>*</span> sont obligatoires.
+          {t('import.mapping.hint')}
         </p>
 
         <div style={{
           display: 'grid', gridTemplateColumns: '1fr 1fr',
           gap: '10px 24px',
         }}>
-          {MAPPING_FIELDS.map(field => (
+          {mappingFields.map(field => (
             <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <label style={{ fontSize: 12, fontWeight: 500, color: colors.textMd, fontFamily: fonts.sans }}>
                 {field.label}
@@ -483,20 +497,19 @@ export default function ImportClientsPage() {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 22 }}>
           <Button variant="secondary" size="sm" onClick={() => { setStep(1); setFile(null); setHeaders([]); setRows([]) }}>
-            <ArrowLeft size={13} style={{ marginRight: 4 }} /> Retour
+            <ArrowLeft size={13} style={{ marginRight: 4 }} /> {t('import.mapping.back')}
           </Button>
           <Button variant="primary" size="sm" onClick={handleImport}>
-            Importer {rows.length} client{rows.length !== 1 ? 's' : ''}
+            {t('import.mapping.importBtn', { count: rows.length })}
           </Button>
         </div>
       </Card>
     </div>
   )
 
-  const stepImporting = (
+  const stepImportingEl = (
     <Card>
       <div style={{ textAlign: 'center', padding: '32px 0', fontFamily: fonts.sans }}>
-        {/* Spinner */}
         <div style={{
           width: 48, height: 48, borderRadius: '50%',
           border: `4px solid ${colors.primaryLt}`,
@@ -505,17 +518,17 @@ export default function ImportClientsPage() {
           animation: 'spin 0.8s linear infinite',
         }} />
         <p style={{ fontSize: 15, fontWeight: 600, color: colors.text, marginBottom: 6 }}>
-          Import en cours…
+          {t('import.importing.title')}
         </p>
         <p style={{ fontSize: 12.5, color: colors.textMd }}>
-          Insertion de {rows.length} client{rows.length !== 1 ? 's' : ''}. Veuillez patienter.
+          {t('import.importing.hint', { count: rows.length })}
         </p>
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </Card>
   )
 
-  const stepResult = result && (
+  const stepResultEl = result && (
     <Card>
       <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
         {/* Imported */}
@@ -530,7 +543,7 @@ export default function ImportClientsPage() {
               {result.imported}
             </div>
             <div style={{ fontSize: 12, color: colors.textMd, fontFamily: fonts.sans, marginTop: 3 }}>
-              client{result.imported !== 1 ? 's' : ''} importé{result.imported !== 1 ? 's' : ''}
+              {t('import.result.importedLabel', { count: result.imported })}
             </div>
           </div>
         </div>
@@ -551,7 +564,7 @@ export default function ImportClientsPage() {
               {result.failed}
             </div>
             <div style={{ fontSize: 12, color: colors.textMd, fontFamily: fonts.sans, marginTop: 3 }}>
-              erreur{result.failed !== 1 ? 's' : ''}
+              {t('import.result.errorsLabel', { count: result.failed })}
             </div>
           </div>
         </div>
@@ -571,7 +584,7 @@ export default function ImportClientsPage() {
               color: colors.textMd,
             }}
           >
-            <span>Détail des erreurs ({result.errors.length})</span>
+            <span>{t('import.result.errorsToggle', { count: result.errors.length })}</span>
             {errorsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
           {errorsOpen && (
@@ -584,7 +597,10 @@ export default function ImportClientsPage() {
                   fontFamily: fonts.sans,
                 }}>
                   <span style={{ fontSize: 11.5, color: colors.textLt, flexShrink: 0, width: 60 }}>
-                    {err.row === 0 ? 'Réseau' : `Ligne ${err.row}`}
+                    {err.row === 0
+                      ? t('import.result.networkRow')
+                      : t('import.result.lineLabel', { row: err.row })
+                    }
                   </span>
                   <span style={{ fontSize: 12, color: colors.red }}>{err.reason}</span>
                 </div>
@@ -596,13 +612,13 @@ export default function ImportClientsPage() {
 
       <div style={{ display: 'flex', gap: 10 }}>
         <Button variant="primary" size="sm" onClick={() => router.push('/dashboard/clients')}>
-          Retour à la liste
+          {t('import.result.backToList')}
         </Button>
         {result.imported > 0 || result.failed > 0 ? (
           <Button variant="secondary" size="sm" onClick={() => {
             setStep(1); setFile(null); setHeaders([]); setRows([]); setResult(null)
           }}>
-            Nouvel import
+            {t('import.result.newImport')}
           </Button>
         ) : null}
       </div>
@@ -614,11 +630,11 @@ export default function ImportClientsPage() {
   return (
     <>
       <PageHeader
-        title="Import de clients"
-        subtitle="Importer des clients depuis un fichier XLS, XLSX ou CSV"
+        title={t('import.title')}
+        subtitle={t('import.subtitle')}
         actions={
           <Button variant="secondary" size="sm" onClick={() => router.push('/dashboard/clients')}>
-            <ArrowLeft size={13} style={{ marginRight: 4 }} /> Liste des clients
+            <ArrowLeft size={13} style={{ marginRight: 4 }} /> {t('import.backToList')}
           </Button>
         }
       />
@@ -628,12 +644,12 @@ export default function ImportClientsPage() {
         display: 'flex', flexDirection: 'column', alignItems: 'center',
       }}>
         <div style={{ width: '100%', maxWidth: 760 }}>
-          <StepIndicator step={step} />
+          <StepIndicator step={step} labels={stepLabels} />
 
           {step === 1 && stepUpload}
-          {step === 2 && stepMapping}
-          {step === 3 && stepImporting}
-          {step === 4 && stepResult}
+          {step === 2 && stepMappingEl}
+          {step === 3 && stepImportingEl}
+          {step === 4 && stepResultEl}
         </div>
       </div>
     </>

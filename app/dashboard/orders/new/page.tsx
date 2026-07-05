@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslation } from 'react-i18next'
 import { Search, X, Plus, Minus, AlertCircle, Package } from 'lucide-react'
 import { PageHeader, Button, Input, Select } from '@/components/ui'
 import { colors, fonts } from '@/lib/tokens'
@@ -60,13 +61,8 @@ interface CartItem {
 let _key = 0
 const newKey = () => `k${++_key}`
 
-const REFERRER_OPTIONS = [
-  { value: 'Facebook',   label: 'Facebook'   },
-  { value: 'Instagram',  label: 'Instagram'  },
-  { value: 'TikTok',     label: 'TikTok'     },
-  { value: 'Boutic OR',     label: 'Boutic'     },
-  { value: 'Autre',      label: 'Autre'      },
-]
+// Referrer option values (labels come from t())
+const REFERRER_VALUES = ['Facebook', 'Instagram', 'TikTok', 'Boutic OR', 'Autre'] as const
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -134,6 +130,7 @@ function QtyStepper({ value, onChange }: { value: number; onChange: (v: number) 
 // ── Main Page ──────────────────────────────────────────────────────────────────
 
 export default function NewOrderPage() {
+  const { t }              = useTranslation('orders')
   const router             = useRouter()
   const { boutiqueId }     = useBoutique()
 
@@ -176,15 +173,25 @@ export default function NewOrderPage() {
   const [discount,       setDiscount]       = useState('0')
 
   // ── Form submission ────────────────────────────────────────────────────────
-  const [submitting, setSubmitting] = useState(false)
-  const [submitError, setSubmitError] = useState('')
+  const [submitting,   setSubmitting]   = useState(false)
+  const [submitError,  setSubmitError]  = useState('')
 
-  const searchRef     = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const dropdownRef   = useRef<HTMLDivElement>(null)
+  const searchRef   = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   // ── Computed values ────────────────────────────────────────────────────────
   const subtotal = cart.reduce((s, it) => s + it.unit_price * it.quantity, 0)
   const total    = subtotal + (Number(deliveryFee) || 0) - (Number(discount) || 0)
+
+  // ── Referrer options (translated) ─────────────────────────────────────────
+  const referrerOptions = [
+    { value: 'Facebook',  label: t('newOrder.referrerOptions.facebook') },
+    { value: 'Instagram', label: t('newOrder.referrerOptions.instagram') },
+    { value: 'TikTok',    label: t('newOrder.referrerOptions.tiktok') },
+    { value: 'Boutic OR', label: t('newOrder.referrerOptions.boutic') },
+    { value: 'Autre',     label: t('newOrder.referrerOptions.other') },
+  ]
+  void REFERRER_VALUES // keep const used
 
   // ── Load reference data ────────────────────────────────────────────────────
 
@@ -205,14 +212,8 @@ export default function NewOrderPage() {
       .finally(() => setCommunesLoading(false))
   }, [clientWilaya])
 
-  // ── Auto-fill delivery fee when wilaya or cart changes ─────────────────────
-
-  const recomputeFee = useCallback((wilayaId: string, method: 'domicile' | 'stopdesk', currentCart: CartItem[]) => {
-    if (!wilayaId || currentCart.length === 0) return
-    // Use the first product in cart that has delivery fees configured
-    // (In a real app you might merge fees; here we take max)
-    // Fee is fetched per-product when product is loaded; we store it on the CartItem via selectedProduct
-    // For simplicity, fee is just auto-filled when the product is added (see addToCart)
+  const recomputeFee = useCallback((_wilayaId: string, _method: 'domicile' | 'stopdesk', _cart: CartItem[]) => {
+    // Fee is auto-filled when a product is added (see addToCart)
   }, [])
 
   useEffect(() => {
@@ -295,7 +296,6 @@ export default function NewOrderPage() {
     setProductSearch('')
     setSearchResults([])
 
-    // Fetch full product details (variants + delivery fees)
     const res = await fetch(`/api/products/${p.id}`, { headers: authHeader() })
     if (!res.ok) return
     const detail = await res.json() as ProductDetail
@@ -305,7 +305,6 @@ export default function NewOrderPage() {
     setAddQty(1)
     setAddPrice(String(detail.price))
 
-    // If no variants, add directly
     if (!detail.product_variants || detail.product_variants.length === 0) {
       addToCart(detail, null, null, 1, detail.price)
       setSelectedProduct(null)
@@ -321,7 +320,6 @@ export default function NewOrderPage() {
     qty:       number,
     price:     number,
   ) {
-    // Try to fill delivery fee from product fees for current wilaya
     if (clientWilaya) {
       const fees = product.product_delivery_fees ?? []
       const wilayaNum = parseInt(clientWilaya)
@@ -354,9 +352,7 @@ export default function NewOrderPage() {
     if (!selectedProduct) return
     const price = Number(addPrice) || selectedProduct.price
 
-    if (selectedProduct.product_variants.length > 0 && !selectedVariant) {
-      return // force selection
-    }
+    if (selectedProduct.product_variants.length > 0 && !selectedVariant) return
 
     let variantId:  string | null = null
     let variantSku: string | null = null
@@ -386,10 +382,10 @@ export default function NewOrderPage() {
 
   async function handleSubmit() {
     setSubmitError('')
-    if (!boutiqueId)           { setSubmitError('Aucune boutique sélectionnée dans la barre de navigation.'); return }
-    if (!clientPhone.trim())   { setSubmitError('Le téléphone client est requis.'); return }
-    if (!clientName.trim())    { setSubmitError('Le nom client est requis.'); return }
-    if (cart.length === 0)     { setSubmitError('Ajoutez au moins un article à la commande.'); return }
+    if (!boutiqueId)           { setSubmitError(t('newOrder.errors.noBoutique')); return }
+    if (!clientPhone.trim())   { setSubmitError(t('newOrder.errors.noPhone'));    return }
+    if (!clientName.trim())    { setSubmitError(t('newOrder.errors.noName'));     return }
+    if (cart.length === 0)     { setSubmitError(t('newOrder.errors.emptyCart'));  return }
 
     setSubmitting(true)
     try {
@@ -422,7 +418,7 @@ export default function NewOrderPage() {
         }),
       })
       const data = await res.json() as { error?: string }
-      if (!res.ok) { setSubmitError(data.error ?? 'Erreur lors de la création.'); return }
+      if (!res.ok) { setSubmitError(data.error ?? t('newOrder.errors.createFailed')); return }
       router.push('/dashboard/orders/en-confirmation')
     } finally {
       setSubmitting(false)
@@ -447,11 +443,11 @@ export default function NewOrderPage() {
   return (
     <>
       <PageHeader
-        title="Nouvelle commande"
-        subtitle="Créez une commande manuelle"
+        title={t('newOrder.title')}
+        subtitle={t('newOrder.subtitle')}
         actions={
           <Button variant="secondary" size="sm" onClick={() => router.back()}>
-            ← Retour
+            {t('newOrder.back')}
           </Button>
         }
       />
@@ -471,7 +467,7 @@ export default function NewOrderPage() {
             fontSize: 13, color: '#795548',
           }}>
             <AlertCircle size={15} />
-            Sélectionnez une boutique dans la barre de navigation avant de créer une commande.
+            {t('newOrder.noBoutiqueWarn')}
           </div>
         )}
 
@@ -498,13 +494,13 @@ export default function NewOrderPage() {
 
           {/* ── LEFT: Client ─────────────────────────────────────────────── */}
           <div style={card}>
-            <div style={sectionLabel}>Client</div>
+            <div style={sectionLabel}>{t('newOrder.section.client')}</div>
 
             {/* Phone search */}
             <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end' }}>
               <div style={{ flex: 1 }}>
                 <Input
-                  label="Téléphone *"
+                  label={t('newOrder.client.phone')}
                   value={clientPhone}
                   onChange={v => { setClientPhone(v); setClientFound(false) }}
                   placeholder="0555 00 00 00"
@@ -514,7 +510,7 @@ export default function NewOrderPage() {
               <button
                 onClick={searchByPhone}
                 disabled={phoneSearching || !clientPhone.trim()}
-                title="Rechercher le client par téléphone"
+                title={t('newOrder.client.searchTitle')}
                 style={{
                   height: 34, width: 34, borderRadius: 4, flexShrink: 0,
                   border: `1px solid ${colors.border}`,
@@ -532,12 +528,12 @@ export default function NewOrderPage() {
                 fontSize: 11.5, color: colors.green,
                 background: '#f0faf0', borderRadius: 4, padding: '4px 8px',
               }}>
-                ✓ Client existant — champs pré-remplis
+                {t('newOrder.client.found')}
               </div>
             )}
 
             <Input
-              label="Nom complet *"
+              label={t('newOrder.client.name')}
               value={clientName}
               onChange={setClientName}
               placeholder="Ahmed Benali"
@@ -545,14 +541,14 @@ export default function NewOrderPage() {
             />
 
             <Input
-              label="Téléphone 2"
+              label={t('newOrder.client.phone2')}
               value={clientPhone2}
               onChange={setClientPhone2}
-              placeholder="Optionnel"
+              placeholder={t('newOrder.client.phone2Ph')}
             />
 
             <Input
-              label="Email"
+              label={t('newOrder.client.email')}
               type="email"
               value={clientEmail}
               onChange={setClientEmail}
@@ -560,52 +556,52 @@ export default function NewOrderPage() {
             />
 
             <Select
-              label="Wilaya"
+              label={t('newOrder.client.wilaya')}
               value={clientWilaya}
               onChange={v => { setClientWilaya(v); setClientCommune('') }}
               options={wilayaOptions}
-              placeholder="Sélectionner une wilaya"
+              placeholder={t('newOrder.client.wilayaPh')}
             />
 
             <Select
-              label="Commune"
+              label={t('newOrder.client.commune')}
               value={clientCommune}
               onChange={setClientCommune}
               options={communeOptions}
               placeholder={
                 communesLoading
-                  ? 'Chargement…'
+                  ? t('newOrder.client.communeLoading')
                   : clientWilaya
-                    ? 'Sélectionner une commune'
-                    : 'Sélectionnez d\'abord une wilaya'
+                    ? t('newOrder.client.communePh')
+                    : t('newOrder.client.communeWilayaFirst')
               }
               disabled={!clientWilaya || communesLoading}
             />
 
             <Input
-              label="Adresse"
+              label={t('newOrder.client.address')}
               value={clientAddress}
               onChange={setClientAddress}
-              placeholder="Rue, quartier…"
+              placeholder={t('newOrder.client.addressPh')}
             />
 
             <Select
-              label="Référent"
+              label={t('newOrder.client.referrer')}
               value={clientReferrer}
               onChange={setClientReferrer}
-              options={REFERRER_OPTIONS}
-              placeholder="Source du client"
+              options={referrerOptions}
+              placeholder={t('newOrder.client.referrerPh')}
             />
 
             {/* Remarque */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <label style={{ fontSize: 12.5, fontWeight: 500, color: colors.textMd }}>
-                Remarque
+                {t('newOrder.client.remark')}
               </label>
               <textarea
                 value={clientRemark}
                 onChange={e => setClientRemark(e.target.value)}
-                placeholder="Notes internes sur la commande…"
+                placeholder={t('newOrder.client.remarkPh')}
                 rows={3}
                 style={{
                   width: '100%', border: `1px solid ${colors.border}`, borderRadius: 4,
@@ -621,7 +617,7 @@ export default function NewOrderPage() {
           {/* ── CENTER: Products ─────────────────────────────────────────── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={card}>
-              <div style={sectionLabel}>Articles</div>
+              <div style={sectionLabel}>{t('newOrder.section.items')}</div>
 
               {/* Product search */}
               <div style={{ position: 'relative' }} ref={dropdownRef}>
@@ -633,7 +629,7 @@ export default function NewOrderPage() {
                   <input
                     value={productSearch}
                     onChange={e => setProductSearch(e.target.value)}
-                    placeholder={boutiqueId ? 'Rechercher un produit par nom ou SKU…' : 'Sélectionnez d\'abord une boutique'}
+                    placeholder={boutiqueId ? t('newOrder.product.searchPh') : t('newOrder.product.searchNoBoutique')}
                     disabled={!boutiqueId}
                     style={{
                       width: '100%', boxSizing: 'border-box',
@@ -683,7 +679,7 @@ export default function NewOrderPage() {
                             {p.price.toLocaleString('fr-DZ')} DA
                           </div>
                           <div style={{ fontSize: 11, color: colors.textLt }}>
-                            Stock: {p.stock_total}
+                            {t('newOrder.product.stock')}: {p.stock_total}
                           </div>
                         </div>
                       </button>
@@ -698,12 +694,12 @@ export default function NewOrderPage() {
                     padding: '10px 14px', fontSize: 13, color: colors.textLt,
                     boxShadow: '0 4px 12px rgba(0,0,0,0.08)', marginTop: 2,
                   }}>
-                    Aucun produit trouvé
+                    {t('newOrder.product.noResults')}
                   </div>
                 )}
               </div>
 
-              {/* Variant + qty picker (inline, appears after product is selected) */}
+              {/* Variant + qty picker */}
               {selectedProduct && (
                 <div style={{
                   background: colors.primaryLt, border: `1px solid ${colors.primary}22`,
@@ -727,7 +723,7 @@ export default function NewOrderPage() {
                   <div style={{ display: 'grid', gridTemplateColumns: variantOptions.length > 0 ? '1fr 1fr auto auto' : '1fr auto auto', gap: 8, alignItems: 'flex-end' }}>
                     {variantOptions.length > 0 && (
                       <Select
-                        label="Variante *"
+                        label={t('newOrder.product.variantLabel')}
                         value={selectedVariant}
                         onChange={v => {
                           setSelectedVariant(v)
@@ -736,18 +732,20 @@ export default function NewOrderPage() {
                           else setAddPrice(String(selectedProduct.price))
                         }}
                         options={variantOptions}
-                        placeholder="Choisir"
+                        placeholder={t('newOrder.product.variantPh')}
                       />
                     )}
                     <Input
-                      label="Prix unitaire"
+                      label={t('newOrder.product.unitPrice')}
                       value={addPrice}
                       onChange={setAddPrice}
                       type="number"
                       placeholder="DA"
                     />
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      <label style={{ fontSize: 12.5, fontWeight: 500, color: colors.textMd }}>Qté</label>
+                      <label style={{ fontSize: 12.5, fontWeight: 500, color: colors.textMd }}>
+                        {t('newOrder.product.qty')}
+                      </label>
                       <QtyStepper value={addQty} onChange={setAddQty} />
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
@@ -757,7 +755,7 @@ export default function NewOrderPage() {
                         onClick={confirmVariantAdd}
                         disabled={variantOptions.length > 0 && !selectedVariant}
                       >
-                        <Plus size={13} /> Ajouter
+                        <Plus size={13} /> {t('newOrder.product.addBtn')}
                       </Button>
                     </div>
                   </div>
@@ -771,15 +769,22 @@ export default function NewOrderPage() {
                   fontSize: 13, borderTop: `1px solid ${colors.border}`,
                 }}>
                   <Package size={24} style={{ marginBottom: 6, opacity: 0.4 }} />
-                  <div>Aucun article ajouté</div>
+                  <div>{t('newOrder.product.emptyCart')}</div>
                 </div>
               ) : (
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, fontFamily: fonts.sans }}>
                     <thead>
                       <tr style={{ borderBottom: `1px solid ${colors.border}` }}>
-                        {['Produit', 'Variante', 'Qté', 'Prix unit.', 'Total', ''].map(h => (
-                          <th key={h} style={{
+                        {[
+                          t('newOrder.product.colProduct'),
+                          t('newOrder.product.colVariant'),
+                          t('newOrder.product.colQty'),
+                          t('newOrder.product.colUnitPrice'),
+                          t('newOrder.product.colTotal'),
+                          '',
+                        ].map((h, i) => (
+                          <th key={i} style={{
                             textAlign: 'left', padding: '6px 8px',
                             fontSize: 11.5, color: colors.textLt, fontWeight: 600,
                           }}>{h}</th>
@@ -842,7 +847,7 @@ export default function NewOrderPage() {
                     display: 'flex', justifyContent: 'flex-end', padding: '8px 8px 0',
                     fontSize: 13, color: colors.textMd, fontFamily: fonts.sans,
                   }}>
-                    Sous-total :&nbsp;
+                    {t('newOrder.product.subtotal')} :&nbsp;
                     <strong style={{ color: colors.text }}>{fmt(subtotal)}</strong>
                   </div>
                 </div>
@@ -853,12 +858,12 @@ export default function NewOrderPage() {
           {/* ── RIGHT: Delivery & Recap ─────────────────────────────────── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={card}>
-              <div style={sectionLabel}>Livraison</div>
+              <div style={sectionLabel}>{t('newOrder.section.delivery')}</div>
 
               {/* Delivery method */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <label style={{ fontSize: 12.5, fontWeight: 500, color: colors.textMd }}>
-                  Méthode de livraison
+                  {t('newOrder.delivery.method')}
                 </label>
                 {(['domicile', 'stopdesk'] as const).map(method => (
                   <label
@@ -879,13 +884,16 @@ export default function NewOrderPage() {
                       onChange={() => setDeliveryMethod(method)}
                       style={{ accentColor: colors.primary, cursor: 'pointer' }}
                     />
-                    {method === 'domicile' ? 'À domicile' : 'Stop Desk'}
+                    {method === 'domicile'
+                      ? t('newOrder.delivery.domicile')
+                      : t('newOrder.delivery.stopdesk')
+                    }
                   </label>
                 ))}
               </div>
 
               <Input
-                label="Frais de livraison (DA)"
+                label={t('newOrder.delivery.fee')}
                 value={deliveryFee}
                 onChange={setDeliveryFee}
                 type="number"
@@ -893,7 +901,7 @@ export default function NewOrderPage() {
               />
 
               <Input
-                label="Remise (DA)"
+                label={t('newOrder.delivery.discount')}
                 value={discount}
                 onChange={setDiscount}
                 type="number"
@@ -903,13 +911,13 @@ export default function NewOrderPage() {
 
             {/* Recap card */}
             <div style={{ ...card, gap: 10 }}>
-              <div style={sectionLabel}>Récapitulatif</div>
+              <div style={sectionLabel}>{t('newOrder.section.recap')}</div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                 {[
-                  { label: 'Sous-total',          value: fmt(subtotal) },
-                  { label: 'Frais de livraison',  value: fmt(Number(deliveryFee) || 0) },
-                  { label: 'Remise',              value: `– ${fmt(Number(discount) || 0)}` },
+                  { label: t('newOrder.recap.subtotal'),    value: fmt(subtotal) },
+                  { label: t('newOrder.recap.deliveryFee'), value: fmt(Number(deliveryFee) || 0) },
+                  { label: t('newOrder.recap.discount'),    value: `– ${fmt(Number(discount) || 0)}` },
                 ].map(row => (
                   <div key={row.label} style={{
                     display: 'flex', justifyContent: 'space-between',
@@ -924,7 +932,9 @@ export default function NewOrderPage() {
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   paddingTop: 8, borderTop: `1px solid ${colors.border}`,
                 }}>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: colors.text }}>Total</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: colors.text }}>
+                    {t('newOrder.recap.total')}
+                  </span>
                   <span style={{ fontSize: 20, fontWeight: 700, color: colors.primary }}>
                     {fmt(total)}
                   </span>
@@ -938,7 +948,7 @@ export default function NewOrderPage() {
                 onClick={handleSubmit}
                 disabled={!boutiqueId || cart.length === 0 || submitting}
               >
-                Créer la commande
+                {t('newOrder.recap.submit')}
               </Button>
             </div>
           </div>

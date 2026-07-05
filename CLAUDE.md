@@ -70,6 +70,188 @@ lib/
 migrations/         SQL files — READ ONLY, never modify from app code
 ```
 
+## i18n — Trilingual UI (AR / FR / EN) — ALWAYS follow this
+
+The entire dashboard UI is trilingual. Every new page or component that renders user-visible text **must** use `useTranslation`. There is no exception.
+
+### Languages
+- `fr` — French (default / fallback)
+- `en` — English
+- `ar` — Arabic (RTL — `<html dir="rtl">` is set automatically by `LanguageProvider`)
+
+### Infrastructure files
+| File | Role |
+|------|------|
+| `lib/i18n.ts` | i18next init — registers all namespaces + resources for all 3 languages |
+| `contexts/LanguageContext.tsx` | Provider — persists lang to localStorage, sets `document.dir`, exposes `useLang()` |
+| `locales/fr/*.json` | French translation dictionaries (one file per module) |
+| `locales/en/*.json` | English dictionaries |
+| `locales/ar/*.json` | Arabic dictionaries |
+
+### Namespaces (one per module)
+`common` · `layout` · `orders` · `clients` · `products` · `stock` · `stats` · `config` · `accounting` · `webhooks` · `statuses`
+
+### How to translate a new page — MANDATORY pattern
+
+**Step 1 — Add the hook inside the component**
+```tsx
+'use client'
+import { useTranslation } from 'react-i18next'
+
+export default function MyPage() {
+  const { t } = useTranslation('orders')   // use the matching namespace
+  // ...
+}
+```
+
+**Step 2 — Replace every French string with `t('key')`**
+```tsx
+// Before
+<PageHeader title="Mes commandes" subtitle="Liste des commandes" />
+<Button>Créer</Button>
+
+// After
+<PageHeader title={t('myPage.title')} subtitle={t('myPage.subtitle')} />
+<Button>{t('myPage.create')}</Button>
+```
+
+**Step 3 — Add the keys to all 3 locale files**
+Add a matching object to `locales/fr/orders.json`, `locales/en/orders.json`, `locales/ar/orders.json`:
+```json
+// locales/fr/orders.json
+"myPage": {
+  "title": "Mes commandes",
+  "subtitle": "Liste des commandes",
+  "create": "Créer"
+}
+
+// locales/en/orders.json
+"myPage": {
+  "title": "My orders",
+  "subtitle": "Order list",
+  "create": "Create"
+}
+
+// locales/ar/orders.json
+"myPage": {
+  "title": "طلباتي",
+  "subtitle": "قائمة الطلبات",
+  "create": "إنشاء"
+}
+```
+
+**Step 4 — Register the namespace in `lib/i18n.ts`** (only if adding a brand-new namespace file)
+
+### Critical rules
+
+#### Module-level constants with labels must move INSIDE the component
+Labels in arrays/objects are evaluated once at module load — they won't update when the language changes.
+```tsx
+// ❌ WRONG — frozen at startup language
+const COLUMNS = [{ key: 'name', label: 'Nom' }]
+
+// ✅ CORRECT — re-evaluates on language change
+export default function MyPage() {
+  const { t } = useTranslation('clients')
+  const columns = [{ key: 'name', label: t('table.name') }]
+}
+```
+
+#### Use `labelKey` for module-level field definitions
+When a constant must stay at module level (e.g. `MAPPING_FIELDS` for import wizards), store a `labelKey` string instead of the French label, then compute translated labels inside the component:
+```tsx
+// Module level — safe (no t() call here)
+const MAPPING_FIELD_KEYS = [
+  { key: 'full_name', labelKey: 'fullName', required: true },
+  { key: 'phone',     labelKey: 'phone',    required: true },
+]
+
+// Inside component
+const { t } = useTranslation('clients')
+const mappingFields = MAPPING_FIELD_KEYS.map(f => ({
+  ...f,
+  label: t(`import.fields.${f.labelKey}`),
+}))
+```
+
+#### Sub-components in the same file each need their own `useTranslation`
+```tsx
+function MySubComponent() {
+  const { t } = useTranslation('products')   // own hook call
+  return <span>{t('options.add')}</span>
+}
+```
+
+#### Plurals — use `count` interpolation
+```tsx
+// Key in JSON:
+"count_one": "{{count}} produit",
+"count_other": "{{count}} produits"
+
+// Usage:
+t('count', { count: n })   // picks _one or _other automatically
+```
+Arabic needs 6 plural forms: `_zero`, `_one`, `_two`, `_few`, `_many`, `_other`.
+
+#### Interpolation for dynamic values
+```tsx
+// Key: "deleteConfirm": "Supprimer « {{name}} » ?"
+t('deleteConfirm', { name: product.name })
+```
+
+#### Key collision — top-level strings vs. objects
+If a namespace already has a top-level string key (e.g. `"import": "Importer"`) and you need to add an `import` object for a wizard, **rename the string key first** (e.g. to `"importBtn"`) and update all `t('import')` call sites before adding the object.
+
+#### `StepIndicator` pattern for import wizards
+Pass translated step labels as a `labels: string[]` prop so they re-render on language change:
+```tsx
+// Inside component:
+const stepLabels = [
+  t('import.steps.file'),
+  t('import.steps.mapping'),
+  t('import.steps.importing'),
+  t('import.steps.result'),
+]
+<StepIndicator step={step} labels={stepLabels} />
+
+// Sub-component signature:
+function StepIndicator({ step, labels }: { step: Step; labels: string[] }) { ... }
+```
+
+#### DB-stored text is NEVER translated
+User-entered data (product names, client names, custom status names, role names, expense types) is shown **exactly as stored** — no translation. Only system-seeded slugs go through `statuses.json`.
+
+#### Fallback
+Missing keys fall back to French (`fallbackLng: 'fr'`), so partially-migrated pages render French, never raw key strings.
+
+### Locale file structure (reference)
+```
+locales/
+  fr/
+    common.json       shared: actions, pagination, confirm dialogs
+    layout.json       sidebar nav, topbar, statusbar labels
+    orders.json       all orders module pages
+    clients.json      clients list + import wizard
+    products.json     products list + import wizard + options + new/edit
+    stock.json        stock pages
+    stats.json        stats pages
+    config.json       config pages (users, roles, boutiques, etc.)
+    accounting.json   accounting pages
+    webhooks.json     webhooks page
+    statuses.json     tracking/confirmation/delivery status slug→label map
+  en/  (same files)
+  ar/  (same files)
+```
+
+### Canonical reference pages (read these to copy the pattern)
+- Simple list page: `app/dashboard/clients/page.tsx`
+- 4-step import wizard: `app/dashboard/clients/import/page.tsx`
+- Form page (new): `app/dashboard/products/new/page.tsx`
+- Form page (edit): `app/dashboard/products/[id]/edit/page.tsx`
+- Complex order form: `app/dashboard/orders/new/page.tsx`
+
+---
+
 ## lib/db.ts — database helper (use EXACTLY like this)
 Uses `@supabase/supabase-js` admin client (service_role key) over HTTPS.
 No direct PostgreSQL connection needed. RLS is bypassed — always scope by tenant_id manually.

@@ -59,5 +59,70 @@
     "title": "Delete client",
     "message": "Delete \"{{name}}\"? This action is irreversible and may fail if the client has orders.",
     "deleting": "Deleting…"
+  },
+  "import": {
+    "title": "Client import",
+    "subtitle": "Import clients from an XLS, XLSX or CSV file",
+    "backToList": "Client list",
+    "steps": {
+      "file": "File",
+      "mapping": "Mapping",
+      "importing": "Import",
+      "result": "Result"
+    },
+    "fields": {
+      "fullName": "Full name",
+      "phone": "Phone",
+      "wilaya": "Wilaya",
+      "commune": "Commune",
+      "email": "Email",
+      "address": "Address",
+      "phone2": "Phone 2"
+    },
+    "upload": {
+      "hint": "Import your clients from an Excel or CSV file. Columns will be mapped manually.",
+      "dropTitle": "Drag and drop your file here",
+      "dropHint": "or click to browse your files",
+      "browse": "Browse",
+      "downloadTemplate": "Download template",
+      "templateTitle": "Not sure which format to use?",
+      "templateHint": "Download the Excel template — it includes the right columns and 3 example rows. The <strong>Full name</strong>, <strong>Phone</strong>, <strong>Wilaya</strong> and <strong>Commune</strong> columns are required.",
+      "templateBtn": "Template .xlsx",
+      "fileSelected": "File selected"
+    },
+    "mapping": {
+      "previewLabel": "Preview",
+      "totalRows_one": "{{count}} row total",
+      "totalRows_other": "{{count}} rows total",
+      "title": "Column mapping",
+      "hint": "Map each application field to the corresponding column in your file. Fields marked with * are required.",
+      "ignore": "— Ignore this field —",
+      "back": "Back",
+      "importBtn_one": "Import {{count}} client",
+      "importBtn_other": "Import {{count}} clients",
+      "requiredField": "Please map the required field: \"{{field}}\""
+    },
+    "importing": {
+      "title": "Importing…",
+      "hint_one": "Inserting {{count}} client. Please wait.",
+      "hint_other": "Inserting {{count}} clients. Please wait."
+    },
+    "result": {
+      "importedLabel_one": "client imported",
+      "importedLabel_other": "clients imported",
+      "errorsLabel_one": "error",
+      "errorsLabel_other": "errors",
+      "errorsToggle": "Error details ({{count}})",
+      "networkRow": "Network",
+      "lineLabel": "Row {{row}}",
+      "backToList": "Back to list",
+      "newImport": "New import"
+    },
+    "errors": {
+      "emptyFile": "Empty file or no data",
+      "noColumns": "No columns detected in the file",
+      "readFailed": "Unable to read the file.",
+      "network": "Network error"
+    }
   }
 }

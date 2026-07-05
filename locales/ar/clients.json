@@ -63,5 +63,90 @@
     "title": "حذف العميل",
     "message": "حذف «{{name}}»؟ هذا الإجراء لا يمكن التراجع عنه وقد يفشل إذا كان للعميل طلبات.",
     "deleting": "جارٍ الحذف…"
+  },
+  "import": {
+    "title": "استيراد العملاء",
+    "subtitle": "استيراد العملاء من ملف XLS أو XLSX أو CSV",
+    "backToList": "قائمة العملاء",
+    "steps": {
+      "file": "الملف",
+      "mapping": "المطابقة",
+      "importing": "الاستيراد",
+      "result": "النتيجة"
+    },
+    "fields": {
+      "fullName": "الاسم الكامل",
+      "phone": "الهاتف",
+      "wilaya": "الولاية",
+      "commune": "البلدية",
+      "email": "البريد الإلكتروني",
+      "address": "العنوان",
+      "phone2": "هاتف 2"
+    },
+    "upload": {
+      "hint": "استورد عملاءك من ملف Excel أو CSV. ستُربط الأعمدة يدويًا.",
+      "dropTitle": "اسحب وأفلت ملفك هنا",
+      "dropHint": "أو انقر للتصفح",
+      "browse": "تصفح",
+      "downloadTemplate": "تنزيل النموذج",
+      "templateTitle": "لا تعرف أي صيغة تستخدم؟",
+      "templateHint": "حمّل نموذج Excel — يحتوي على الأعمدة الصحيحة و3 صفوف مثال. أعمدة <strong>الاسم الكامل</strong> و<strong>الهاتف</strong> و<strong>الولاية</strong> و<strong>البلدية</strong> إلزامية.",
+      "templateBtn": "نموذج .xlsx",
+      "fileSelected": "الملف المحدد"
+    },
+    "mapping": {
+      "previewLabel": "معاينة",
+      "totalRows_zero": "{{count}} صف",
+      "totalRows_one": "صف واحد",
+      "totalRows_two": "صفان",
+      "totalRows_few": "{{count}} صفوف",
+      "totalRows_many": "{{count}} صفًا",
+      "totalRows_other": "{{count}} صف",
+      "title": "مطابقة الأعمدة",
+      "hint": "طابق كل حقل مع العمود المقابل في ملفك. الحقول المعلّمة بـ * إلزامية.",
+      "ignore": "— تجاهل هذا الحقل —",
+      "back": "رجوع",
+      "importBtn_zero": "استيراد {{count}} عملاء",
+      "importBtn_one": "استيراد عميل واحد",
+      "importBtn_two": "استيراد عميلين",
+      "importBtn_few": "استيراد {{count}} عملاء",
+      "importBtn_many": "استيراد {{count}} عميلًا",
+      "importBtn_other": "استيراد {{count}} عميل",
+      "requiredField": "يرجى تعيين الحقل المطلوب: \"{{field}}\""
+    },
+    "importing": {
+      "title": "جارٍ الاستيراد…",
+      "hint_zero": "إدراج {{count}} عملاء. يرجى الانتظار.",
+      "hint_one": "إدراج عميل واحد. يرجى الانتظار.",
+      "hint_two": "إدراج عميلين. يرجى الانتظار.",
+      "hint_few": "إدراج {{count}} عملاء. يرجى الانتظار.",
+      "hint_many": "إدراج {{count}} عميلًا. يرجى الانتظار.",
+      "hint_other": "إدراج {{count}} عميل. يرجى الانتظار."
+    },
+    "result": {
+      "importedLabel_zero": "عملاء مستوردون",
+      "importedLabel_one": "عميل مستورد",
+      "importedLabel_two": "عميلان مستوردان",
+      "importedLabel_few": "عملاء مستوردون",
+      "importedLabel_many": "عميلًا مستوردًا",
+      "importedLabel_other": "عميل مستورد",
+      "errorsLabel_zero": "أخطاء",
+      "errorsLabel_one": "خطأ",
+      "errorsLabel_two": "خطآن",
+      "errorsLabel_few": "أخطاء",
+      "errorsLabel_many": "خطأ",
+      "errorsLabel_other": "خطأ",
+      "errorsToggle": "تفاصيل الأخطاء ({{count}})",
+      "networkRow": "شبكة",
+      "lineLabel": "سطر {{row}}",
+      "backToList": "العودة إلى القائمة",
+      "newImport": "استيراد جديد"
+    },
+    "errors": {
+      "emptyFile": "الملف فارغ أو لا يحتوي على بيانات",
+      "noColumns": "لم يتم اكتشاف أعمدة في الملف",
+      "readFailed": "تعذّر قراءة الملف.",
+      "network": "خطأ في الشبكة"
+    }
   }
 }

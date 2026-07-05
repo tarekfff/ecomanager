@@ -1,6 +1,80 @@
 {
   "title": "Products",
-  "import": "Import",
+  "importBtn": "Import",
+  "import": {
+    "title": "Product import",
+    "subtitle": "Import products from an XLS, XLSX or CSV file",
+    "backToList": "Product list",
+    "steps": {
+      "file": "File",
+      "mapping": "Mapping",
+      "importing": "Import",
+      "result": "Result"
+    },
+    "fields": {
+      "name": "Product name",
+      "sku": "SKU",
+      "price": "Price (DA)",
+      "brand": "Brand",
+      "comparePrice": "Compare price (DA)",
+      "barcode": "Barcode",
+      "isActive": "Active (Yes / No)",
+      "weightG": "Weight (g)",
+      "confirmerNotes": "Confirmer notes"
+    },
+    "boutique": {
+      "label": "Target store",
+      "hint": "Imported products will be assigned to this store and appear in its product list.",
+      "noAssign": "— None (do not assign) —"
+    },
+    "upload": {
+      "hint": "Import your products from an Excel or CSV file. Columns will be mapped manually.",
+      "dropTitle": "Drag and drop your file here",
+      "dropHint": "or click to browse your files",
+      "browse": "Browse",
+      "downloadTemplate": "Download template",
+      "templateTitle": "Not sure which format to use?",
+      "templateHint": "Download the Excel template — it contains the right columns and 3 example rows. <strong>Product name</strong>, <strong>SKU</strong> and <strong>Price</strong> are required. Non-existent brands will be created automatically.",
+      "templateBtn": "Template .xlsx",
+      "fileSelected": "File selected"
+    },
+    "mapping": {
+      "previewLabel": "Preview",
+      "totalRows_one": "{{count}} row total",
+      "totalRows_other": "{{count}} rows total",
+      "title": "Column mapping",
+      "hint": "Map each field to the corresponding column in your file. Fields marked * are required.",
+      "ignore": "— Ignore this field —",
+      "back": "Back",
+      "importBtn_one": "Import {{count}} product",
+      "importBtn_other": "Import {{count}} products",
+      "requiredField": "Please map the required field: \"{{field}}\""
+    },
+    "importing": {
+      "title": "Import in progress…",
+      "hint_one": "Inserting {{count}} product. Please wait.",
+      "hint_other": "Inserting {{count}} products. Please wait."
+    },
+    "result": {
+      "importedLabel_one": "product imported",
+      "importedLabel_other": "products imported",
+      "errorsLabel_one": "error",
+      "errorsLabel_other": "errors",
+      "withBoutique": "Products have been assigned to the selected store and are visible in the product list.",
+      "noBoutique": "No store selected — products are not yet assigned to a store. Edit each product to assign them.",
+      "errorsToggle": "Error details ({{count}})",
+      "networkRow": "Network",
+      "lineLabel": "Row {{row}}",
+      "backToList": "Back to list",
+      "newImport": "New import"
+    },
+    "errors": {
+      "emptyFile": "Empty file or no data",
+      "noColumns": "No columns detected in the file",
+      "readFailed": "Unable to read the file.",
+      "network": "Network error"
+    }
+  },
   "addProduct": "+ Add a product",
   "searchPlaceholder": "Search by name or SKU…",
   "boutiquePlaceholder": "Store",
@@ -47,5 +121,22 @@
     "delete": "Delete",
     "noValues": "No values yet.",
     "deleteConfirm": "Delete \"{{name}}\" and all its values?"
+  },
+  "newProduct": {
+    "title": "New product",
+    "subtitle": "Fill in the information below to create a product.",
+    "backToList": "← Back to list",
+    "submitLabel": "Create product",
+    "createError": "Error creating product."
+  },
+  "editProduct": {
+    "fallbackTitle": "Edit product",
+    "subtitle": "Edit the product information.",
+    "backToList": "← Back to list",
+    "submitLabel": "Save changes",
+    "updateError": "Error updating product.",
+    "loading": "Loading…",
+    "notFound": "Product not found.",
+    "backBtn": "Back to list"
   }
 }

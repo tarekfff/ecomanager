@@ -59,5 +59,70 @@
     "title": "Supprimer le client",
     "message": "Supprimer « {{name}} » ? Cette action est irréversible et peut échouer si le client possède des commandes.",
     "deleting": "Suppression…"
+  },
+  "import": {
+    "title": "Import de clients",
+    "subtitle": "Importer des clients depuis un fichier XLS, XLSX ou CSV",
+    "backToList": "Liste des clients",
+    "steps": {
+      "file": "Fichier",
+      "mapping": "Correspondance",
+      "importing": "Import",
+      "result": "Résultat"
+    },
+    "fields": {
+      "fullName": "Nom complet",
+      "phone": "Téléphone",
+      "wilaya": "Wilaya",
+      "commune": "Commune",
+      "email": "Email",
+      "address": "Adresse",
+      "phone2": "Téléphone 2"
+    },
+    "upload": {
+      "hint": "Importez vos clients depuis un fichier Excel ou CSV. Les colonnes seront associées manuellement.",
+      "dropTitle": "Glissez-déposez votre fichier ici",
+      "dropHint": "ou cliquez pour parcourir vos fichiers",
+      "browse": "Parcourir",
+      "downloadTemplate": "Télécharger le modèle",
+      "templateTitle": "Vous ne savez pas quel format utiliser ?",
+      "templateHint": "Téléchargez le modèle Excel — il contient les bonnes colonnes et 3 lignes d'exemple. Les colonnes <strong>Nom complet</strong>, <strong>Téléphone</strong>, <strong>Wilaya</strong> et <strong>Commune</strong> sont obligatoires.",
+      "templateBtn": "Modèle .xlsx",
+      "fileSelected": "Fichier sélectionné"
+    },
+    "mapping": {
+      "previewLabel": "Aperçu",
+      "totalRows_one": "{{count}} ligne au total",
+      "totalRows_other": "{{count}} lignes au total",
+      "title": "Correspondance des colonnes",
+      "hint": "Associez chaque champ de l'application à la colonne correspondante dans votre fichier. Les champs marqués d'un * sont obligatoires.",
+      "ignore": "— Ignorer ce champ —",
+      "back": "Retour",
+      "importBtn_one": "Importer {{count}} client",
+      "importBtn_other": "Importer {{count}} clients",
+      "requiredField": "Veuillez mapper le champ requis : \"{{field}}\""
+    },
+    "importing": {
+      "title": "Import en cours…",
+      "hint_one": "Insertion de {{count}} client. Veuillez patienter.",
+      "hint_other": "Insertion de {{count}} clients. Veuillez patienter."
+    },
+    "result": {
+      "importedLabel_one": "client importé",
+      "importedLabel_other": "clients importés",
+      "errorsLabel_one": "erreur",
+      "errorsLabel_other": "erreurs",
+      "errorsToggle": "Détail des erreurs ({{count}})",
+      "networkRow": "Réseau",
+      "lineLabel": "Ligne {{row}}",
+      "backToList": "Retour à la liste",
+      "newImport": "Nouvel import"
+    },
+    "errors": {
+      "emptyFile": "Fichier vide ou sans données",
+      "noColumns": "Aucune colonne détectée dans le fichier",
+      "readFailed": "Impossible de lire le fichier.",
+      "network": "Erreur réseau"
+    }
   }
 }
