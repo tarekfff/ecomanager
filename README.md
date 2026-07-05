@@ -1,4 +1,4 @@
-# EcoManager — COD E-Commerce Platform (Algeria)
+# ChicN — COD E-Commerce Platform (Algeria)
 
 Multi-tenant COD (cash-on-delivery) order management for Algerian e-commerce:
 orders pipeline, stock, carriers/delivery, accounting, stats, webhooks.
