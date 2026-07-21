@@ -158,9 +158,10 @@ export async function syncGoogleSheet(params: SyncParams): Promise<SyncResult> {
 
     const communeRaw = cell(row, headers, mapping.commune)
     let communeId: number | null = null
+    // Unrecognized city text is non-fatal: import with commune_id null (the raw text
+    // is preserved in the address below) so a real order is never dropped.
     if (communeRaw) {
       communeId = communeMap.get(`${wilayaId}:${communeRaw.toLowerCase().trim()}`) ?? null
-      if (!communeId) { errors.push({ row: rowNum, reason: `Commune introuvable: "${communeRaw}" (${wilayaRaw})` }); continue }
     }
 
     const skuList   = productSkus.split(sep).map(s => s.trim()).filter(Boolean)
@@ -181,7 +182,7 @@ export async function syncGoogleSheet(params: SyncParams): Promise<SyncResult> {
       phone2:  cell(row, headers, mapping.phone2),
       email:   cell(row, headers, mapping.email),
       wilayaId, communeId,
-      address: cell(row, headers, mapping.address),
+      address: [cell(row, headers, mapping.address), communeId ? '' : communeRaw].filter(Boolean).join(' — '),
       remark:  cell(row, headers, mapping.remark),
       referrer: cell(row, headers, mapping.referrer),
       delivMode, items, subtotal,
@@ -223,17 +224,25 @@ export async function syncGoogleSheet(params: SyncParams): Promise<SyncResult> {
     if (data) skuToProduct.set(s, { product_id: (data as { id: string }).id, product_name: (data as { name: string }).name })
   }
 
-  type Resolved = { product_id: string; variant_id: null; product_name: string; sku: string; quantity: number; unit_price: number; unit_cost: number }
+  type Resolved = { product_id: string | null; variant_id: null; product_name: string; sku: string; quantity: number; unit_price: number; unit_cost: number }
   const ready: (Candidate & { resolvedItems: Resolved[] })[] = []
   for (const c of candidates) {
     const resolvedItems: Resolved[] = []
-    let ok = true
     for (const it of c.items) {
       const p = skuToProduct.get(it.sku)
-      if (!p) { errors.push({ row: c.rowNum, reason: `SKU introuvable: "${it.sku}"` }); ok = false; break }
-      resolvedItems.push({ product_id: p.product_id, variant_id: null, product_name: p.product_name, sku: it.sku, quantity: it.quantity, unit_price: it.unit_price, unit_cost: 0 })
+      // Unknown products still import: order_items.product_id is nullable and
+      // product_name (NOT NULL) preserves the original title for later reconciliation.
+      resolvedItems.push({
+        product_id:   p ? p.product_id : null,
+        variant_id:   null,
+        product_name: (p ? p.product_name : it.sku).slice(0, 255),
+        sku:          it.sku,
+        quantity:     it.quantity,
+        unit_price:   it.unit_price,
+        unit_cost:    0,
+      })
     }
-    if (ok) ready.push({ ...c, resolvedItems })
+    if (resolvedItems.length) ready.push({ ...c, resolvedItems })
   }
   if (ready.length === 0) return empty({ failed: errors.length, errors })
 

@@ -332,7 +332,7 @@
       "address": "العنوان",
       "remark": "ملاحظة",
       "deliveryMethod": "طريقة التوصيل",
-      "productSku": "المنتج (SKU)",
+      "productSku": "المنتج (الاسم أو SKU)",
       "quantity": "الكمية",
       "unitPrice": "سعر الوحدة",
       "ipAddress": "عنوان IP",

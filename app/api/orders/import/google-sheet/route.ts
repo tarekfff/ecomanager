@@ -105,8 +105,10 @@ export async function POST(req: NextRequest) {
 
   const { data: wilayaData } = await db.from('wilayas').select('id, name')
   const wilayaMap = new Map<string, number>()
+  const wilayaIds = new Set<number>()
   for (const w of (wilayaData ?? []) as { id: number; name: string }[]) {
     wilayaMap.set(w.name.toLowerCase().trim(), w.id)
+    wilayaIds.add(w.id)
   }
 
   const { data: communeData } = await db.from('communes').select('id, name, wilaya_id')
@@ -115,8 +117,23 @@ export async function POST(req: NextRequest) {
     communeMap.set(`${c.wilaya_id}:${c.name.toLowerCase().trim()}`, c.id)
   }
 
-  // SKU → product cache
-  const skuCache   = new Map<string, { product_id: string; product_name: string; unit_cost: number } | null>()
+  // Preload all catalog products once — match by name, SKU, or barcode (avoids N+1
+  // queries and the unsafe .or() filter that breaks on names with commas/emoji/parens).
+  interface ProdRec { product_id: string; product_name: string; sku: string; unit_cost: number }
+  const { data: productData } = await db
+    .from('products')
+    .select('id, name, sku, barcode')
+    .eq('tenant_id', user.tenantId)
+    .is('deleted_at', null)
+  const productLookup = new Map<string, ProdRec>()
+  for (const p of (productData ?? []) as { id: string; name: string; sku: string | null; barcode: string | null }[]) {
+    const rec: ProdRec = { product_id: p.id, product_name: p.name, sku: p.sku ?? '', unit_cost: 0 }
+    const add = (k?: string | null) => {
+      const key = (k ?? '').toLowerCase().trim()
+      if (key && !productLookup.has(key)) productLookup.set(key, rec)
+    }
+    add(p.name); add(p.sku); add(p.barcode)
+  }
   // phone → client_id cache
   const clientCache = new Map<string, string>()
   // reference → exists cache (for skip-duplicate check)
@@ -169,18 +186,24 @@ export async function POST(req: NextRequest) {
 
     // ── Wilaya / commune lookup ──────────────────────────────────────────────
 
-    const wilayaId = wilayaMap.get(wilayaRaw.toLowerCase().trim()) ?? null
+    const wRaw = wilayaRaw.toLowerCase().trim()
+    // Accept either a wilaya name ("Sétif") or a numeric wilaya code ("19").
+    const wilayaId = /^\d+$/.test(wRaw)
+      ? (wilayaIds.has(parseInt(wRaw)) ? parseInt(wRaw) : null)
+      : (wilayaMap.get(wRaw) ?? null)
     if (!wilayaId) {
       errors.push({ row: rowNum, reason: `Wilaya introuvable: "${wilayaRaw}"` })
       continue
     }
 
     let communeId: number | null = null
+    let addressFinal = address
     if (communeRaw) {
       communeId = communeMap.get(`${wilayaId}:${communeRaw.toLowerCase().trim()}`) ?? null
+      // Unrecognized city text (free-form / Arabic) is non-fatal: import anyway and
+      // keep the text in the address so the order is never dropped.
       if (!communeId) {
-        errors.push({ row: rowNum, reason: `Commune introuvable: "${communeRaw}" (wilaya ${wilayaRaw})` })
-        continue
+        addressFinal = [address, communeRaw].filter(Boolean).join(' — ')
       }
     }
 
@@ -191,44 +214,32 @@ export async function POST(req: NextRequest) {
     const priceList = unitPriceRaw.split(sep).map(s => parseFloat(s.trim()) || 0)
 
     interface OrderItemInsert {
-      id: string; order_id: string; product_id: string; variant_id: null;
+      id: string; order_id: string; product_id: string | null; variant_id: null;
       product_name: string; sku: string; quantity: number; unit_price: number; unit_cost: number;
     }
     const orderItems: Omit<OrderItemInsert, 'order_id'>[] = []
 
-    let rowFailed = false
     for (let si = 0; si < skuList.length; si++) {
-      const sku = skuList[si]
-      if (!skuCache.has(sku)) {
-        const { data: prod } = await db
-          .from('products')
-          .select('id, name, price')
-          .eq('tenant_id', user.tenantId)
-          .or(`sku.eq.${sku},barcode.eq.${sku}`)
-          .is('deleted_at', null)
-          .maybeSingle()
-        skuCache.set(sku, prod ? { product_id: prod.id, product_name: prod.name, unit_cost: 0 } : null)
-      }
-
-      const prod = skuCache.get(sku)
-      if (!prod) {
-        errors.push({ row: rowNum, reason: `SKU introuvable: "${sku}"` })
-        rowFailed = true
-        break
-      }
-
+      const token = skuList[si]
+      const prod  = productLookup.get(token.toLowerCase().trim()) ?? null
+      // Unknown products still import: order_items.product_id is nullable, and
+      // product_name (NOT NULL) preserves the original title from the sheet so
+      // the order is never lost — it can be reconciled to a catalog product later.
       orderItems.push({
         id:           uuid(),
-        product_id:   prod.product_id,
+        product_id:   prod ? prod.product_id : null,
         variant_id:   null,
-        product_name: prod.product_name,
-        sku,
+        product_name: (prod ? prod.product_name : token).slice(0, 255),
+        sku:          prod ? prod.sku : '',
         quantity:     qtyList[si] ?? 1,
         unit_price:   priceList[si] || 0,
-        unit_cost:    prod.unit_cost,
+        unit_cost:    prod ? prod.unit_cost : 0,
       })
     }
-    if (rowFailed) continue
+    if (orderItems.length === 0) {
+      errors.push({ row: rowNum, reason: 'Aucun produit sur la ligne' })
+      continue
+    }
 
     // ── Upsert client ────────────────────────────────────────────────────────
 
@@ -256,7 +267,7 @@ export async function POST(req: NextRequest) {
           email:     email  || null,
           wilaya_id:  wilayaId,
           commune_id: communeId,
-          address:   address || null,
+          address:   addressFinal || null,
         })
         if (cErr) {
           errors.push({ row: rowNum, reason: `Erreur client: ${cErr.message}` })
@@ -287,7 +298,7 @@ export async function POST(req: NextRequest) {
         delivery_method: deliveryMethod,
         wilaya_id:       wilayaId,
         commune_id:      communeId ?? null,
-        address:         address   || null,
+        address:         addressFinal || null,
         phone,
         phone2:          phone2    || null,
         referrer:        referrer  || null,

@@ -276,7 +276,7 @@
       "address": "Adresse",
       "remark": "Remarque",
       "deliveryMethod": "Méthode livraison",
-      "productSku": "Produit (SKU)",
+      "productSku": "Produit (nom ou SKU)",
       "quantity": "Quantité",
       "unitPrice": "Prix unitaire",
       "ipAddress": "Adresse IP",

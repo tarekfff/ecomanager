@@ -62,7 +62,7 @@ const MAPPING_FIELD_KEYS: { key: keyof Mapping; labelKey: string; required: bool
   { key: 'email',           labelKey: 'email',           required: false },
   { key: 'phone2',          labelKey: 'phone2',          required: false },
   { key: 'wilaya',          labelKey: 'wilaya',          required: true  },
-  { key: 'commune',         labelKey: 'commune',         required: true  },
+  { key: 'commune',         labelKey: 'commune',         required: false },
   { key: 'address',         labelKey: 'address',         required: false },
   { key: 'remark',          labelKey: 'remark',          required: false },
   { key: 'delivery_method', labelKey: 'deliveryMethod',  required: false },
@@ -73,7 +73,7 @@ const MAPPING_FIELD_KEYS: { key: keyof Mapping; labelKey: string; required: bool
   { key: 'referrer',        labelKey: 'referrer',        required: false },
 ]
 
-const DEFAULT_SEPARATOR = '|'
+const DEFAULT_SEPARATOR = ';'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -101,8 +101,8 @@ function autoDetect(headers: string[]): Mapping {
     commune:         find(['commune', 'ville', 'city', 'daïra']),
     address:         find(['adresse', 'address', 'addr']),
     remark:          find(['remarque', 'remark', 'note', 'observation']),
-    delivery_method: find(['livraison', 'méthode', 'methode', 'delivery', 'mode']),
-    product_sku:     find(['sku', 'produit', 'product', 'article', 'référence produit']),
+    delivery_method: find(['livraison', 'méthode', 'methode', 'delivery', 'shipping', 'mode']),
+    product_sku:     find(['product title', 'produit', 'product', 'sku', 'article', 'titre', 'référence produit']),
     quantity:        find(['quantité', 'quantity', 'qté', 'qty']),
     unit_price:      find(['prix', 'price', 'tarif', 'montant', 'unit']),
     ip_address:      find(['ip', 'adresse ip']),
@@ -474,7 +474,7 @@ export default function GoogleSheetImportPage() {
 
   const colOptions = [
     <option key="" value="">{t('googleSheetImport.step3.ignore')}</option>,
-    ...headers.map(h => <option key={h} value={h}>{h}</option>),
+    ...headers.map((h, i) => <option key={`${h}-${i}`} value={h}>{h}</option>),
   ]
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -760,8 +760,8 @@ export default function GoogleSheetImportPage() {
                     <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 500 }}>
                       <thead>
                         <tr>
-                          {headers.map(h => (
-                            <th key={h} style={{
+                          {headers.map((h, i) => (
+                            <th key={`${h}-${i}`} style={{
                               fontSize: 11, fontWeight: 600, color: colors.textLt,
                               padding: '5px 10px', background: '#f5f5f5',
                               border: `1px solid ${colors.border}`,
