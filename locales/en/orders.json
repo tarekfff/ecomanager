@@ -267,6 +267,7 @@
     },
     "fields": {
       "orderRef": "Order #",
+      "orderDate": "Date & time",
       "clientName": "Client",
       "phone": "Phone",
       "email": "Email",

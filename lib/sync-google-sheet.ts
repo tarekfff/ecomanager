@@ -1,11 +1,13 @@
 import { google } from 'googleapis'
 import { db, rpc } from '@/lib/db'
+import { parseSheetDate } from '@/lib/parse-sheet-date'
 import { v4 as uuid } from 'uuid'
 
 const MAX_ROWS = 1000
 
 export interface SheetMapping {
   order_ref:       string
+  order_date:      string
   client_name:     string
   phone:           string
   email:           string
@@ -130,7 +132,7 @@ export async function syncGoogleSheet(params: SyncParams): Promise<SyncResult> {
     clientName: string; phone: string; phone2: string; email: string
     wilayaId: number; communeId: number | null; address: string
     remark: string; referrer: string; delivMode: 'domicile' | 'stopdesk'
-    items: Item[]; subtotal: number
+    items: Item[]; subtotal: number; createdAt: string | null
   }
   const candidates: Candidate[] = []
   const allSkus = new Set<string>()
@@ -186,6 +188,7 @@ export async function syncGoogleSheet(params: SyncParams): Promise<SyncResult> {
       remark:  cell(row, headers, mapping.remark),
       referrer: cell(row, headers, mapping.referrer),
       delivMode, items, subtotal,
+      createdAt: parseSheetDate(cell(row, headers, mapping.order_date)),
     })
   }
   if (candidates.length === 0) return empty({ failed: errors.length, errors })
@@ -343,6 +346,7 @@ export async function syncGoogleSheet(params: SyncParams): Promise<SyncResult> {
   const orderRows = built.map(({ id, ref, cand }) => ({
     id, boutique_id: boutiqueId, client_id: phoneToClient.get(cand.phone)!,
     reference: ref, tracking_status: 'en_confirmation',
+    ...(cand.createdAt ? { created_at: cand.createdAt } : {}),
     subtotal: cand.subtotal, delivery_fee: 0, discount: 0,
     delivery_method: cand.delivMode,
     wilaya_id: cand.wilayaId, commune_id: cand.communeId ?? null,

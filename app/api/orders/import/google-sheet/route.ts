@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requirePermission } from '@/lib/auth'
 import { db, rpc } from '@/lib/db'
+import { parseSheetDate } from '@/lib/parse-sheet-date'
 import { google } from 'googleapis'
 import { v4 as uuid } from 'uuid'
 
@@ -8,6 +9,7 @@ const MAX_ROWS = 1000
 
 interface Mapping {
   order_ref:       string
+  order_date:      string
   client_name:     string
   phone:           string
   email:           string
@@ -158,6 +160,7 @@ export async function POST(req: NextRequest) {
     const row    = dataRows[ri]
 
     const orderRef     = cell(row, headers, mapping.order_ref)
+    const orderDateRaw = cell(row, headers, mapping.order_date)
     const clientName   = cell(row, headers, mapping.client_name)
     const phone        = cell(row, headers, mapping.phone)
     const email        = cell(row, headers, mapping.email)
@@ -285,12 +288,15 @@ export async function POST(req: NextRequest) {
       const deliveryMethod = (delivMethod.toLowerCase().includes('stop') ? 'stopdesk' : 'domicile') as 'domicile' | 'stopdesk'
       const subtotal       = orderItems.reduce((s, it) => s + it.unit_price * it.quantity, 0)
       const orderId        = uuid()
+      // Preserve the sheet's original order date+time; fall back to NOW() if absent/invalid.
+      const createdAt      = parseSheetDate(orderDateRaw)
 
       const { error: oErr } = await db.from('orders').insert({
         id:              orderId,
         boutique_id:     boutique_id,
         client_id:       clientId,
         reference,
+        ...(createdAt ? { created_at: createdAt } : {}),
         tracking_status: 'en_confirmation',
         subtotal,
         delivery_fee:    0,

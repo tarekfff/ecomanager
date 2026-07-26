@@ -17,6 +17,7 @@ type Step = 1 | 2 | 3 | 4
 
 interface Mapping {
   order_ref:       string
+  order_date:      string
   client_name:     string
   phone:           string
   email:           string
@@ -49,7 +50,7 @@ interface MappingFieldDef {
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const EMPTY_MAPPING: Mapping = {
-  order_ref: '', client_name: '', phone: '', email: '', phone2: '',
+  order_ref: '', order_date: '', client_name: '', phone: '', email: '', phone2: '',
   wilaya: '', commune: '', address: '', remark: '', delivery_method: '',
   product_sku: '', quantity: '', unit_price: '', ip_address: '', referrer: '',
 }
@@ -57,6 +58,7 @@ const EMPTY_MAPPING: Mapping = {
 // Keys used to generate translated field defs inside the component
 const MAPPING_FIELD_KEYS: { key: keyof Mapping; labelKey: string; required: boolean }[] = [
   { key: 'order_ref',       labelKey: 'orderRef',        required: false },
+  { key: 'order_date',      labelKey: 'orderDate',       required: false },
   { key: 'client_name',     labelKey: 'clientName',      required: true  },
   { key: 'phone',           labelKey: 'phone',           required: true  },
   { key: 'email',           labelKey: 'email',           required: false },
@@ -92,7 +94,8 @@ function autoDetect(headers: string[]): Mapping {
     return ''
   }
   return {
-    order_ref:       find(['n° commande', 'commande', 'référence', 'reference', 'order', 'ref']),
+    order_ref:       find(['n° commande', 'commande', 'référence', 'reference', 'order number', 'order', 'ref']),
+    order_date:      find(['date time', 'date', 'heure', 'created', 'time']),
     client_name:     find(['client', 'nom', 'name', 'full_name']),
     phone:           find(['téléphone', 'telephone', 'phone', 'tel', 'gsm', 'mobile']),
     email:           find(['email', 'mail', 'e-mail']),
