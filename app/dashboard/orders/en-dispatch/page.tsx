@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { PageHeader, Button, SearchInput, Select, Pagination } from '@/components/ui'
 import { colors, fonts } from '@/lib/tokens'
+import { fmtTime } from '@/lib/format-date'
 import { useBoutique } from '@/contexts/BoutiqueContext'
 import OrderDetailPanel from '@/components/orders/OrderDetailPanel'
 
@@ -631,7 +632,10 @@ export default function EnDispatchPage() {
                       <TD muted>
                         <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                           <Calendar size={11} style={{ color: colors.textLt }} />
-                          {fmtDate(order.dispatched_at)}
+                          <span style={{ display: 'inline-flex', flexDirection: 'column', lineHeight: 1.15 }}>
+                            {fmtDate(order.dispatched_at)}
+                            <span style={{ fontSize: 10.5, color: colors.textLt }}>{fmtTime(order.dispatched_at)}</span>
+                          </span>
                         </span>
                       </TD>
 

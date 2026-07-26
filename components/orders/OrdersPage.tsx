@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { X, AlertCircle, Package } from 'lucide-react'
 import { PageHeader, Button, SearchInput, Pagination } from '@/components/ui'
 import { colors, fonts } from '@/lib/tokens'
+import { fmtDate, fmtTime } from '@/lib/format-date'
 import { useBoutique } from '@/contexts/BoutiqueContext'
 import OrderDetailPanel from '@/components/orders/OrderDetailPanel'
 
@@ -456,10 +457,13 @@ export function CellMuted({ value }: { value: string | null | undefined }) {
 }
 
 export function CellDate({ iso }: { iso: string | null }) {
-  const label = iso
-    ? new Date(iso).toLocaleDateString('fr-DZ', { day: '2-digit', month: '2-digit', year: '2-digit' })
-    : '—'
-  return <span style={{ color: colors.textMd }}>{label}</span>
+  if (!iso) return <span style={{ color: colors.textMd }}>—</span>
+  return (
+    <span style={{ display: 'inline-flex', flexDirection: 'column', lineHeight: 1.2, color: colors.textMd }}>
+      <span>{fmtDate(iso)}</span>
+      <span style={{ fontSize: 10.5, color: colors.textLt }}>{fmtTime(iso)}</span>
+    </span>
+  )
 }
 
 export function CellTotal({ amount }: { amount: number }) {

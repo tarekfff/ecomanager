@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { PageHeader, SearchInput, Pagination } from '@/components/ui'
 import { colors, fonts } from '@/lib/tokens'
+import { fmtTime } from '@/lib/format-date'
 import { useBoutique } from '@/contexts/BoutiqueContext'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -424,8 +425,9 @@ export default function PickupsPage({ config }: { config: PickupsConfig }) {
                       <TD>{row.carrier_name || <span style={{ color: colors.textLt }}>—</span>}</TD>
                       <TD>{row.wilaya_name || '—'}</TD>
                       <TD>
-                        <span style={{ fontSize: 12, color: colors.textMd }}>
+                        <span style={{ display: 'inline-flex', flexDirection: 'column', lineHeight: 1.15, fontSize: 12, color: colors.textMd }}>
                           {fmtDate(dateVal)}
+                          <span style={{ fontSize: 10.5, color: colors.textLt }}>{fmtTime(dateVal)}</span>
                         </span>
                       </TD>
                       <TD center>

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useBoutique } from '@/contexts/BoutiqueContext'
 import { colors, fonts } from '@/lib/tokens'
+import { fmtTime } from '@/lib/format-date'
 import { ChevronDown, ChevronRight, CheckCircle, RotateCcw, ArrowLeftRight, Loader2 } from 'lucide-react'
 
 interface ReceiptRow {
@@ -284,7 +285,7 @@ export default function BonRetourPage() {
                     <span style={{ fontSize: 13, color: colors.text }}>
                       {row.client_name || '—'}
                       <span style={{ fontSize: 11, color: colors.textLt, marginLeft: 6 }}>
-                        {formatDate(row.created_at)}
+                        {formatDate(row.created_at)} {fmtTime(row.created_at)}
                       </span>
                     </span>
                     <span style={{
