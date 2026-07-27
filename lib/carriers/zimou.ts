@@ -1,10 +1,18 @@
 import type { CarrierAdapter, CarrierCreds, ShipmentInput } from './types'
 import { normalizeDzPhone } from './types'
 
-// Zimou Express — https://zimou.express/api/v1 (Bearer token auth).
-// Contract per the published Swagger (POST /packages). The exact tracking key in
-// the response isn't documented, so we parse it tolerantly and log the raw body
-// (visible in webhook logs) so any field mismatch is easy to spot and adjust.
+// Zimou Express — https://zimou.express/api/v1 (Bearer token auth). Verified live.
+// Quirks learned from the real API:
+//  • It returns HTTP 201 even on failure; the real signal is `error` in the body
+//    (0 = ok, 1 = failed) with a `message`.
+//  • `commune` is required and must exist in Zimou's list (there is no public
+//    communes endpoint). Empty/unknown communes are rejected with
+//    "La commune: … n'existe pas" — we fall back to the wilaya name (its capital
+//    commune, which exists) and retry once.
+//  • Required fields: name, client_first_name, client_last_name, client_phone,
+//    address, order_id, price, type, free_delivery.
+//  • Success response carries tracking at data.tracking_code and a printable
+//    waybill URL at data.bordereau.
 const DEFAULT_BASE = 'https://zimou.express/api/v1'
 
 function baseOf(creds: CarrierCreds): string {
@@ -23,19 +31,30 @@ async function call(creds: CarrierCreds, path: string, init: RequestInit = {}) {
   })
 }
 
-// Zimou requires separate first/last name; split on the first space.
 function splitName(full: string): { first: string; last: string } {
   const parts = (full || '').trim().split(/\s+/)
   if (parts.length <= 1) return { first: parts[0] || '—', last: parts[0] || '—' }
   return { first: parts[0], last: parts.slice(1).join(' ') }
 }
 
-// Find a tracking code under any of the common shapes ({tracking}, {data:{...}}, …).
+function asObj(body: unknown): Record<string, unknown> | null {
+  return body && typeof body === 'object' ? body as Record<string, unknown> : null
+}
+function bodyError(body: unknown): boolean {
+  const o = asObj(body)
+  return o?.error === 1 || o?.error === '1'
+}
+function bodyMessage(body: unknown): string {
+  const o = asObj(body)
+  return typeof o?.message === 'string' ? o.message : ''
+}
+
+// tracking at data.tracking_code (or a few tolerant fallbacks).
 function extractTracking(body: unknown): string | null {
-  const keys = ['tracking', 'tracking_code', 'trackingCode', 'code', 'reference', 'id']
+  const keys = ['tracking', 'tracking_code', 'trackingCode', 'code', 'reference']
   const scan = (o: unknown): string | null => {
-    if (!o || typeof o !== 'object') return null
-    const rec = o as Record<string, unknown>
+    const rec = asObj(o)
+    if (!rec) return null
     for (const k of keys) {
       const v = rec[k]
       if (typeof v === 'string' && v.trim()) return v.trim()
@@ -43,14 +62,10 @@ function extractTracking(body: unknown): string | null {
     }
     return null
   }
-  return scan(body) ?? scan((body as { data?: unknown })?.data) ?? null
+  return scan(body) ?? scan(asObj(body)?.data) ?? null
 }
 
-// Field set verified against the live v1 API (2026-07-26). Required by validation:
-// name, client_first_name, client_last_name, client_phone, address, order_id,
-// price, type, free_delivery. commune/wilaya/weight are accepted and echoed back.
-// The create response returns the tracking under data.tracking_code.
-function toPackage(input: ShipmentInput): Record<string, unknown> {
+function toPackage(input: ShipmentInput, commune: string): Record<string, unknown> {
   const { first, last } = splitName(input.clientName)
   return {
     name:              (input.products || input.reference || 'Colis').slice(0, 255),
@@ -58,16 +73,14 @@ function toPackage(input: ShipmentInput): Record<string, unknown> {
     client_last_name:  last,
     client_phone:      normalizeDzPhone(input.phone),
     client_phone2:     input.phone2 ? normalizeDzPhone(input.phone2) : '',
-    address:           input.address?.trim() || input.commune || '—',
-    commune:           input.commune || '',
+    address:           input.address?.trim() || commune || input.wilayaName || '—',
+    commune,
     wilaya:            input.wilayaName || String(input.wilayaId),
     order_id:          input.reference,
     weight:            input.weightG ?? 500,
     price:             input.amount ?? 0,
-    type:              1,                    // required — package category (e-commerce)
-    free_delivery:     false,                // required — COD orders are not free delivery
-    // Home vs stop-desk: best-effort. Zimou ignored `is_stopdesk` in testing, so the
-    // exact field is still unconfirmed; the value is preserved in webhook logs.
+    type:              1,      // required — package category (e-commerce)
+    free_delivery:     false,  // required — COD orders are not free delivery
     stop_desk:         input.stopDesk ? 1 : 0,
   }
 }
@@ -82,20 +95,33 @@ export const zimouAdapter: CarrierAdapter = {
   ],
 
   async createShipment(creds, input) {
-    const pkg = toPackage(input)
-    const res  = await call(creds, '/packages', { method: 'POST', body: JSON.stringify(pkg) })
-    const text = await res.text().catch(() => '')
-    let body: unknown = text
-    try { body = JSON.parse(text) } catch { /* keep raw text */ }
-    const tracking = res.ok ? extractTracking(body) : null
-    // Zimou returns a ready-to-print waybill URL in `data.bordereau`.
-    const data     = (body as { data?: Record<string, unknown> })?.data
-    const bordereau = typeof data?.bordereau === 'string' ? data.bordereau : null
+    const post = async (commune: string) => {
+      const pkg  = toPackage(input, commune)
+      const res  = await call(creds, '/packages', { method: 'POST', body: JSON.stringify(pkg) })
+      const text = await res.text().catch(() => '')
+      let body: unknown = text
+      try { body = JSON.parse(text) } catch { /* keep raw text */ }
+      return { res, body, pkg }
+    }
+
+    const wilaya = input.wilayaName || ''
+    let { res, body, pkg } = await post(input.commune?.trim() || wilaya)
+
+    // If Zimou rejects the commune, retry once with the wilaya name.
+    if (bodyError(body) && /commune/i.test(bodyMessage(body)) && (input.commune?.trim() || '') !== wilaya && wilaya) {
+      ;({ res, body, pkg } = await post(wilaya))
+    }
+
+    const failed   = bodyError(body)
+    const tracking = res.ok && !failed ? extractTracking(body) : null
+    const data     = asObj(body)?.data
+    const bordereau = typeof asObj(data)?.bordereau === 'string' ? asObj(data)!.bordereau as string : null
     return {
-      ok:       res.ok && !!tracking,
+      ok:       res.ok && !failed && !!tracking,
       tracking,
       labelUrl: bordereau,
-      message:  res.ok ? (tracking ? undefined : 'No tracking code in Zimou response') : `HTTP ${res.status}`,
+      message:  failed ? (bodyMessage(body) || 'Zimou error')
+                       : (tracking ? undefined : `HTTP ${res.status} — no tracking`),
       raw:      { request: pkg, status: res.status, response: body },
     }
   },
