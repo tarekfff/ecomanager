@@ -24,6 +24,8 @@
     "eventPh":    "اختر حدثًا…",
     "url":        "الرابط",
     "urlPh":      "https://example.com/webhook",
+    "provider":        "نوع الاتصال",
+    "providerGeneric": "إشعار (عام)",
     "secret":     "المفتاح السري",
     "boutiques":  "المتاجر",
     "boutiqueHint": "(بدون تحديد = جميع المتاجر)",
@@ -34,10 +36,21 @@
     "statusChanges":"تغييرات الحالة",
     "modifications":"التعديلات"
   },
+  "carrier": {
+    "test":       "اختبار الاتصال",
+    "hint":       "يتم تخزين مفتاح API بأمان واستخدامه لإنشاء الشحنات لدى هذا الناقل.",
+    "testOk":     "تم الاتصال بنجاح.",
+    "testFailed": "فشل الاتصال.",
+    "fields": {
+      "token": "مفتاح API (token)",
+      "guid":  "User GUID"
+    }
+  },
   "errors": {
     "nameRequired":  "الاسم مطلوب.",
     "eventRequired": "الحدث مطلوب.",
     "urlRequired":   "الرابط مطلوب.",
+    "credentialRequired": "بيانات مطلوبة: {{field}}.",
     "saveFailed":    "خطأ أثناء الحفظ.",
     "deleteFailed":  "خطأ أثناء الحذف."
   },

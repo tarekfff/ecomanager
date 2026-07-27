@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requirePermissionPrefix, requirePermission } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { getAdapter, buildCarrierWebhookFields } from '@/lib/carriers'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -50,17 +51,31 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     if (!name) return NextResponse.json({ error: 'Le nom est requis' }, { status: 400 })
     update.name = name
   }
-  if (body.event !== undefined) {
-    const event = (body.event as string).trim()
-    if (!VALID_EVENTS.has(event)) return NextResponse.json({ error: 'Événement invalide' }, { status: 400 })
-    update.event = event
+  const provider = (body.provider as string | undefined)?.trim()
+  if (provider && getAdapter(provider)) {
+    // Carrier connection — rebuild url + secret (creds JSON) + event from provider.
+    const built = buildCarrierWebhookFields(
+      provider,
+      body.credentials as Record<string, unknown> | undefined,
+      body.url as string | undefined,
+    )
+    if (!built.ok) return NextResponse.json({ error: built.error }, { status: 400 })
+    update.url = built.url
+    update.secret = built.secret
+    update.event = built.event
+  } else {
+    if (body.event !== undefined) {
+      const event = (body.event as string).trim()
+      if (!VALID_EVENTS.has(event)) return NextResponse.json({ error: 'Événement invalide' }, { status: 400 })
+      update.event = event
+    }
+    if (body.url !== undefined) {
+      const url = (body.url as string).trim()
+      if (!url) return NextResponse.json({ error: "L'URL est requise" }, { status: 400 })
+      update.url = url
+    }
+    if (body.secret !== undefined) update.secret = (body.secret as string).trim()
   }
-  if (body.url !== undefined) {
-    const url = (body.url as string).trim()
-    if (!url) return NextResponse.json({ error: "L'URL est requise" }, { status: 400 })
-    update.url = url
-  }
-  if (body.secret !== undefined) update.secret = (body.secret as string).trim()
   if (body.boutique_ids !== undefined) {
     update.boutique_ids = Array.isArray(body.boutique_ids) ? body.boutique_ids : []
   }

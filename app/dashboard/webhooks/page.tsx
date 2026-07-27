@@ -56,11 +56,28 @@ interface Boutique {
   name: string
 }
 
+interface CredentialField {
+  key:          string
+  label:        string
+  required:     boolean
+  placeholder?: string
+}
+
+interface Provider {
+  provider:         string
+  label:            string
+  baseUrl:          string
+  credentialFields: CredentialField[]
+  supportsValidate: boolean
+}
+
 interface FormState {
   name:         string
+  provider:     string   // '' = generic notification webhook
   event:        string
   url:          string
   secret:       string
+  credentials:  Record<string, string>
   boutique_ids: string[]
   is_active:    boolean
 }
@@ -81,7 +98,27 @@ function uuidV4(): string {
 }
 
 const EMPTY_FORM: FormState = {
-  name: '', event: '', url: '', secret: '', boutique_ids: [], is_active: true,
+  name: '', provider: '', event: '', url: '', secret: '',
+  credentials: {}, boutique_ids: [], is_active: true,
+}
+
+// Parse a carrier webhook's stored secret ({"p":"zimou","token":"…"}) back into
+// { provider, creds } so the edit form can prefill it.
+function parseCarrierSecret(secret: string): { provider: string; creds: Record<string, string> } | null {
+  try {
+    const o = JSON.parse(secret) as Record<string, unknown>
+    if (o && typeof o === 'object' && typeof o.p === 'string') {
+      const { p, ...rest } = o
+      const creds: Record<string, string> = {}
+      for (const [k, v] of Object.entries(rest)) if (typeof v === 'string') creds[k] = v
+      return { provider: p as string, creds }
+    }
+  } catch { /* not carrier JSON */ }
+  return null
+}
+
+function sameHost(a: string, b: string): boolean {
+  try { return new URL(a).host === new URL(b).host } catch { return false }
 }
 
 // ── Page ───────────────────────────────────────────────────────────────────
@@ -99,6 +136,11 @@ export default function WebhooksPage() {
   const [formError, setFormError] = useState('')
   const [saving,    setSaving]    = useState(false)
   const [copied,    setCopied]    = useState(false)
+
+  // Carrier provider state
+  const [providers, setProviders] = useState<Provider[]>([])
+  const [testMsg,   setTestMsg]   = useState<{ ok: boolean; text: string } | null>(null)
+  const [testing,   setTesting]   = useState(false)
 
   // Delete state
   const [deleteTarget, setDeleteTarget] = useState<Webhook | null>(null)
@@ -126,7 +168,13 @@ export default function WebhooksPage() {
       .then(r => r.json())
       .then(d => { if (Array.isArray(d)) setBoutiques(d) })
       .catch(() => {})
+    fetch('/api/webhooks/carriers', { headers: authHeader() })
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d)) setProviders(d) })
+      .catch(() => {})
   }, [fetchWebhooks])
+
+  const currentProvider = providers.find(p => p.provider === form.provider) ?? null
 
   // ── Add / Edit ───────────────────────────────────────────────────────────
 
@@ -135,18 +183,63 @@ export default function WebhooksPage() {
     setForm({ ...EMPTY_FORM, secret: uuidV4() })
     setFormError('')
     setCopied(false)
+    setTestMsg(null)
     setModalOpen(true)
   }
 
   function openEdit(w: Webhook) {
     setEditId(w.id)
+    // Detect a carrier connection from the stored secret (JSON) or a known host.
+    const carrier = parseCarrierSecret(w.secret)
+    const byHost  = providers.find(p => sameHost(w.url, p.baseUrl))
+    const provider = carrier?.provider ?? byHost?.provider ?? ''
     setForm({
-      name: w.name, event: w.event, url: w.url, secret: w.secret,
+      name: w.name, provider, event: w.event, url: w.url,
+      secret: carrier ? uuidV4() : w.secret,
+      credentials: carrier?.creds ?? {},
       boutique_ids: w.boutique_ids ?? [], is_active: w.is_active,
     })
     setFormError('')
     setCopied(false)
+    setTestMsg(null)
     setModalOpen(true)
+  }
+
+  // Switching provider resets credentials and prefills the carrier's base URL.
+  function selectProvider(provider: string) {
+    const meta = providers.find(p => p.provider === provider)
+    setTestMsg(null)
+    setForm(f => ({
+      ...f,
+      provider,
+      url: provider ? (meta?.baseUrl ?? '') : '',
+      credentials: {},
+      event: provider ? '' : f.event,
+      secret: provider ? f.secret : (f.secret || uuidV4()),
+    }))
+  }
+
+  function setCredential(key: string, value: string) {
+    setForm(f => ({ ...f, credentials: { ...f.credentials, [key]: value } }))
+  }
+
+  async function testConnection() {
+    if (!currentProvider) return
+    setTesting(true)
+    setTestMsg(null)
+    try {
+      const res = await fetch('/api/webhooks/carriers/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader() },
+        body: JSON.stringify({ provider: form.provider, credentials: form.credentials }),
+      })
+      const d = await res.json().catch(() => ({})) as { ok?: boolean; message?: string }
+      setTestMsg({ ok: !!d.ok, text: d.message ?? (d.ok ? t('carrier.testOk') : t('carrier.testFailed')) })
+    } catch {
+      setTestMsg({ ok: false, text: t('carrier.testFailed') })
+    } finally {
+      setTesting(false)
+    }
   }
 
   function toggleBoutique(id: string) {
@@ -166,9 +259,37 @@ export default function WebhooksPage() {
   }
 
   async function handleSave() {
-    if (!form.name.trim())  { setFormError(t('errors.nameRequired')); return }
-    if (!form.event)        { setFormError(t('errors.eventRequired')); return }
-    if (!form.url.trim())   { setFormError(t('errors.urlRequired')); return }
+    if (!form.name.trim()) { setFormError(t('errors.nameRequired')); return }
+
+    let payload: Record<string, unknown>
+    if (currentProvider) {
+      // Carrier connection — validate required credential fields.
+      for (const f of currentProvider.credentialFields) {
+        if (f.required && !(form.credentials[f.key] ?? '').trim()) {
+          setFormError(t('errors.credentialRequired', { field: t(`carrier.fields.${f.label}`, f.label) }))
+          return
+        }
+      }
+      payload = {
+        name: form.name.trim(),
+        provider: form.provider,
+        credentials: form.credentials,
+        url: form.url.trim() || undefined,
+        boutique_ids: form.boutique_ids,
+        is_active: form.is_active,
+      }
+    } else {
+      if (!form.event)      { setFormError(t('errors.eventRequired')); return }
+      if (!form.url.trim()) { setFormError(t('errors.urlRequired')); return }
+      payload = {
+        name: form.name.trim(),
+        event: form.event,
+        url: form.url.trim(),
+        secret: form.secret.trim(),
+        boutique_ids: form.boutique_ids,
+        is_active: form.is_active,
+      }
+    }
 
     setSaving(true)
     setFormError('')
@@ -178,14 +299,7 @@ export default function WebhooksPage() {
         {
           method: editId ? 'PUT' : 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeader() },
-          body: JSON.stringify({
-            name: form.name.trim(),
-            event: form.event,
-            url: form.url.trim(),
-            secret: form.secret.trim(),
-            boutique_ids: form.boutique_ids,
-            is_active: form.is_active,
-          }),
+          body: JSON.stringify(payload),
         },
       )
       if (!res.ok) {
@@ -282,7 +396,15 @@ export default function WebhooksPage() {
     },
     {
       key: 'event', label: t('table.event'), width: 220,
-      render: row => <Badge color="purple">{row.event}</Badge>,
+      render: row => {
+        const carrier = parseCarrierSecret(row.secret) ?? providers.find(p => sameHost(row.url, p.baseUrl)) ?? null
+        if (carrier) {
+          const prov = 'provider' in carrier ? carrier.provider : ''
+          const label = providers.find(p => p.provider === prov)?.label ?? prov
+          return <Badge color="purple">🚚 {label}</Badge>
+        }
+        return <Badge color="purple">{row.event}</Badge>
+      },
     },
     {
       key: 'url', label: t('table.url'),
@@ -390,7 +512,28 @@ export default function WebhooksPage() {
             placeholder={t('form.namePh')} required
           />
 
-          {/* Grouped event select */}
+          {/* Connection type — generic notification or a delivery carrier */}
+          <div style={{ display: 'flex', flexDirection: 'column', fontFamily: fonts.sans }}>
+            <label style={{ fontSize: 12.5, color: colors.textMd, marginBottom: 4, fontWeight: 500 }}>
+              {t('form.provider')}
+            </label>
+            <select
+              value={form.provider}
+              onChange={e => selectProvider(e.target.value)}
+              style={{
+                width: '100%', border: `1px solid ${colors.border}`, borderRadius: 4,
+                padding: '7px 10px', fontSize: 13, color: colors.text,
+                fontFamily: fonts.sans, outline: 'none', background: '#fff',
+                cursor: 'pointer', boxSizing: 'border-box',
+              }}
+            >
+              <option value="">{t('form.providerGeneric')}</option>
+              {providers.map(p => <option key={p.provider} value={p.provider}>{p.label}</option>)}
+            </select>
+          </div>
+
+          {/* Event — notification webhooks only */}
+          {!currentProvider && (
           <div style={{ display: 'flex', flexDirection: 'column', fontFamily: fonts.sans }}>
             <label style={{ fontSize: 12.5, color: colors.textMd, marginBottom: 4, fontWeight: 500 }}>
               {t('form.event')}<span style={{ color: colors.primary, marginLeft: 2 }}>*</span>
@@ -414,14 +557,46 @@ export default function WebhooksPage() {
               ))}
             </select>
           </div>
+          )}
 
           <Input
             label={t('form.url')} value={form.url}
             onChange={v => setForm(f => ({ ...f, url: v }))}
-            placeholder={t('form.urlPh')} required
+            placeholder={currentProvider ? currentProvider.baseUrl : t('form.urlPh')}
+            required={!currentProvider}
           />
 
-          {/* Secret with copy + regenerate */}
+          {/* Carrier credentials + connection test */}
+          {currentProvider && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {currentProvider.credentialFields.map(field => (
+                <Input
+                  key={field.key}
+                  label={t(`carrier.fields.${field.label}`, field.label)}
+                  value={form.credentials[field.key] ?? ''}
+                  onChange={v => setCredential(field.key, v)}
+                  placeholder={field.placeholder}
+                  required={field.required}
+                />
+              ))}
+              <div>
+                <Button variant="secondary" size="sm" loading={testing} onClick={testConnection}>
+                  {t('carrier.test')}
+                </Button>
+              </div>
+              {testMsg && (
+                <span style={{ fontSize: 12, color: testMsg.ok ? '#1B5E20' : colors.red, fontFamily: fonts.sans }}>
+                  {testMsg.text}
+                </span>
+              )}
+              <span style={{ fontSize: 11.5, color: colors.textLt, fontFamily: fonts.sans }}>
+                {t('carrier.hint')}
+              </span>
+            </div>
+          )}
+
+          {/* HMAC signing secret — notification webhooks only */}
+          {!currentProvider && (
           <div style={{ display: 'flex', flexDirection: 'column', fontFamily: fonts.sans }}>
             <label style={{ fontSize: 12.5, color: colors.textMd, marginBottom: 4, fontWeight: 500 }}>
               {t('form.secret')}
@@ -452,6 +627,7 @@ export default function WebhooksPage() {
               </button>
             </div>
           </div>
+          )}
 
           {/* Boutiques multi-select */}
           <div style={{ display: 'flex', flexDirection: 'column', fontFamily: fonts.sans }}>

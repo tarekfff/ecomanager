@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requirePermissionPrefix, requirePermission } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { v4 as uuid } from 'uuid'
+import { getAdapter, buildCarrierWebhookFields } from '@/lib/carriers'
 
 // Valid webhook events (19 total) — keep in sync with the frontend list
 const VALID_EVENTS = new Set([
@@ -50,17 +51,33 @@ export async function POST(req: NextRequest) {
   const user = await requirePermission(req, 'webhooks.create')
   const body = await req.json() as Record<string, unknown>
 
-  const name  = (body.name as string | undefined)?.trim()
-  const event = (body.event as string | undefined)?.trim()
-  const url   = (body.url as string | undefined)?.trim()
-  const secret = (body.secret as string | undefined)?.trim() || uuid()
+  const name         = (body.name as string | undefined)?.trim()
+  const provider     = (body.provider as string | undefined)?.trim()
   const boutique_ids = Array.isArray(body.boutique_ids) ? body.boutique_ids as string[] : []
-  const is_active = body.is_active !== false
+  const is_active    = body.is_active !== false
 
-  if (!name)  return NextResponse.json({ error: 'Le nom est requis' }, { status: 400 })
-  if (!event) return NextResponse.json({ error: "L'événement est requis" }, { status: 400 })
-  if (!VALID_EVENTS.has(event)) return NextResponse.json({ error: 'Événement invalide' }, { status: 400 })
-  if (!url)   return NextResponse.json({ error: "L'URL est requise" }, { status: 400 })
+  if (!name) return NextResponse.json({ error: 'Le nom est requis' }, { status: 400 })
+
+  // Resolve url / secret / event depending on the connection type.
+  let url: string, secret: string, event: string
+  if (provider && getAdapter(provider)) {
+    // Carrier connection — credentials stored (as JSON) in `secret`, provider by URL.
+    const built = buildCarrierWebhookFields(
+      provider,
+      body.credentials as Record<string, unknown> | undefined,
+      body.url as string | undefined,
+    )
+    if (!built.ok) return NextResponse.json({ error: built.error }, { status: 400 })
+    ;({ url, secret, event } = built)
+  } else {
+    // Generic notification webhook — url + event + HMAC secret.
+    event  = (body.event as string | undefined)?.trim() ?? ''
+    url    = (body.url as string | undefined)?.trim() ?? ''
+    secret = (body.secret as string | undefined)?.trim() || uuid()
+    if (!event) return NextResponse.json({ error: "L'événement est requis" }, { status: 400 })
+    if (!VALID_EVENTS.has(event)) return NextResponse.json({ error: 'Événement invalide' }, { status: 400 })
+    if (!url) return NextResponse.json({ error: "L'URL est requise" }, { status: 400 })
+  }
 
   const { data, error } = await db
     .from('webhooks')

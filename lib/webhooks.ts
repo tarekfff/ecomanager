@@ -1,17 +1,8 @@
 import { createHmac } from 'crypto'
 import { v4 as uuid } from 'uuid'
 import { db } from '@/lib/db'
-import {
-  noestCreateOrder,
-  noestValidateOrder,
-  noestRequestReturn,
-  noestDeleteOrder,
-  noestUpdateOrder,
-  noestUpdateOrderBeforeExpedition,
-  normalizePhone,
-  NoestCreatePayload,
-  NoestUpdatePayload,
-} from '@/lib/noest'
+import { getAdapter, parseCarrierConfig, isCarrierWebhook } from '@/lib/carriers'
+import type { CarrierCreds, ShipmentInput } from '@/lib/carriers/types'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Webhook dispatcher — DYNAMIC per livraison société
@@ -66,9 +57,6 @@ export function shouldFireWebhooks(action: string): boolean {
   return !!eventForAction(action) || DELIVERY_ACTIONS.has(action)
 }
 
-function isNoestUrl(url: string): boolean {
-  return /noest-dz\.com/i.test(url)
-}
 
 interface WebhookRow {
   id:           string
@@ -192,9 +180,12 @@ async function dispatchGeneric(wh: WebhookRow, orderId: string, event: string, a
   }
 }
 
-// ── NOEST webhook: route through the NOEST API ──────────────────────────────────
+// ── Carrier dispatch: route through the chosen provider's adapter ───────────────
 
-async function getNoestTracking(orderId: string): Promise<string | null> {
+// Tracking is stored on the order via an order_log (action 'noest_push', key
+// 'noest_tracking') — kept as the historical key so existing NOEST orders keep
+// resolving. Used uniformly for every carrier.
+async function getCarrierTracking(orderId: string): Promise<string | null> {
   const { data } = await db
     .from('order_logs')
     .select('new_values')
@@ -206,13 +197,15 @@ async function getNoestTracking(orderId: string): Promise<string | null> {
   return (data?.new_values as { noest_tracking?: string } | null)?.noest_tracking ?? null
 }
 
-async function noestCreateFromOrder(orderId: string): Promise<{ payload: NoestCreatePayload; result: unknown; tracking: string | null }> {
+// Build a normalized shipment from the current order row (shared by all carriers).
+async function buildShipmentInput(orderId: string): Promise<ShipmentInput | null> {
   const { data } = await db
     .from('orders')
     .select(`
       reference, phone, phone2, address, wilaya_id, total, remark, delivery_method,
       clients!client_id(full_name),
       communes!commune_id(name),
+      wilayas!wilaya_id(name),
       order_items(product_name, quantity)
     `)
     .eq('id', orderId)
@@ -220,71 +213,40 @@ async function noestCreateFromOrder(orderId: string): Promise<{ payload: NoestCr
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fo = data as any
-  const produit = (fo.order_items as { product_name: string; quantity: number }[])
+  if (!fo) return null
+
+  const products = ((fo.order_items as { product_name: string; quantity: number }[]) ?? [])
     .map(i => (i.quantity > 1 ? `${i.product_name} x${i.quantity}` : i.product_name))
     .join(', ') || 'Produit'
 
-  const payload: NoestCreatePayload = {
-    reference: fo.reference,
-    client:    fo.clients?.full_name ?? fo.phone,
-    phone:     normalizePhone(fo.phone),
-    phone_2:   fo.phone2 ? normalizePhone(fo.phone2) : undefined,
-    adresse:   fo.address?.trim() || fo.communes?.name || 'Adresse non renseignée',
-    wilaya_id: fo.wilaya_id ?? 16,
-    commune:   fo.communes?.name ?? '',
-    montant:   fo.total ?? 0,
-    remarque:  fo.remark ?? undefined,
-    produit,
-    type_id:   1,
-    stop_desk: fo.delivery_method === 'stopdesk' ? 1 : 0,
-  }
-
-  const result = await noestCreateOrder(payload)
-  const tracking = result.success && result.tracking ? result.tracking : null
-  return { payload, result, tracking }
-}
-
-// Build the NOEST update payload (§5 / §5.1) from the current order row.
-async function noestUpdateFromOrder(orderId: string, tracking: string): Promise<NoestUpdatePayload> {
-  const { data } = await db
-    .from('orders')
-    .select(`
-      reference, phone, phone2, address, wilaya_id, total, remark, delivery_method,
-      clients!client_id(full_name),
-      communes!commune_id(name),
-      order_items(product_name, quantity)
-    `)
-    .eq('id', orderId)
-    .single()
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const fo = data as any
-  const produit = (fo.order_items as { product_name: string; quantity: number }[] ?? [])
-    .map(i => (i.quantity > 1 ? `${i.product_name} x${i.quantity}` : i.product_name))
-    .join(', ') || undefined
-
   return {
-    tracking,
-    client:    fo.clients?.full_name ?? undefined,
-    reference: fo.reference,
-    tel:       fo.phone ? normalizePhone(fo.phone) : undefined,
-    tel2:      fo.phone2 ? normalizePhone(fo.phone2) : undefined,
-    adresse:   fo.address?.trim() || fo.communes?.name || undefined,
-    commune:   fo.communes?.name ?? undefined,
-    montant:   fo.total ?? undefined,
-    remarque:  fo.remark ?? undefined,
-    product:   produit,
-    stop_desk: fo.delivery_method === 'stopdesk' ? 1 : 0,
+    reference:  fo.reference,
+    clientName: fo.clients?.full_name ?? fo.phone,
+    phone:      fo.phone,
+    phone2:     fo.phone2 ?? undefined,
+    address:    fo.address ?? '',
+    wilayaId:   fo.wilaya_id ?? 16,
+    wilayaName: fo.wilayas?.name ?? '',
+    commune:    fo.communes?.name ?? '',
+    amount:     fo.total ?? 0,
+    products,
+    stopDesk:   fo.delivery_method === 'stopdesk',
+    remark:     fo.remark ?? undefined,
   }
 }
 
-async function dispatchNoest(
+async function dispatchCarrier(
   wh: WebhookRow,
+  provider: string,
+  creds: CarrierCreds,
   orderId: string,
   event: string,
   action: string,
   userId: string | null,
 ) {
+  const adapter = getAdapter(provider)
+  if (!adapter) return
+
   const { data: order } = await db
     .from('orders')
     .select('tracking_status')
@@ -293,121 +255,115 @@ async function dispatchNoest(
   const status = (order as { tracking_status: string } | null)?.tracking_status ?? ''
 
   const started = Date.now()
+  const logTracking = (t: string | null) =>
+    db.from('order_logs').insert({
+      id: uuid(), order_id: orderId, user_id: userId,
+      action: 'noest_push', new_values: { noest_tracking: t, provider },
+    })
 
   try {
     switch (action) {
-      // ── Create on dispatch; create + validate on ship ────────────────────────
+      // ── Create on dispatch; create + validate (if needed) on ship ────────────
       case 'dispatch':
       case 'ship': {
-        let tracking = await getNoestTracking(orderId)
+        let tracking = await getCarrierTracking(orderId)
 
         if (!tracking) {
-          const { payload, result, tracking: newTracking } = await noestCreateFromOrder(orderId)
-          tracking = newTracking
-          if (tracking) {
-            await db.from('order_logs').insert({
-              id: uuid(), order_id: orderId, user_id: userId,
-              action: 'noest_push', new_values: { noest_tracking: tracking },
-            })
-          }
+          const input = await buildShipmentInput(orderId)
+          if (!input) return
+          const result = await adapter.createShipment(creds, input)
+          tracking = result.tracking ?? null
+          if (tracking) await logTracking(tracking)
           await writeLog({
             webhookId: wh.id, orderId, event,
-            httpStatus: tracking ? 200 : 422,
-            payload: { noest_action: 'create', ...payload },
-            response: JSON.stringify(result), durationMs: Date.now() - started,
+            httpStatus: result.ok ? 200 : 422,
+            payload: { carrier: provider, action: 'create' },
+            response: JSON.stringify(result.raw), durationMs: Date.now() - started,
           })
         }
 
-        if (action === 'ship' && tracking) {
+        if (action === 'ship' && tracking && adapter.supportsValidate && adapter.validateShipment) {
           const vStarted = Date.now()
-          const vResult  = await noestValidateOrder(tracking)
-          if (vResult.success) {
+          const vres = await adapter.validateShipment(creds, tracking)
+          if (vres.ok) {
             await db.from('order_logs').insert({
               id: uuid(), order_id: orderId, user_id: userId,
-              action: 'noest_validate', new_values: { noest_tracking: tracking },
+              action: 'noest_validate', new_values: { noest_tracking: tracking, provider },
             })
           }
           await writeLog({
             webhookId: wh.id, orderId, event,
-            httpStatus: vResult.success ? 200 : 422,
-            payload: { noest_action: 'validate', tracking },
-            response: JSON.stringify(vResult), durationMs: Date.now() - vStarted,
+            httpStatus: vres.ok ? 200 : 422,
+            payload: { carrier: provider, action: 'validate', tracking },
+            response: JSON.stringify(vres.raw), durationMs: Date.now() - vStarted,
           })
         }
         return
       }
 
-      // ── Edit → push changes to NOEST (§5.1 before expedition, §5 after) ───────
+      // ── Edit → push changes to the carrier (if it supports updates) ──────────
       case 'updated': {
-        const tracking = await getNoestTracking(orderId)
-        if (!tracking) return   // not on NOEST yet — nothing to update
-        const payload = await noestUpdateFromOrder(orderId, tracking)
+        const tracking = await getCarrierTracking(orderId)
+        if (!tracking || !adapter.updateShipment) return
+        const input = await buildShipmentInput(orderId)
+        if (!input) return
         const beforeExpedition = status === 'en_preparation' || status === 'en_dispatch'
-        const result = beforeExpedition
-          ? await noestUpdateOrderBeforeExpedition(payload)
-          : await noestUpdateOrder(payload)
+        const res = await adapter.updateShipment(creds, tracking, input, beforeExpedition)
         await writeLog({
           webhookId: wh.id, orderId, event,
-          httpStatus: result.success ? 200 : 422,
-          payload: { noest_action: beforeExpedition ? 'update_before_expedition' : 'update', ...payload },
-          response: JSON.stringify(result), durationMs: Date.now() - started,
+          httpStatus: res.ok ? 200 : 422,
+          payload: { carrier: provider, action: 'update', beforeExpedition, tracking },
+          response: JSON.stringify(res.raw), durationMs: Date.now() - started,
         })
         return
       }
 
-      // ── Cancel / return-from-dispatch → delete on NOEST (only while unvalidated) ─
+      // ── Cancel / return-from-dispatch → delete on the carrier (if supported) ─
       case 'cancel':
       case 'go_back_to_preparation': {
-        const tracking = await getNoestTracking(orderId)
-        if (!tracking) return
-        const result = await noestDeleteOrder(tracking)
-        // Going back to preparation, the order may be re-dispatched later. Drop the
-        // stored tracking so a fresh NOEST order is created next time instead of
-        // reusing the one we just deleted.
-        if (result.success && action === 'go_back_to_preparation') {
-          await db.from('order_logs').insert({
-            id: uuid(), order_id: orderId, user_id: userId,
-            action: 'noest_push', new_values: { noest_tracking: null },
-          })
-        }
+        const tracking = await getCarrierTracking(orderId)
+        if (!tracking || !adapter.cancelShipment) return
+        const res = await adapter.cancelShipment(creds, tracking)
+        // Re-dispatch later should create a fresh shipment → clear the tracking.
+        if (res.ok && action === 'go_back_to_preparation') await logTracking(null)
         await writeLog({
           webhookId: wh.id, orderId, event,
-          httpStatus: result.success ? 200 : 422,
-          payload: { noest_action: 'delete', tracking },
-          response: JSON.stringify(result), durationMs: Date.now() - started,
+          httpStatus: res.ok ? 200 : 422,
+          payload: { carrier: provider, action: 'cancel', tracking },
+          response: JSON.stringify(res.raw), durationMs: Date.now() - started,
         })
         return
       }
 
-      // ── Return request ───────────────────────────────────────────────────────
+      // ── Return request (if supported) ────────────────────────────────────────
       case 'request_return': {
-        const tracking = await getNoestTracking(orderId)
-        if (!tracking) return
-        const result = await noestRequestReturn(tracking)
-        if (result.success) {
+        const tracking = await getCarrierTracking(orderId)
+        if (!tracking || !adapter.requestReturn) return
+        const res = await adapter.requestReturn(creds, tracking)
+        if (res.ok) {
           await db.from('order_logs').insert({
             id: uuid(), order_id: orderId, user_id: userId,
-            action: 'noest_return_requested', new_values: { noest_tracking: tracking },
+            action: 'noest_return_requested', new_values: { noest_tracking: tracking, provider },
           })
         }
         await writeLog({
           webhookId: wh.id, orderId, event,
-          httpStatus: result.success ? 200 : 422,
-          payload: { noest_action: 'return', tracking },
-          response: JSON.stringify(result), durationMs: Date.now() - started,
+          httpStatus: res.ok ? 200 : 422,
+          payload: { carrier: provider, action: 'return', tracking },
+          response: JSON.stringify(res.raw), durationMs: Date.now() - started,
         })
         return
       }
 
-      // NOEST drives delivery itself — deliver / set_delivery_status / validate_return
-      // need no outbound call.
+      // Other actions (deliver / set_delivery_status / validate_return) need no
+      // outbound call — the carrier drives delivery itself.
       default:
         return
     }
   } catch (e) {
     await writeLog({
       webhookId: wh.id, orderId, event,
-      httpStatus: null, payload: { noest_action: action, error: true },
+      httpStatus: null, payload: { carrier: provider, action, error: true },
       response: String(e), durationMs: Date.now() - started,
     })
   }
@@ -437,7 +393,7 @@ export async function resolveCarrierForWebhook(
   const webhook = data as WebhookRow | null
   if (!webhook) return null
 
-  const platform = isNoestUrl(webhook.url) ? 'noest' : 'api'
+  const platform = parseCarrierConfig(webhook)?.provider ?? 'api'
 
   // Find an existing carrier for this boutique with the matching platform.
   const { data: existing } = await db
@@ -503,7 +459,8 @@ async function getOrderDeliveryWebhook(tenantId: string, orderId: string): Promi
 async function fireDeliveryWebhook(
   wh: WebhookRow, orderId: string, event: string, action: string, userId: string | null,
 ) {
-  if (isNoestUrl(wh.url)) await dispatchNoest(wh, orderId, event, action, userId)
+  const cfg = parseCarrierConfig(wh)
+  if (cfg) await dispatchCarrier(wh, cfg.provider, cfg.creds, orderId, event, action, userId)
   else await dispatchGeneric(wh, orderId, event, action)
 }
 
@@ -565,7 +522,7 @@ export async function fireOrderWebhooks(opts: FireOpts): Promise<void> {
 
       for (const wh of (data ?? []) as WebhookRow[]) {
         if (wh.id === deliveryWh?.id) continue
-        if (isNoestUrl(wh.url)) continue
+        if (isCarrierWebhook(wh)) continue   // carrier webhooks are delivery-only
         if (matchesBoutique(wh, opts.boutiqueId)) {
           tasks.push(dispatchGeneric(wh, opts.orderId, event, opts.action))
         }

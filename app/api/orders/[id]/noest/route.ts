@@ -11,6 +11,7 @@ import {
   normalizePhone,
   NoestCreatePayload,
 } from '@/lib/noest'
+import { resolveNoestCreds } from '@/lib/carriers/resolve'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -76,7 +77,8 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   }
 
   try {
-    const info = await noestGetTrackingInfo([noestTracking])
+    const creds = await resolveNoestCreds(user.tenantId, id)
+    const info = await noestGetTrackingInfo([noestTracking], creds)
     const data = info[noestTracking]
     return NextResponse.json({
       noest_tracking:     noestTracking,
@@ -100,6 +102,8 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
   const order = await verifyOrderTenant(id, user.tenantId)
   if (!order) return NextResponse.json({ error: 'Commande introuvable' }, { status: 404 })
+
+  const creds = await resolveNoestCreds(user.tenantId, id)
 
   switch (body.action) {
 
@@ -140,7 +144,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
         stop_desk: fo.delivery_method === 'stopdesk' ? 1 : 0,
       }
 
-      const result = await noestCreateOrder(payload)
+      const result = await noestCreateOrder(payload, creds)
 
       if (result.success && result.tracking) {
         await db.from('order_logs').insert({
@@ -164,7 +168,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       const tracking = await getNoestTracking(id)
       if (!tracking) return NextResponse.json({ error: 'Aucun tracking NOEST — commande non envoyée à NOEST' }, { status: 400 })
 
-      const result = await noestValidateOrder(tracking)
+      const result = await noestValidateOrder(tracking, creds)
       if (result.success) {
         await db.from('order_logs').insert({
           id:         uuid(),
@@ -183,7 +187,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       const tracking = await getNoestTracking(id)
       if (!tracking) return NextResponse.json({ error: 'Aucun tracking NOEST' }, { status: 400 })
 
-      const result = await noestRequestReturn(tracking)
+      const result = await noestRequestReturn(tracking, creds)
       if (result.success) {
         await db.from('order_logs').insert({
           id:         uuid(),
@@ -202,7 +206,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       const tracking = await getNoestTracking(id)
       if (!tracking) return NextResponse.json({ error: 'Aucun tracking NOEST' }, { status: 400 })
 
-      const result = await noestRequestNewAttempt(tracking)
+      const result = await noestRequestNewAttempt(tracking, creds)
       if (result.success) {
         await db.from('order_logs').insert({
           id:         uuid(),

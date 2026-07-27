@@ -20,6 +20,8 @@
     "eventPh":    "Select an event…",
     "url":        "URL",
     "urlPh":      "https://example.com/webhook",
+    "provider":        "Connection type",
+    "providerGeneric": "Notification (generic)",
     "secret":     "Secret key",
     "boutiques":  "Stores",
     "boutiqueHint": "(none = all stores)",
@@ -30,10 +32,21 @@
     "statusChanges":"Status changes",
     "modifications":"Modifications"
   },
+  "carrier": {
+    "test":       "Test connection",
+    "hint":       "The API key is stored securely and used to create shipments with this carrier.",
+    "testOk":     "Connection successful.",
+    "testFailed": "Connection failed.",
+    "fields": {
+      "token": "API key (token)",
+      "guid":  "User GUID"
+    }
+  },
   "errors": {
     "nameRequired":  "Name is required.",
     "eventRequired": "Event is required.",
     "urlRequired":   "URL is required.",
+    "credentialRequired": "Credential required: {{field}}.",
     "saveFailed":    "Error saving.",
     "deleteFailed":  "Error deleting."
   },

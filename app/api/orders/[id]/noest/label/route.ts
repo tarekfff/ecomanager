@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requirePermission } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { noestGetLabelResponse } from '@/lib/noest'
+import { resolveNoestCreds } from '@/lib/carriers/resolve'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -43,8 +44,9 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     return NextResponse.json({ error: 'Aucun tracking NOEST pour cette commande' }, { status: 404 })
   }
 
-  // Proxy the NOEST label PDF
-  const noestRes = await noestGetLabelResponse(noestTracking)
+  // Proxy the NOEST label PDF (using the tenant's own NOEST credentials)
+  const creds    = await resolveNoestCreds(user.tenantId, id)
+  const noestRes = await noestGetLabelResponse(noestTracking, creds)
 
   if (!noestRes.ok) {
     return NextResponse.json({ error: 'Erreur lors du téléchargement de l\'étiquette NOEST' }, { status: 502 })
