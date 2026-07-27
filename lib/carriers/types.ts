@@ -36,6 +36,9 @@ export interface ShipmentInput {
 export interface CarrierResult {
   ok:        boolean
   tracking?: string | null
+  /** Ready-to-print waybill / bon de livraison URL, when the carrier returns one
+   *  at create time (e.g. Zimou's `bordereau`). NOEST fetches labels on demand. */
+  labelUrl?: string | null
   message?:  string
   raw:       unknown
 }

@@ -255,10 +255,11 @@ async function dispatchCarrier(
   const status = (order as { tracking_status: string } | null)?.tracking_status ?? ''
 
   const started = Date.now()
-  const logTracking = (t: string | null) =>
+  const logTracking = (t: string | null, labelUrl?: string | null) =>
     db.from('order_logs').insert({
       id: uuid(), order_id: orderId, user_id: userId,
-      action: 'noest_push', new_values: { noest_tracking: t, provider },
+      action: 'noest_push',
+      new_values: { noest_tracking: t, provider, label_url: labelUrl ?? null },
     })
 
   try {
@@ -273,7 +274,7 @@ async function dispatchCarrier(
           if (!input) return
           const result = await adapter.createShipment(creds, input)
           tracking = result.tracking ?? null
-          if (tracking) await logTracking(tracking)
+          if (tracking) await logTracking(tracking, result.labelUrl)
           await writeLog({
             webhookId: wh.id, orderId, event,
             httpStatus: result.ok ? 200 : 422,

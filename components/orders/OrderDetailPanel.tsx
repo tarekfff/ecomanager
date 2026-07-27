@@ -1113,13 +1113,20 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
                               <button
                                 onClick={() => {
                                   if (!orderId) return
+                                  const labelUrl = typeof log.new_values?.label_url === 'string'
+                                    ? log.new_values.label_url as string
+                                    : null
+                                  // Carriers that return a ready-to-print waybill URL
+                                  // (e.g. Zimou's bordereau) open it directly in a new tab.
+                                  if (labelUrl) { window.open(labelUrl, '_blank', 'noopener'); return }
+                                  // Otherwise proxy the carrier label PDF (NOEST needs auth).
                                   fetch(`/api/orders/${orderId}/noest/label`, { headers: authHeader() })
                                     .then(r => r.blob())
                                     .then(blob => {
                                       const url = URL.createObjectURL(blob)
                                       const a   = document.createElement('a')
                                       a.href     = url
-                                      a.download = `etiquette-${log.new_values?.noest_tracking as string ?? 'noest'}.pdf`
+                                      a.download = `bon-livraison-${log.new_values?.noest_tracking as string ?? 'colis'}.pdf`
                                       a.click()
                                       URL.revokeObjectURL(url)
                                     })
@@ -1131,7 +1138,7 @@ export default function OrderDetailPanel({ orderId, onClose, onStatusChange }: O
                                   textDecoration: 'underline',
                                 }}
                               >
-                                Télécharger étiquette
+                                Bon de livraison
                               </button>
                             </div>
                           )}

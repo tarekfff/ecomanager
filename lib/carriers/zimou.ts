@@ -88,9 +88,13 @@ export const zimouAdapter: CarrierAdapter = {
     let body: unknown = text
     try { body = JSON.parse(text) } catch { /* keep raw text */ }
     const tracking = res.ok ? extractTracking(body) : null
+    // Zimou returns a ready-to-print waybill URL in `data.bordereau`.
+    const data     = (body as { data?: Record<string, unknown> })?.data
+    const bordereau = typeof data?.bordereau === 'string' ? data.bordereau : null
     return {
       ok:       res.ok && !!tracking,
       tracking,
+      labelUrl: bordereau,
       message:  res.ok ? (tracking ? undefined : 'No tracking code in Zimou response') : `HTTP ${res.status}`,
       raw:      { request: pkg, status: res.status, response: body },
     }
